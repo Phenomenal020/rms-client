@@ -1,5 +1,10 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { TeacherOnboardProvider } from "@/context/TeacherOnboardContext";
+import { SchoolOnboardProvider } from "@/context/SchoolOnboardContext";
+import { AddSubjectsProvider } from "@/context/AddSubjectsContext";
+import { AddStudentsProvider } from "@/context/AddStudentsContext";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,7 +27,16 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <TeacherOnboardProvider>
+          <SchoolOnboardProvider>
+            <AddSubjectsProvider>
+              <AddStudentsProvider>
+                {children}
+                <Toaster position="bottom-right" />
+              </AddStudentsProvider>
+            </AddSubjectsProvider>
+          </SchoolOnboardProvider>
+        </TeacherOnboardProvider>
       </body>
     </html>
   );

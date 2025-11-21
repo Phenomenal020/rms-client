@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shadcn/ui/card";
 import { GraduationCap, CheckCircle } from "lucide-react";
 
 import TeacherProfile from '@/app/onboard/(components)/TeacherProfile';

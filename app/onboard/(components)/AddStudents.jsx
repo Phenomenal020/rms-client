@@ -3,13 +3,13 @@
 import { useState, useContext } from "react";
 
 import {  CheckSquare, Square, Plus, Trash2, CheckCircle, ArrowLeft, Calendar as CalendarIcon, ChevronDown } from "lucide-react";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/shadcn/ui/label";
+import { Input } from "@/shadcn/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shadcn/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shadcn/ui/card";
+import { Button } from "@/shadcn/ui/button";
+import { Calendar } from "@/shadcn/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shadcn/ui/popover";
 
 import { AddStudentsContext } from "@/context/AddStudentsContext";
 import { AddSubjectsContext } from "@/context/AddSubjectsContext";

@@ -1,10 +1,10 @@
 'use client';
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shadcn/ui/table";
+import { Label } from "@/shadcn/ui/label";
+import { Input } from "@/shadcn/ui/input";
+import { Button } from "@/shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shadcn/ui/card";
 import { Plus, BookOpen, Trash2, CheckCircle, ArrowLeft, Save, Edit3, X, Check } from "lucide-react";
 import { useState, useContext, useRef } from "react";
 import { AddSubjectsContext } from "@/context/AddSubjectsContext";

@@ -1,9 +1,9 @@
 'use client';
 
 import { User, Mail, School, BookOpen } from "lucide-react";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Label } from "@/shadcn/ui/label";
+import { Input } from "@/shadcn/ui/input";
+import { Button } from "@/shadcn/ui/button";
 import { ArrowRight } from "lucide-react";
 import { useState, useContext } from "react";
 import { TeacherOnboardContext } from "@/context/TeacherOnboardContext";

@@ -1,11 +1,11 @@
 'use client';
 
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Label } from "@/shadcn/ui/label";
+import { Input } from "@/shadcn/ui/input";
+import { Button } from "@/shadcn/ui/button";
+import { Textarea } from "@/shadcn/ui/textarea";
+import { Calendar } from "@/shadcn/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/shadcn/ui/popover"
 import { ArrowLeft, CheckCircle, Plus, X, Upload, MapPin, Quote, Calendar as CalendarIcon, BookOpen, ChevronDown } from "lucide-react";
 import { useState, useContext } from "react";
 import { SchoolOnboardContext } from "@/context/SchoolOnboardContext";

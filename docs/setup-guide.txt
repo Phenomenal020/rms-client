@@ -1,0 +1,1048 @@
+================================================================================
+                    SETUP GUIDE DOCUMENTATION
+                    RMS (Result Management System)
+                    Prisma + Better Auth + Next.js
+================================================================================
+
+This document provides a comprehensive step-by-step guide for setting up
+Prisma, PostgreSQL, and Better Auth in a Next.js application.
+
+================================================================================
+                            TABLE OF CONTENTS
+================================================================================
+
+1. Prerequisites
+2. Prisma/PostgreSQL Setup
+3. Better Auth Setup
+4. API Routes Setup
+5. Environment Variables
+6. Schema Management & Migrations
+7. Testing the Setup
+8. Common Issues & Troubleshooting
+9. File Structure Reference
+
+================================================================================
+                            1. PREREQUISITES
+================================================================================
+
+Before starting, ensure you have:
+- Node.js 18+ installed
+- PostgreSQL database (local or cloud-hosted)
+- Next.js project initialised
+- Basic understanding of TypeScript/JavaScript
+- Terminal/Command line access
+
+================================================================================
+                    2. PRISMA/POSTGRESQL SETUP
+================================================================================
+
+2.1 INSTALL PRISMA AND DEPENDENCIES
+------------------------------------
+
+Install Prisma CLI and related packages as development dependencies:
+
+```bash
+npm install prisma tsx @types/pg --save-dev
+```
+
+Install Prisma Client, PostgreSQL adapter, and database driver:
+
+```bash
+npm install @prisma/client @prisma/adapter-pg dotenv pg
+```
+
+KEY PACKAGES EXPLAINED:
+- prisma: CLI tool for managing database schema and migrations
+- @prisma/client: Type-safe database client for querying
+- @prisma/adapter-pg: Prisma adapter for PostgreSQL
+- pg: PostgreSQL database driver (Node.js)
+- @types/pg: TypeScript types for pg
+- tsx: TypeScript execution environment
+- dotenv: Environment variable management
+
+2.2 INITIALIZE PRISMA
+---------------------
+
+Initialize Prisma in your project. This creates the Prisma schema file and
+sets up the basic configuration:
+
+```bash
+npx prisma init
+```
+
+This command creates:
+- `prisma/schema.prisma` - Database schema definition
+- `.env` file (if it doesn't exist) - Environment variables
+
+2.3 CONFIGURE PRISMA SCHEMA
+----------------------------
+
+Edit `prisma/schema.prisma` to configure the generator and datasource:
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"  // Custom output path (optional)
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")  // Reads from .env file
+}
+```
+
+KEY CONCEPTS:
+- generator: Defines how Prisma Client is generated
+- output: Where generated client code is placed (optional, defaults to node_modules)
+- datasource: Database connection configuration
+- provider: Database type (postgresql, mysql, sqlite, etc.)
+
+2.4 SET UP PRISMA CONFIG FILE (OPTIONAL BUT RECOMMENDED)
+---------------------------------------------------------
+
+Create `prisma.config.ts` in the project root for advanced Prisma configuration:
+
+```typescript
+import "dotenv/config";
+import { defineConfig, env } from "prisma/config";
+
+export default defineConfig({
+  schema: "prisma/schema.prisma",
+  migrations: {
+    path: "prisma/migrations",
+  },
+  datasource: {
+    url: env("DATABASE_URL"),
+  },
+});
+```
+
+This file allows you to:
+- Centralize Prisma configuration
+- Use environment variables with validation
+- Configure migration paths
+- Set up multiple environments
+
+2.5 CONFIGURE DATABASE URL
+---------------------------
+
+In your `.env` file, add your PostgreSQL connection string:
+
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/database_name?schema=public"
+```
+
+CONNECTION STRING FORMAT:
+- postgresql://[user]:[password]@[host]:[port]/[database]?[parameters]
+- For cloud databases (e.g., Supabase, Neon, Railway):
+  - Copy the connection string from your database provider
+  - Ensure it includes SSL parameters if required
+
+2.6 SET UP GLOBAL PRISMA CLIENT
+--------------------------------
+
+Create `src/lib/prisma.ts` to set up a singleton Prisma Client instance:
+
+```typescript
+import { PrismaClient } from '../generated/prisma/client';
+import { PrismaPg } from "@prisma/adapter-pg";
+
+// Create PostgreSQL adapter with connection string
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL!,
+});
+
+// Global variable to store Prisma Client in development
+const globalForPrisma = global as unknown as {
+  prisma: PrismaClient;
+};
+
+// Create or reuse Prisma Client instance
+const prisma =
+  globalForPrisma.prisma || new PrismaClient({
+    adapter,
+  });
+
+// In development, reuse the same instance to avoid multiple connections
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
+}
+
+export default prisma;
+```
+
+WHY THIS PATTERN?
+- Prevents multiple Prisma Client instances in development
+- Avoids connection pool exhaustion
+- Follows Next.js best practices for database connections
+- The adapter pattern allows Prisma to work with connection poolers
+
+2.7 GENERATE PRISMA CLIENT
+--------------------------
+
+Generate the Prisma Client based on your schema:
+
+```bash
+npx prisma generate
+```
+
+This command:
+- Reads your `schema.prisma` file
+- Generates type-safe Prisma Client
+- Creates TypeScript types for your models
+- Outputs to the specified directory (or node_modules by default)
+
+You must run this command:
+- After modifying the schema
+- After pulling changes that modify the schema
+- In CI/CD pipelines before building
+
+================================================================================
+                        3. BETTER AUTH SETUP
+================================================================================
+
+3.1 INSTALL BETTER AUTH
+------------------------
+
+Install Better Auth and its dependencies:
+
+```bash
+npm install better-auth
+```
+
+Better Auth is a modern authentication library that provides:
+- Email/password authentication
+- Social authentication (Google, GitHub, etc.)
+- Session management
+- Type-safe API
+- Built-in security features
+
+3.2 GENERATE SECRET KEY
+-----------------------
+
+Better Auth requires a secret key for signing tokens and encrypting data.
+Generate a secure random string:
+
+```bash
+# Using OpenSSL (recommended)
+openssl rand -base64 32
+
+# Or using Node.js
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+
+# Or using online tools (less secure, use only for development)
+# Visit: https://generate-secret.vercel.app/32
+```
+
+Add the secret to your `.env` file:
+
+```env
+BETTER_AUTH_SECRET="your-generated-secret-key-here"
+BETTER_AUTH_URL="http://localhost:3000"  # Your app URL
+```
+
+IMPORTANT:
+- Never commit the secret to version control
+- Use different secrets for development and production
+- The secret should be at least 32 characters long
+- Keep it secure and rotate it periodically
+
+3.3 CREATE BETTER AUTH CONFIGURATION
+-------------------------------------
+
+Create `src/lib/auth.ts` to configure Better Auth:
+
+```typescript
+import { betterAuth } from 'better-auth'
+import { prismaAdapter } from 'better-auth/adapters/prisma'
+import prisma from './prisma'
+
+export const auth = betterAuth({
+  database: prismaAdapter(prisma, {
+    provider: 'postgresql',   // Match your database provider
+  }),
+  emailAndPassword: {
+    enabled: true,            // Enable email/password auth
+  },
+  // Optional: Add custom user fields
+  user: {
+    additionalFields: {
+      role: {
+        type: 'string',
+        input: false  // Field is not user-editable during sign-up
+      }
+    }
+  },
+  // Optional: Configure trusted origins for CORS
+  // trustedOrigins: ['http://localhost:3001'],
+})
+
+// Export TypeScript types (optional but recommended)
+export type Session = typeof auth.$Infer.Session;
+export type User = typeof auth.$Infer.Session.user;
+```
+
+KEY CONFIGURATION OPTIONS:
+- database: Connects Better Auth to your database via Prisma adapter
+- emailAndPassword: Enables traditional email/password authentication
+- user.additionalFields: Add custom fields to the User model
+- trustedOrigins: Configure CORS for cross-origin requests
+
+3.4 CREATE FRONTEND AUTH CLIENT
+--------------------------------
+
+Create `src/lib/auth-client.ts` for client-side authentication:
+
+```typescript
+import { createAuthClient } from "better-auth/client";
+import { nextCookies } from "better-auth/next-js";
+import { inferAdditionalFields } from "better-auth/client/plugins";
+import { auth } from "./auth";
+
+export const authClient = createAuthClient({
+    plugins: [
+        inferAdditionalFields<typeof auth>(),  // Type inference for custom fields
+        nextCookies()  // Must be the last plugin - handles cookie management
+    ]
+})
+```
+
+KEY CONCEPTS:
+- createAuthClient: Creates a client-side auth instance
+- nextCookies: Plugin that manages authentication cookies in Next.js
+- inferAdditionalFields: Provides TypeScript types for custom user fields
+- The client provides methods like:
+  - authClient.signUp.email()
+  - authClient.signIn.email()
+  - authClient.signOut()
+  - authClient.useSession()
+
+3.5 CREATE SERVER-SIDE SESSION HELPER
+--------------------------------------
+
+Create `src/lib/get-session.ts` for server-side session retrieval:
+
+```typescript
+import { headers } from "next/headers";
+import { cache } from "react";
+import { auth } from "./auth";
+
+export const getServerSession = cache(async () => {
+  return await auth.api.getSession({ headers: await headers() });
+});
+```
+
+WHY USE cache()?
+- React's cache() prevents duplicate requests in the same render
+- Important for server components that might call getServerSession multiple times
+- Improves performance and reduces database queries
+
+3.6 SCHEMA MODIFICATION FOR BETTER AUTH
+----------------------------------------
+
+Better Auth requires specific database tables. You have two options:
+
+OPTION 1: USE BETTER AUTH CLI (RECOMMENDED)
+--------------------------------------------
+
+Better Auth provides a CLI tool to generate the schema automatically:
+
+```bash
+# Install Better Auth CLI
+npm install -D @better-auth/cli
+
+# Generate schema based on your Better Auth configuration
+npx @better-auth/cli generate
+
+# This will add the required models to your schema.prisma file
+```
+
+OPTION 2: MANUAL SCHEMA ADDITION
+----------------------------------
+
+Alternatively, manually add the required models to `prisma/schema.prisma`:
+
+```prisma
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  role          String?   // Custom field example
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
+}
+```
+
+SCHEMA BEST PRACTICES:
+- Use @@map() to control table names in the database
+- Add indexes for frequently queried fields
+- Use appropriate field types (String, DateTime, Boolean, etc.)
+- Define relationships with @relation
+- Use onDelete: Cascade for dependent records
+
+3.7 RUN BETTER AUTH MIGRATIONS
+-------------------------------
+
+After updating your schema, create and apply migrations:
+
+```bash
+# Create a migration
+npx prisma migrate dev --name add_auth_models
+
+# Or use Better Auth CLI (if using it)
+npx @better-auth/cli migrate
+```
+
+This will:
+- Generate SQL migration files
+- Apply migrations to your database
+- Regenerate Prisma Client
+- Create the necessary tables
+
+MIGRATION WORKFLOW:
+1. Modify schema.prisma
+2. Run `npx prisma migrate dev --name descriptive_name`
+3. Review the generated SQL in `prisma/migrations/`
+4. Migration is automatically applied to your database
+5. Prisma Client is regenerated
+
+================================================================================
+                        4. API ROUTES SETUP
+================================================================================
+
+4.1 CREATE API ROUTE HANDLER
+-----------------------------
+
+Create `app/api/auth/[...all]/route.ts` to handle all authentication requests:
+
+```typescript
+import { auth } from '@/src/lib/auth'
+import { toNextJsHandler } from "better-auth/next-js";
+
+export const { GET, POST } = toNextJsHandler(auth)
+```
+
+HOW IT WORKS:
+- The `[...all]` catch-all route captures all paths under `/api/auth/*`
+- `toNextJsHandler()` converts Better Auth instance to Next.js route handlers
+- Exports GET and POST handlers for HTTP methods
+- Handles all auth endpoints automatically:
+  - POST /api/auth/sign-up
+  - POST /api/auth/sign-in
+  - POST /api/auth/sign-out
+  - GET /api/auth/session
+  - And other auth-related endpoints
+
+4.2 UNDERSTANDING AUTH CALLS IN NEXT.JS
+-----------------------------------------
+
+CLIENT COMPONENTS - Making Auth Calls
+--------------------------------------
+
+In client components (marked with "use client"), use the authClient:
+
+```typescript
+"use client";
+
+import { authClient } from "@/src/lib/auth-client";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+export default function SignInForm() {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSignIn(email: string, password: string) {
+    const { error } = await authClient.signIn.email({
+      email,
+      password,
+    });
+
+    if (error) {
+      setError(error.message);
+    } else {
+      router.push("/dashboard");
+    }
+  }
+
+  return (
+    // Form JSX
+  );
+}
+```
+
+KEY POINTS:
+- Client components can use hooks (useState, useRouter, etc.)
+- authClient methods return promises
+- Errors are returned in the response object
+- Cookies are automatically managed by the nextCookies plugin
+
+SERVER COMPONENTS - Accessing Session
+--------------------------------------
+
+In server components (default in Next.js App Router), use getServerSession:
+
+```typescript
+import { getServerSession } from "@/src/lib/get-session";
+import { redirect } from "next/navigation";
+
+export default async function Dashboard() {
+  const session = await getServerSession();
+
+  if (!session) {
+    redirect("/sign-in");
+  }
+
+  return (
+    <div>
+      <h1>Welcome, {session.user.name}</h1>
+      <p>Email: {session.user.email}</p>
+    </div>
+  );
+}
+```
+
+KEY POINTS:
+- Server components are async by default
+- No hooks available (useState, useEffect, etc.)
+- Direct database access via Prisma is possible
+- Session is retrieved server-side from cookies
+- Use redirect() for navigation in server components
+
+NEXT.JS SERVER ACTIONS - Auth Operations
+-----------------------------------------
+
+Server Actions can also use auth methods:
+
+```typescript
+"use server";
+
+import { auth } from "@/src/lib/auth";
+import { headers } from "next/headers";
+
+export async function updateUserProfile(data: FormData) {
+  const session = await auth.api.getSession({ 
+    headers: await headers() 
+  });
+
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
+
+  // Update user profile using Prisma
+  // ...
+}
+```
+
+KEY POINTS:
+- Mark functions with "use server" directive
+- Can use auth.api methods directly
+- Must retrieve headers to get session
+- Can perform database operations
+- Called from client components via form actions or function calls
+
+4.3 AUTHENTICATION FLOW DIAGRAM
+--------------------------------
+
+CLIENT-SIDE AUTH CALL:
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│   Client    │────►│  authClient  │────►│  API Route  │────►│ Better   │
+│  Component  │     │  .signIn()   │     │  /api/auth  │     │   Auth   │
+└─────────────┘     └──────────────┘     └─────────────┘     └──────────┘
+                                                                    │
+                                                                    ▼
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│   Cookie    │◄────│  Response    │◄────│  Session    │◄────│ Prisma   │
+│    Set      │     │  with Token  │     │  Created    │     │ Database │
+└─────────────┘     └──────────────┘     └─────────────┘     └──────────┘
+
+SERVER-SIDE SESSION RETRIEVAL:
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│   Server    │────►│ getServer    │────►│   auth.api  │────►│ Prisma   │
+│  Component  │     │ Session()    │     │ getSession()│     │ Database │
+└─────────────┘     └──────────────┘     └─────────────┘     └──────────┘
+        │                    │                    │                  │
+        │                    │                    │                  │
+        └────────────────────┴────────────────────┴──────────────────┘
+                        Reads cookies from request headers
+
+================================================================================
+                        5. ENVIRONMENT VARIABLES
+================================================================================
+
+Create a `.env` file in your project root with the following variables:
+
+```env
+# Database Connection
+DATABASE_URL="postgresql://user:password@localhost:5432/database_name?schema=public"
+
+# Better Auth Configuration
+BETTER_AUTH_SECRET="your-generated-secret-key-minimum-32-characters"
+BETTER_AUTH_URL="http://localhost:3000"
+
+# Optional: For production
+# BETTER_AUTH_URL="https://yourdomain.com"
+```
+
+ENVIRONMENT VARIABLE EXPLANATION:
+- DATABASE_URL: PostgreSQL connection string
+  - Format: postgresql://[user]:[password]@[host]:[port]/[database]?[params]
+  - Required for Prisma to connect to your database
+- BETTER_AUTH_SECRET: Secret key for token signing and encryption
+  - Must be at least 32 characters
+  - Generate using: openssl rand -base64 32
+  - Never commit to version control
+- BETTER_AUTH_URL: Your application's base URL
+  - Used for generating callback URLs
+  - Should match your domain
+
+SECURITY BEST PRACTICES:
+- Never commit `.env` to version control
+- Add `.env` to `.gitignore`
+- Use `.env.example` as a template (without sensitive values)
+- Use different secrets for development and production
+- Rotate secrets periodically
+- Use environment-specific files: `.env.local`, `.env.production`
+
+================================================================================
+                  6. SCHEMA MANAGEMENT & MIGRATIONS
+================================================================================
+
+6.1 MIGRATION WORKFLOW
+-----------------------
+
+1. MODIFY SCHEMA
+   Edit `prisma/schema.prisma` to add/modify models
+
+2. CREATE MIGRATION
+   ```bash
+   npx prisma migrate dev --name descriptive_migration_name
+   ```
+   This:
+   - Creates a new migration file
+   - Applies it to your database
+   - Regenerates Prisma Client
+
+3. REVIEW MIGRATION
+   Check the generated SQL in `prisma/migrations/[timestamp]_[name]/migration.sql`
+
+4. FOR PRODUCTION
+   ```bash
+   npx prisma migrate deploy
+   ```
+   Applies pending migrations without prompting
+
+6.2 RESET DATABASE (DEVELOPMENT ONLY)
+--------------------------------------
+
+⚠️ WARNING: This deletes all data!
+
+```bash
+npx prisma migrate reset
+```
+
+This:
+- Drops the database
+- Recreates it
+- Applies all migrations
+- Runs seed scripts (if configured)
+
+6.3 PRISMA STUDIO (DATABASE GUI)
+---------------------------------
+
+View and edit your database visually:
+
+```bash
+npx prisma studio
+```
+
+Opens a web interface at http://localhost:5555
+
+6.4 SCHEMA SYNC (DEVELOPMENT)
+------------------------------
+
+For rapid prototyping (not recommended for production):
+
+```bash
+npx prisma db push
+```
+
+This:
+- Pushes schema changes directly to database
+- Does NOT create migration files
+- Useful for quick iterations
+- ⚠️ Can cause data loss if schema changes are incompatible
+
+================================================================================
+                        7. TESTING THE SETUP
+================================================================================
+
+7.1 VERIFY DATABASE CONNECTION
+-------------------------------
+
+Test your Prisma connection:
+
+```bash
+npx prisma db pull
+```
+
+This attempts to introspect your database. If successful, connection works.
+
+7.2 VERIFY PRISMA CLIENT
+------------------------
+
+Create a test script `test-prisma.ts`:
+
+```typescript
+import prisma from './src/lib/prisma';
+
+async function test() {
+  try {
+    await prisma.$connect();
+    console.log('✅ Prisma connected successfully');
+    
+    // Test query
+    const userCount = await prisma.user.count();
+    console.log(`✅ User count: ${userCount}`);
+    
+    await prisma.$disconnect();
+  } catch (error) {
+    console.error('❌ Prisma connection failed:', error);
+  }
+}
+
+test();
+```
+
+Run it:
+```bash
+npx tsx test-prisma.ts
+```
+
+7.3 VERIFY BETTER AUTH API
+---------------------------
+
+Start your Next.js dev server:
+
+```bash
+npm run dev
+```
+
+Test the session endpoint:
+```bash
+curl http://localhost:3000/api/auth/session
+```
+
+Should return: `{"user":null,"session":null}` (if not authenticated)
+
+7.4 TEST AUTHENTICATION FLOW
+-----------------------------
+
+1. Navigate to your sign-up page
+2. Create a new account
+3. Check Prisma Studio to verify user was created
+4. Sign in with the new account
+5. Verify session is created
+6. Test sign-out functionality
+
+================================================================================
+                  8. COMMON ISSUES & TROUBLESHOOTING
+================================================================================
+
+8.1 "CAN'T REACH DATABASE SERVER"
+----------------------------------
+
+Symptoms:
+- Error: Can't reach database server
+- P1001: Can't reach database server
+
+Solutions:
+- Verify DATABASE_URL is correct
+- Check if PostgreSQL is running
+- Verify network/firewall settings
+- Check database credentials
+- For cloud databases, verify IP whitelist
+
+8.2 "SCHEMA DOES NOT EXIST"
+---------------------------
+
+Symptoms:
+- Error: schema "public" does not exist
+
+Solutions:
+- Create the schema: CREATE SCHEMA IF NOT EXISTS public;
+- Or specify schema in connection string: ?schema=public
+- Grant permissions: GRANT ALL ON SCHEMA public TO your_user;
+
+8.3 "MODULE NOT FOUND" ERRORS
+------------------------------
+
+Symptoms:
+- Cannot find module '@prisma/client'
+- Cannot find module 'better-auth'
+
+Solutions:
+- Run: npm install
+- Run: npx prisma generate (for Prisma Client)
+- Restart your dev server
+- Clear node_modules and reinstall
+
+8.4 "MIGRATION FAILED"
+---------------------
+
+Symptoms:
+- Migration fails with SQL errors
+- Tables already exist errors
+
+Solutions:
+- Check if tables already exist in database
+- Review migration SQL files
+- Use `prisma migrate reset` (⚠️ deletes data) if in development
+- Manually fix database state if needed
+
+8.5 "BETTER_AUTH_SECRET NOT SET"
+--------------------------------
+
+Symptoms:
+- Authentication requests fail
+- Token signing errors
+
+Solutions:
+- Verify BETTER_AUTH_SECRET is in .env
+- Ensure secret is at least 32 characters
+- Restart dev server after adding to .env
+- Check for typos in variable name
+
+8.6 "COOKIES NOT WORKING"
+-------------------------
+
+Symptoms:
+- Session not persisting
+- Sign-in works but user immediately logged out
+
+Solutions:
+- Verify BETTER_AUTH_URL matches your domain
+- Check cookie settings in browser
+- Ensure HTTPS in production
+- Check CORS settings if using different domains
+
+8.7 "TYPE ERRORS WITH PRISMA CLIENT"
+-------------------------------------
+
+Symptoms:
+- TypeScript errors about missing types
+- Prisma Client types not found
+
+Solutions:
+- Run: npx prisma generate
+- Restart TypeScript server in your IDE
+- Check output path in schema.prisma matches import path
+- Verify @prisma/client is installed
+
+================================================================================
+                      9. FILE STRUCTURE REFERENCE
+================================================================================
+
+After setup, your project structure should look like:
+
+```
+project-root/
+├── .env                          # Environment variables (not in git)
+├── .env.example                  # Example env file (in git)
+├── prisma/
+│   ├── schema.prisma            # Database schema definition
+│   ├── migrations/              # Migration files
+│   │   └── [timestamp]_[name]/
+│   │       └── migration.sql
+│   └── migration_lock.toml      # Migration lock file
+├── prisma.config.ts             # Prisma configuration (optional)
+├── src/
+│   ├── generated/
+│   │   └── prisma/              # Generated Prisma Client
+│   │       ├── client.ts
+│   │       └── ...
+│   └── lib/
+│       ├── auth.ts              # Better Auth server configuration
+│       ├── auth-client.ts       # Better Auth client configuration
+│       ├── prisma.ts            # Prisma Client singleton
+│       └── get-session.ts       # Server-side session helper
+└── app/
+    └── api/
+        └── auth/
+            └── [...all]/
+                └── route.ts     # Auth API route handler
+```
+
+KEY FILES SUMMARY:
+- prisma/schema.prisma: Database models and configuration
+- src/lib/prisma.ts: Database client instance
+- src/lib/auth.ts: Server-side auth configuration
+- src/lib/auth-client.ts: Client-side auth instance
+- src/lib/get-session.ts: Server component session helper
+- app/api/auth/[...all]/route.ts: API endpoint handler
+- .env: Environment variables (sensitive, not in git)
+
+================================================================================
+                          10. QUICK REFERENCE
+================================================================================
+
+ESSENTIAL COMMANDS:
+-------------------
+
+# Prisma
+npx prisma generate              # Generate Prisma Client
+npx prisma migrate dev --name X  # Create and apply migration
+npx prisma migrate deploy        # Apply migrations (production)
+npx prisma studio                # Open database GUI
+npx prisma db push               # Push schema (dev only)
+
+# Better Auth
+npx @better-auth/cli generate    # Generate schema (if using CLI)
+npx @better-auth/cli migrate     # Run migrations (if using CLI)
+
+# Development
+npm run dev                      # Start Next.js dev server
+
+ENVIRONMENT VARIABLES:
+----------------------
+
+DATABASE_URL="postgresql://user:pass@host:5432/db"
+BETTER_AUTH_SECRET="your-secret-key"
+BETTER_AUTH_URL="http://localhost:3000"
+
+IMPORT PATHS:
+-------------
+
+# Server-side
+import prisma from '@/src/lib/prisma'
+import { auth } from '@/src/lib/auth'
+import { getServerSession } from '@/src/lib/get-session'
+
+# Client-side
+import { authClient } from '@/src/lib/auth-client'
+
+API ENDPOINTS (AUTOMATIC):
+--------------------------
+
+POST /api/auth/sign-up          # Create new account
+POST /api/auth/sign-in          # Sign in user
+POST /api/auth/sign-out         # Sign out user
+GET  /api/auth/session          # Get current session
+
+================================================================================
+                          11. NEXT STEPS
+================================================================================
+
+After completing the setup:
+
+1. ✅ Create sign-up and sign-in pages
+2. ✅ Implement protected routes
+3. ✅ Add user profile management
+4. ✅ Configure email verification (if needed)
+5. ✅ Add social authentication (Google, GitHub, etc.)
+6. ✅ Implement password reset flow
+7. ✅ Add role-based access control
+8. ✅ Set up production environment variables
+9. ✅ Configure CORS and security headers
+10. ✅ Add error monitoring and logging
+
+For detailed implementation guides, refer to:
+- Better Auth Documentation: https://www.better-auth.com/docs
+- Prisma Documentation: https://www.prisma.io/docs
+- Next.js Documentation: https://nextjs.org/docs
+
+================================================================================
+                          12. ADDITIONAL RESOURCES
+================================================================================
+
+OFFICIAL DOCUMENTATION:
+- Better Auth: https://www.better-auth.com/docs
+- Better Auth PostgreSQL Adapter: https://www.better-auth.com/docs/adapters/postgresql
+- Prisma with Better Auth: https://www.prisma.io/docs/guides/betterauth-nextjs
+- Prisma Documentation: https://www.prisma.io/docs
+- Next.js App Router: https://nextjs.org/docs/app
+
+COMMUNITY:
+- Better Auth GitHub: https://github.com/better-auth/better-auth
+- Prisma GitHub: https://github.com/prisma/prisma
+- Next.js GitHub: https://github.com/vercel/next.js
+
+================================================================================
+                           CONCLUSION
+================================================================================
+
+This setup guide provides a complete walkthrough for integrating Prisma,
+PostgreSQL, and Better Auth in a Next.js application. The combination of
+these technologies provides:
+
+✅ Type-safe database access with Prisma
+✅ Secure authentication with Better Auth
+✅ Modern React patterns with Next.js App Router
+✅ Scalable architecture for production use
+
+Remember to:
+- Keep your .env file secure and never commit it
+- Run migrations in a controlled manner
+- Test authentication flows thoroughly
+- Follow security best practices
+- Keep dependencies updated
+
+For questions or issues, refer to the official documentation or community
+resources listed above.
+
+================================================================================
+                           END OF DOCUMENTATION
+================================================================================
+

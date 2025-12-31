@@ -1,0 +1,379 @@
+================================================================================
+                    LOGOUT EVERYWHERE DOCUMENTATION
+                    RMS (Result Management System)
+                    Better Auth Session Revocation
+================================================================================
+
+This document explains how the logout everywhere functionality is implemented
+in this application using Better Auth.
+
+================================================================================
+                            TABLE OF CONTENTS
+================================================================================
+
+1. Overview
+2. Component Implementation
+3. Session Revocation Flow
+4. Better Auth API
+5. File Structure
+
+================================================================================
+                            1. OVERVIEW
+================================================================================
+
+The logout everywhere feature allows users to revoke all active sessions,
+logging them out from all devices and browsers at once.
+
+USE CASES:
+- User suspects account compromise
+- User wants to log out from all devices
+- Security measure after suspicious activity
+- User forgot to log out on shared/public device
+
+FLOW:
+1. User clicks "Log out everywhere" button
+2. All sessions are revoked (deleted from database)
+3. User is redirected to sign-in page
+4. User must sign in again to access the app
+
+================================================================================
+                        2. COMPONENT IMPLEMENTATION
+================================================================================
+
+Location: app/profile/logout-everywhere-button.jsx
+
+COMPONENT SETUP:
+```javascript
+export function LogoutEverywhereButton() {
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+```
+
+HANDLER FUNCTION:
+```javascript
+async function handleLogoutEverywhere() {
+  setLoading(true);
+  const { error } = await authClient.revokeSessions();
+  setLoading(false);
+
+  if (error) {
+    toast.error(error.message || "Failed to log out everywhere");
+  } else {
+    toast.success("Logged out from all devices");
+    router.push("/sign-in");
+  }
+}
+```
+
+KEY POINTS:
+- Uses authClient.revokeSessions() to revoke all sessions
+- Shows loading state during operation
+- Displays toast notifications for success/error
+- Redirects to sign-in page after success
+
+BUTTON RENDERING:
+```javascript
+return (
+  <LoadingButton
+    variant="destructive"
+    onClick={handleLogoutEverywhere}
+    loading={loading}
+    className="w-full"
+  >
+    Log out everywhere
+  </LoadingButton>
+);
+```
+
+KEY FEATURES:
+- variant="destructive" - Red styling to indicate destructive action
+- loading={loading} - Shows loading spinner during operation
+- className="w-full" - Full width button
+- Simple button component (no form needed)
+
+USAGE IN PROFILE PAGE:
+Location: app/profile/page.jsx
+
+```javascript
+<div className="flex-1 space-y-6">
+  <EmailForm currentEmail={user.email} />
+  <PasswordForm />
+  <LogoutEverywhereButton />  // Used here
+</div>
+```
+
+================================================================================
+                        3. SESSION REVOCATION FLOW
+================================================================================
+
+STEP 1: USER CLICKS BUTTON
+---------------------------
+User clicks "Log out everywhere" button
+
+STEP 2: LOADING STATE
+---------------------
+Button shows loading spinner
+```javascript
+setLoading(true);
+```
+
+STEP 3: REVOKE SESSIONS
+------------------------
+Better Auth revokes all sessions:
+```javascript
+await authClient.revokeSessions();
+```
+
+WHAT HAPPENS:
+- All sessions for the user are deleted from database
+- Current session is also revoked
+- User is immediately logged out
+- All devices/browsers are logged out
+
+STEP 4: SUCCESS HANDLING
+------------------------
+If successful:
+- Toast notification: "Logged out from all devices"
+- Redirect to sign-in page
+```javascript
+toast.success("Logged out from all devices");
+router.push("/sign-in");
+```
+
+STEP 5: ERROR HANDLING
+----------------------
+If error occurs:
+- Toast notification with error message
+- User remains on profile page
+- Can try again
+```javascript
+toast.error(error.message || "Failed to log out everywhere");
+```
+
+================================================================================
+                        4. BETTER AUTH API
+================================================================================
+
+CLIENT METHOD:
+```javascript
+authClient.revokeSessions()
+```
+
+PARAMETERS:
+- No parameters required
+- Automatically uses current user's sessions
+
+RETURNS:
+```javascript
+{
+  error?: {
+    message: string
+  }
+}
+```
+
+SERVER ENDPOINT:
+Better Auth automatically creates:
+- POST /api/auth/revoke-sessions - Revokes all user sessions
+
+WHAT IT DOES:
+- Deletes all Session records for the user from database
+- Invalidates all authentication cookies
+- User must sign in again to access protected routes
+
+================================================================================
+                        5. FILE STRUCTURE
+================================================================================
+
+Logout everywhere related files:
+
+```
+app/profile/
+└── logout-everywhere-button.jsx  # Logout everywhere button component
+
+app/profile/
+└── page.jsx                       # Profile page (uses the button)
+```
+
+KEY FILES:
+- logout-everywhere-button.jsx: Button component with handler
+- page.jsx: Profile page that includes the button
+
+DEPENDENCIES:
+- authClient: Better Auth client instance
+- useRouter: Next.js router for navigation
+- toast: Sonner toast notifications
+- LoadingButton: Custom loading button component
+
+================================================================================
+                          6. DIFFERENCES FROM REGULAR LOGOUT
+================================================================================
+
+REGULAR LOGOUT (authClient.signOut()):
+- Revokes only the current session
+- User stays logged in on other devices
+- Used in user dropdown menu
+
+LOGOUT EVERYWHERE (authClient.revokeSessions()):
+- Revokes ALL sessions for the user
+- Logs out from all devices/browsers
+- More secure option
+- Used in profile settings
+
+USE CASES:
+- Regular logout: Normal sign out from current device
+- Logout everywhere: Security measure, account compromise, forgot device
+
+================================================================================
+                          7. SECURITY CONSIDERATIONS
+================================================================================
+
+1. DESTRUCTIVE ACTION
+   - Logs out from all devices
+   - User must sign in again everywhere
+   - Should be clearly labeled as destructive
+
+2. NO CONFIRMATION DIALOG
+   - Current implementation has no confirmation
+   - Action happens immediately on click
+   - Consider adding confirmation dialog for production
+
+3. SESSION CLEANUP
+   - All sessions deleted from database
+   - Prevents unauthorized access
+   - Good security practice
+
+4. IMMEDIATE EFFECT
+   - User is logged out immediately
+   - Cannot undo the action
+   - Must sign in again to continue
+
+5. TOAST NOTIFICATIONS
+   - Provides user feedback
+   - Shows success/error messages
+   - Improves user experience
+
+================================================================================
+                          8. ERROR HANDLING
+================================================================================
+
+COMMON ERRORS:
+- "Failed to log out everywhere" - Generic error message
+- Network errors - Connection issues
+- Authentication errors - User not authenticated
+
+ERROR DISPLAY:
+```javascript
+if (error) {
+  toast.error(error.message || "Failed to log out everywhere");
+}
+```
+
+SUCCESS FEEDBACK:
+```javascript
+toast.success("Logged out from all devices");
+```
+
+LOADING STATE:
+```javascript
+const [loading, setLoading] = useState(false);
+
+// During operation
+setLoading(true);
+await authClient.revokeSessions();
+setLoading(false);
+```
+
+================================================================================
+                          9. UI/UX CONSIDERATIONS
+================================================================================
+
+BUTTON STYLING:
+- variant="destructive" - Red/destructive styling
+- Indicates this is a destructive action
+- Warns user about consequences
+
+BUTTON PLACEMENT:
+- Located in profile settings
+- Below email and password forms
+- Easy to find but not prominent
+
+LOADING STATE:
+- Button shows spinner during operation
+- Prevents multiple clicks
+- Provides visual feedback
+
+REDIRECT:
+- Automatically redirects to sign-in page
+- User must sign in again
+- Clear indication that logout was successful
+
+================================================================================
+                          10. QUICK REFERENCE
+================================================================================
+
+CLIENT METHOD:
+-------------
+authClient.revokeSessions()
+
+COMPONENT:
+----------
+<LogoutEverywhereButton />
+
+BEHAVIOR:
+---------
+- Revokes all user sessions
+- Logs out from all devices
+- Redirects to sign-in page
+- Shows toast notifications
+
+BUTTON STYLING:
+---------------
+variant="destructive"
+loading={loading}
+className="w-full"
+
+SUCCESS MESSAGE:
+----------------
+"Logged out from all devices"
+
+ERROR MESSAGE:
+--------------
+"Failed to log out everywhere"
+
+================================================================================
+                          11. POTENTIAL IMPROVEMENTS
+================================================================================
+
+1. CONFIRMATION DIALOG
+   ```javascript
+   // Add confirmation before revoking
+   if (!confirm("Are you sure you want to log out from all devices?")) {
+     return;
+   }
+   ```
+
+2. MODAL CONFIRMATION
+   - Use a modal dialog instead of browser confirm
+   - More professional appearance
+   - Better user experience
+
+3. SESSION COUNT
+   - Show number of active sessions
+   - Display device/location info
+   - Help user make informed decision
+
+4. SELECTIVE REVOCATION
+   - Allow revoking specific sessions
+   - Keep some devices logged in
+   - More granular control
+
+5. SUCCESS PAGE
+   - Redirect to dedicated success page
+   - Explain what happened
+   - Provide sign-in link
+
+================================================================================
+                           END OF DOCUMENTATION
+================================================================================
+

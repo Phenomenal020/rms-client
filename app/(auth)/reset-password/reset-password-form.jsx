@@ -14,45 +14,52 @@ import {
 import { authClient } from "@/src/lib/auth-client";
 import { passwordSchema } from "@/src/lib/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { toast } from "sonner";
 
 const resetPasswordSchema = z.object({
   newPassword: passwordSchema,
 });
 
-export function ResetPasswordForm({ token }) {
-  const [success, setSuccess] = useState(null);
-  const [error, setError] = useState(null);
+export function ResetPasswordForm() {
 
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token");
+  const error = searchParams.get("error");
 
   const form = useForm({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: { newPassword: "" },
   });
 
-  async function onSubmit({ newPassword }) {
-    setSuccess(null);
-    setError(null);
-
-    const { error } = await authClient.resetPassword({
-      newPassword,
-      token,
-    });
-
-    if (error) {
-      setError(error.message || "Something went wrong");
-    } else {
-      setSuccess("Password has been reset. You can now sign in.");
-      setTimeout(() => router.push("/sign-in"), 3000);
-      form.reset();
+  async function onSubmit(data) {
+    try {
+      if (!token) {
+        toast.error("Invalid reset token. Please request a new password reset.");
+        return;
+      }
+      const { error } = await authClient.resetPassword({
+        newPassword: data.newPassword,
+        token,
+      });
+      if (error) {
+        toast.error('Failed to reset password. Please try again.');
+        router.push("/forgot-password");
+        return;
+      }
+      toast.success("Password has been reset. You can now sign in.");
+      router.push("/sign-in");
+    } catch (err) {
+      toast.error("An unexpected error occurred. Please try again.");
+      router.push("/forgot-password");
     }
   }
 
   const loading = form.formState.isSubmitting;
+
 
   return (
     <Card className="mx-auto w-full max-w-md">
@@ -76,17 +83,6 @@ export function ResetPasswordForm({ token }) {
                 </FormItem>
               )}
             />
-
-            {success && (
-              <div role="status" className="text-sm text-green-600">
-                {success}
-              </div>
-            )}
-            {error && (
-              <div role="alert" className="text-sm text-red-600">
-                {error}
-              </div>
-            )}
 
             <LoadingButton type="submit" className="w-full" loading={loading}>
               Reset password

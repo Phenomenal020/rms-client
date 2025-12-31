@@ -1,6 +1,7 @@
 "use client";
 
-import { Github } from "lucide-react";
+import { authClient } from '@/src/lib/auth-client';  // use the auth client to interact with the auth server
+
 import { LoadingButton } from "@/shared-components/loading-button";
 import { PasswordInput } from "@/shared-components/password-input";
 import { Button } from "@/shadcn/ui/button";
@@ -22,7 +23,6 @@ import {
     FormMessage,
 } from "@/shadcn/ui/form";
 import { Input } from '@/shadcn/ui/input';
-import { authClient } from '@/src/lib/auth-client';
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -31,6 +31,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
+// use zod schema to validate the signin form
 const signInSchema = z.object({
     email: z.email({ message: "Please enter a valid email" }),
     password: z.string().min(1, { message: "Password is required" }),
@@ -44,8 +45,10 @@ export function SignInForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
+    // get the redirect parameter from the url (after signin success)
     const redirect = searchParams.get("redirect");
 
+    // use the useForm hook to create the form state and validation
     const form = useForm({
         resolver: zodResolver(signInSchema),
         defaultValues: {
@@ -55,53 +58,63 @@ export function SignInForm() {
         },
     });
 
+    // when the user submits the form
     async function onSubmit({ email, password, rememberMe }) {
-        setError(null);
-        setLoading(true);
+        setError(null);  // potential error messages
+        setLoading(true);  // loading state b/c of the other signin methods
 
         const { error } = await authClient.signIn.email({
             email,
             password,
-            rememberMe,
+            rememberMe,  
         });
 
         setLoading(false);
 
         if (error) {
-            setError(error.message || "Something went wrong");
+            const errorMessage = "Unable to sign in. Please try again.";
+            setError(errorMessage);
+            toast.error(errorMessage);
         } else {
-            toast.success("Signed in successfully");
-            router.push(redirect ?? "/dashboard");
+            toast.success("Sign in successful");
+            router.push(redirect ?? "/settings/profile");  // if no redirect, redirect to the dashboard
         }
     }
 
+    // Google social sign in
     async function handleSocialSignIn(provider) {
-        setError(null);
-        setLoading(true);
+        setError(null); // potential error messages
+        setLoading(true);  // loading spinner
 
+        // sign in with the social provider
         const { error } = await authClient.signIn.social({
             provider,
-            callbackURL: redirect ?? "/dashboard",
+            callbackURL: redirect ?? "/settings/profile",
         });
 
         setLoading(false);
 
         if (error) {
-            setError(error.message || "Something went wrong");
+            const errorMessage = "Unable to sign in. Please try again.";
+            setError(errorMessage);
+            toast.error(errorMessage);
         }
     }
 
     return (
         <Card className="w-full max-w-md">
+            {/* Text: Sign In > Enter your email below to login to your account */}
             <CardHeader>
                 <CardTitle className="text-lg md:text-xl">Sign In</CardTitle>
                 <CardDescription className="text-xs md:text-sm">
                     Enter your email below to login to your account
                 </CardDescription>
             </CardHeader>
+            {/* Form: Email, Password, Remember Me */}
             <CardContent>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        {/* Form Field: Email */}
                         <FormField
                             control={form.control}
                             name="email"
@@ -120,6 +133,7 @@ export function SignInForm() {
                             )}
                         />
 
+                        {/* Form Field: Password */}
                         <FormField
                             control={form.control}
                             name="password"
@@ -146,6 +160,7 @@ export function SignInForm() {
                             )}
                         />
 
+                        {/* Form Field: Remember Me */}
                         <FormField
                             control={form.control}
                             name="rememberMe"
@@ -162,17 +177,21 @@ export function SignInForm() {
                             )}
                         />
 
+                        {/* Error Message */}
                         {error && (
                             <div role="alert" className="text-sm text-red-600">
                                 {error}
                             </div>
                         )}
 
+                        {/* Login Button */}
                         <LoadingButton type="submit" className="w-full" loading={loading}>
                             Login
                         </LoadingButton>
 
+                        {/* Social Sign In Buttons  */}
                         <div className="flex w-full flex-col items-center justify-between gap-2">
+                            {/* Button: Google Sign In */}
                             <Button
                                 type="button"
                                 variant="outline"
@@ -189,20 +208,12 @@ export function SignInForm() {
                                 Sign in with Google
                             </Button>
 
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full gap-2"
-                                disabled={loading}
-                                onClick={() => handleSocialSignIn("github")}
-                            >
-                                <Github className="w-4 h-4" />
-                                Sign in with Github
-                            </Button>
                         </div>
                     </form>
                 </Form>
             </CardContent>
+
+            {/* Link: Don't have an account? Sign up */}
             <CardFooter>
                 <div className="flex w-full justify-center border-t pt-4">
                     <p className="text-muted-foreground text-center text-xs">

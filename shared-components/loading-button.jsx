@@ -11,10 +11,15 @@ export function LoadingButton({
   loading,
   disabled,
   children,
+  className,
   ...props
 }) {
   return (
-    <Button disabled={loading || disabled} {...props}>
+    <Button 
+      disabled={loading || disabled} 
+      {...props} 
+      className={className ? `${className} cursor-pointer` : "cursor-pointer"}
+    >
       {loading ? <Loader2 className="animate-spin" /> : children}
     </Button>
   );

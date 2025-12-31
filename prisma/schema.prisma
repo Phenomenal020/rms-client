@@ -1,9 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
+// Prisma setup
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -13,43 +8,340 @@ datasource db {
   provider = "postgresql"
 }
 
+// Enums
+
+// Gender for students
+enum Gender {
+  NONE
+  MALE
+  FEMALE
+}
+
+// Academic term within a school year
+enum Term {
+  FIRST
+  SECOND
+  THIRD
+}
+
+// User roles (teachers and admins)
+enum Role {
+  TEACHER
+  ADMIN
+}
+
+// Subscription tier
+enum Subscription {
+  REGULAR
+  PRO
+}
+
+// Student department / stream
+enum Department {
+  NONE
+  SCIENCE
+  ARTS
+  GENERAL
+}
+
+
+// Core domain models
+
+// A school is the top-level organisational unit
+model School {
+  // school information
+  id              String   @id @default(uuid())
+  schoolName      String
+  schoolAddress   String?
+  schoolMotto     String?
+  schoolTelephone String?
+  schoolEmail     String?
+
+  // Relations
+  users           User[]
+  classes         Class[]
+  academicTerms   AcademicTerm[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("school")
+}
+
+
+// A user represents a teacher or admin.
 model User {
-  id            String    @id
-  name          String
-  email         String
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @default(now()) @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  role          String?
+  // User information
+  id              String   @id @default(uuid())
+  name            String
+  firstName       String
+  lastName        String
+  email           String
+  emailVerified   Boolean  @default(false)
+  image           String?
+  role            Role     @default(TEACHER)
+  subscription    Subscription @default(REGULAR)
+
+  // School affiliation
+  schoolId        String?
+  school School?   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  // A teacher can manage multiple academic terms
+  academicTerms   AcademicTerm[]
+
+  // Auth
+  sessions        Session[]
+  accounts        Account[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@unique([email])
   @@map("user")
 }
 
-model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String
+
+// A class is a persistent entity within a school. It exists across years and terms.
+model Class {
+  id        String   @id @default(uuid())
+  name      String
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  academicTerms AcademicTerm[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Prevent duplicate class names per school
+  @@unique([schoolId, name])
+  @@map("class")
+}
+
+
+// An academic term represents a specific term (FIRST / SECOND / THIRD) for a class in a given academic year.
+model AcademicTerm {
+  id                String   @id @default(uuid())
+  academicYear      String
+  term              Term
+
+  // Ownership
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)  // never delete a user. Instead, the admin should reassign class.
+
+  // Class & School
+  classId           String
+  class             Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  schoolId          String
+  school            School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  // Optional metadata for template rendering
+  termDays          Int?
+  termStart         DateTime?
+  termEnd           DateTime?
+  resultTemplateUrl String?
+
+  // Term-scoped structures
+  gradingSystem       GradingSystem[]
+  assessmentStructure AssessmentStructure[]
+  subjects            Subject[]
+  students            Student[]
+  assessments         Assessment[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // One term per class per academic year
+  @@unique([classId, academicYear, term])
+  @@map("academic_term")
+}
+
+
+// Grading rules are term-specific
+model GradingSystem {
+  // Structure
+  id              String   @id @default(uuid())
+  grade           String
+  minScore        Int
+  maxScore        Int
+  remark          String?
+
+  // relations (with academic term)
+  academicTermId  String
+  academicTerm    AcademicTerm @relation(fields: [academicTermId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("grading_system")
+}
+
+
+// Defines how assessments are structured for a term (e.g., CA = 30%, Exam = 70%)
+model AssessmentStructure {
+  // structure
+  id              String   @id @default(uuid())
+  type            String
+  percentage      Int
+  order           Int
+
+  // relations (with assessment structure)
+  academicTermId  String
+  academicTerm    AcademicTerm @relation(fields: [academicTermId], references: [id], onDelete: Cascade)
+
+  // subjects that inherit the assessment structure (basically all of them)
+  subjects        Subject[]
+  scores          AssessmentScore[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("assessment_structure")
+}
+
+
+// A subject exists within a term and class
+model Subject {
+  // structure (just the name + other relations)
+  id                    String   @id @default(uuid())
+  name                  String
+
+  academicTermId        String
+  academicTerm          AcademicTerm @relation(fields: [academicTermId], references: [id], onDelete: Cascade)
+
+  // Optional override of assessment structure
+  assessmentStructureId String?
+  assessmentStructure   AssessmentStructure? @relation(fields: [assessmentStructureId], references: [id], onDelete: SetNull)
+
+  // students offering the subject
+  students              StudentSubject[]
+  assessments           Assessment[]
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("subject")
+}
+
+
+// A student exists within a specific academic term. Students are re-created per term/session (TODO: Review this in more advanced schema design if necessary)
+model Student {
+  // Student information
+  id              String   @id @default(uuid())
+  firstName       String
+  middleName      String?
+  lastName        String
+  dateOfBirth     DateTime?
+  gender          Gender   @default(NONE)
+  department      Department @default(NONE)
+  daysPresent     Int?
+
+  // relations with academic term
+  academicTermId  String
+  academicTerm    AcademicTerm @relation(fields: [academicTermId], references: [id], onDelete: Cascade)
+
+  // subjects the student is offering
+  subjects        StudentSubject[]
+  assessments     Assessment[] @relation("StudentAssessments")
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("student")
+}
+
+
+// Junction table: students enrolled in a subject
+model StudentSubject {
+  id          String   @id @default(uuid())
+  studentId   String
+  subjectId   String
+
+  // student-subject reference
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject     Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  // assessments for the subjects
+  assessments Assessment[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([studentId, subjectId])
+  @@map("student_subject")
+}
+
+
+// One assessment per student–subject–term
+model Assessment {
+  id                String   @id @default(uuid())
+
+  studentId         String
+  subjectId         String
+  studentSubjectId  String
+  academicTermId    String
+
+  student           Student        @relation("StudentAssessments", fields: [studentId], references: [id], onDelete: Cascade)
+  subject           Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  studentSubject    StudentSubject @relation(fields: [studentSubjectId], references: [id], onDelete: Cascade)
+  academicTerm      AcademicTerm   @relation(fields: [academicTermId], references: [id], onDelete: Cascade)
+
+  // assignment scores should take from AssessmentScore structure
+  scores            AssessmentScore[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([studentId, subjectId, academicTermId])
+  @@map("assessment")
+}
+
+
+// Individual score entries per assessment type
+model AssessmentScore {
+  id                    String   @id @default(uuid())
+  assessmentId          String
+  assessmentStructureId String
+  score                 Int
+
+  // should be based on the assessment structure defined for that term
+  assessment            Assessment         @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  assessmentStructure   AssessmentStructure @relation(fields: [assessmentStructureId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([assessmentId, assessmentStructureId])
+  @@map("assessment_score")
+}
+
+
+// Better Auth User Management
+// User sessions
+model Session {
+  id        String   @id @default(uuid())
+  expiresAt DateTime
+  token     String   @unique
   ipAddress String?
   userAgent String?
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([token])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@map("session")
 }
 
+// User Accounts
 model Account {
-  id                    String    @id
+  id                    String   @id @default(uuid())
   accountId             String
   providerId            String
   userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   accessToken           String?
   refreshToken          String?
   idToken               String?
@@ -57,19 +349,22 @@ model Account {
   refreshTokenExpiresAt DateTime?
   scope                 String?
   password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   @@map("account")
 }
 
+// Email Verification
 model Verification {
-  id         String   @id
+  id         String   @id @default(uuid())
   identifier String
   value      String
   expiresAt  DateTime
+
   createdAt  DateTime @default(now())
-  updatedAt  DateTime @default(now()) @updatedAt
+  updatedAt  DateTime @updatedAt
 
   @@map("verification")
 }

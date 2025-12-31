@@ -1,0 +1,465 @@
+================================================================================
+                    UPDATE PROFILE DOCUMENTATION
+                    RMS (Result Management System)
+                    Better Auth Profile Management
+================================================================================
+
+This document explains how the update profile functionality is implemented
+in this application using Better Auth.
+
+================================================================================
+                            TABLE OF CONTENTS
+================================================================================
+
+1. Profile Page Structure
+2. Update Profile Details
+3. Change Email
+4. Change Password
+5. Logout Everywhere
+6. File Structure
+
+================================================================================
+                        1. PROFILE PAGE STRUCTURE
+================================================================================
+
+Location: app/profile/page.jsx
+
+The profile page is a server component that displays all profile management
+forms:
+
+```javascript
+import { getServerSession } from "@/src/lib/get-session";
+import { unauthorized } from "next/navigation";
+import { EmailForm } from "./email-form";
+import { LogoutEverywhereButton } from "./logout-everywhere-button";
+import { PasswordForm } from "./password-form";
+import { ProfileDetailsForm } from "./profile-details-form";
+
+export default async function ProfilePage() {
+  const session = await getServerSession();
+  const user = session?.user;
+
+  if (!user) unauthorized();
+
+  return (
+    <main className="mx-auto w-full max-w-6xl px-4 py-12">
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-semibold">Profile</h1>
+          <p className="text-muted-foreground">
+            Update your account details, email, and password.
+          </p>
+        </div>
+        <div className="flex flex-col gap-6 lg:flex-row">
+          <div className="flex-1">
+            <ProfileDetailsForm user={user} />
+          </div>
+          <div className="flex-1 space-y-6">
+            <EmailForm currentEmail={user.email} />
+            <PasswordForm />
+            <LogoutEverywhereButton />
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+```
+
+KEY POINTS:
+- Server component that fetches session server-side
+- Passes user data to client components
+- Layout: Profile details on left, email/password/logout on right
+- Responsive: Stacks vertically on mobile, side-by-side on desktop
+
+================================================================================
+                     2. UPDATE PROFILE DETAILS
+================================================================================
+
+Location: app/profile/profile-details-form.jsx
+
+This component allows users to update their name and profile image.
+
+SCHEMA VALIDATION:
+```javascript
+const updateProfileSchema = z.object({
+  name: z.string().trim().min(1, { message: "Name is required" }),
+  image: z.string().optional().nullable(),
+});
+```
+
+FORM SETUP:
+```javascript
+const form = useForm({
+  resolver: zodResolver(updateProfileSchema),
+  defaultValues: {
+    name: user.name ?? "",
+    image: user.image ?? null,
+  },
+});
+```
+
+SUBMIT HANDLER:
+```javascript
+async function onSubmit({ name, image }) {
+  setStatus(null);
+  setError(null);
+
+  const { error } = await authClient.updateUser({ name, image });
+
+  if (error) {
+    setError(error.message || "Failed to update profile");
+  } else {
+    setStatus("Profile updated");
+    router.refresh(); // Refresh server component to show updated data
+  }
+}
+```
+
+IMAGE HANDLING:
+```javascript
+function handleImageChange(e) {
+  const file = e.target.files?.[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result;
+      form.setValue("image", base64, { shouldDirty: true });
+    };
+    reader.readAsDataURL(file);
+  }
+}
+```
+
+NOTE: Currently converts image to base64. TODO comment indicates this should
+be uploaded to Cloudinary or another file storage service.
+
+IMAGE PREVIEW:
+```javascript
+const imagePreview = form.watch("image");
+
+{imagePreview && (
+  <div className="relative size-16">
+    <UserAvatar
+      name={user.name}
+      image={imagePreview}
+      className="size-16"
+    />
+    <Button
+      type="button"
+      variant="ghost"
+      className="absolute -top-2 -right-2 size-6 rounded-full"
+      onClick={() => form.setValue("image", null)}
+    >
+      <XIcon className="size-4" />
+    </Button>
+  </div>
+)}
+```
+
+KEY POINTS:
+- Uses authClient.updateUser() to update profile
+- Converts image to base64 (should be changed to file upload service)
+- Shows image preview with remove button
+- Refreshes page after successful update
+
+================================================================================
+                           3. CHANGE EMAIL
+================================================================================
+
+Location: app/profile/email-form.jsx
+
+This component allows users to change their email address.
+
+SCHEMA VALIDATION:
+```javascript
+export const updateEmailSchema = z.object({
+  newEmail: z.email({ message: "Enter a valid email" }),
+});
+```
+
+FORM SETUP:
+```javascript
+const form = useForm({
+  resolver: zodResolver(updateEmailSchema),
+  defaultValues: {
+    newEmail: currentEmail,
+  },
+});
+```
+
+SUBMIT HANDLER:
+```javascript
+async function onSubmit({ newEmail }) {
+  setStatus(null);
+  setError(null);
+
+  const { error } = await authClient.changeEmail({
+    newEmail,
+    callbackURL: "/email-verified",
+  });
+
+  if (error) {
+    setError(error.message || "Failed to initiate email change");
+  } else {
+    setStatus("Verification email sent to your current address");
+  }
+}
+```
+
+KEY POINTS:
+- Uses authClient.changeEmail() to initiate email change
+- Sends verification email to current address
+- Requires email verification before change takes effect
+- callbackURL specifies where to redirect after verification
+
+================================================================================
+                         4. CHANGE PASSWORD
+================================================================================
+
+Location: app/profile/password-form.jsx
+
+This component allows users to change their password.
+
+SCHEMA VALIDATION:
+```javascript
+const updatePasswordSchema = z.object({
+  currentPassword: z
+    .string()
+    .min(1, { message: "Current password is required" }),
+  newPassword: passwordSchema, // Uses passwordSchema from validation.js
+});
+```
+
+FORM SETUP:
+```javascript
+const form = useForm({
+  resolver: zodResolver(updatePasswordSchema),
+  defaultValues: {
+    currentPassword: "",
+    newPassword: "",
+  },
+});
+```
+
+SUBMIT HANDLER:
+```javascript
+async function onSubmit({ currentPassword, newPassword }) {
+  setStatus(null);
+  setError(null);
+
+  const { error } = await authClient.changePassword({
+    currentPassword,
+    newPassword,
+    revokeOtherSessions: true, // Logs out all other devices
+  });
+
+  if (error) {
+    setError(error.message || "Failed to change password");
+  } else {
+    setStatus("Password changed");
+    form.reset(); // Clear form fields
+  }
+}
+```
+
+NOTE: Comment in code mentions OAuth users (without password) can use the
+"forgot password" flow instead.
+
+KEY POINTS:
+- Uses authClient.changePassword() to update password
+- Requires current password for verification
+- revokeOtherSessions: true logs out all other devices
+- Resets form after successful change
+- Uses passwordSchema for new password validation
+
+================================================================================
+                       5. LOGOUT EVERYWHERE
+================================================================================
+
+Location: app/profile/logout-everywhere-button.jsx
+
+This component allows users to revoke all active sessions.
+
+IMPLEMENTATION:
+```javascript
+export function LogoutEverywhereButton() {
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  async function handleLogoutEverywhere() {
+    setLoading(true);
+    const { error } = await authClient.revokeSessions();
+    setLoading(false);
+
+    if (error) {
+      toast.error(error.message || "Failed to log out everywhere");
+    } else {
+      toast.success("Logged out from all devices");
+      router.push("/sign-in");
+    }
+  }
+
+  return (
+    <LoadingButton
+      variant="destructive"
+      onClick={handleLogoutEverywhere}
+      loading={loading}
+      className="w-full"
+    >
+      Log out everywhere
+    </LoadingButton>
+  );
+}
+```
+
+KEY POINTS:
+- Uses authClient.revokeSessions() to invalidate all sessions
+- Shows toast notifications for success/error
+- Redirects to sign-in page after success
+- Uses destructive variant button for visual warning
+
+================================================================================
+                         6. FILE STRUCTURE
+================================================================================
+
+Profile-related files:
+
+```
+app/profile/
+├── page.jsx                    # Main profile page (server component)
+├── profile-details-form.jsx    # Update name and image
+├── email-form.jsx              # Change email
+├── password-form.jsx            # Change password
+├── logout-everywhere-button.jsx # Revoke all sessions
+└── loading.jsx                 # Loading state (if exists)
+```
+
+KEY FILES:
+- page.jsx: Server component that fetches session and renders forms
+- profile-details-form.jsx: Client component for name/image updates
+- email-form.jsx: Client component for email changes
+- password-form.jsx: Client component for password changes
+- logout-everywhere-button.jsx: Client component for session revocation
+
+================================================================================
+                          7. BETTER AUTH METHODS
+================================================================================
+
+All profile updates use Better Auth client methods:
+
+UPDATE USER:
+```javascript
+authClient.updateUser({ name, image })
+```
+- Updates user's name and/or image
+- Returns { error } object
+
+CHANGE EMAIL:
+```javascript
+authClient.changeEmail({ newEmail, callbackURL })
+```
+- Initiates email change process
+- Sends verification email
+- Returns { error } object
+
+CHANGE PASSWORD:
+```javascript
+authClient.changePassword({ currentPassword, newPassword, revokeOtherSessions })
+```
+- Changes user password
+- Requires current password
+- Can revoke other sessions
+- Returns { error } object
+
+REVOKE SESSIONS:
+```javascript
+authClient.revokeSessions()
+```
+- Invalidates all active sessions
+- Logs user out from all devices
+- Returns { error } object
+
+================================================================================
+                          8. COMMON PATTERNS
+================================================================================
+
+ERROR HANDLING:
+All forms follow the same error handling pattern:
+```javascript
+const [error, setError] = useState(null);
+
+// In submit handler
+if (error) {
+  setError(error.message || "Generic error message");
+}
+```
+
+STATUS MESSAGES:
+All forms show success/error status:
+```javascript
+const [status, setStatus] = useState(null);
+
+// Success
+setStatus("Success message");
+
+// Display
+{status && (
+  <div role="status" className="text-sm text-green-600">
+    {status}
+  </div>
+)}
+```
+
+FORM VALIDATION:
+All forms use Zod schemas with React Hook Form:
+```javascript
+const schema = z.object({ /* validation rules */ });
+
+const form = useForm({
+  resolver: zodResolver(schema),
+  defaultValues: { /* initial values */ },
+});
+```
+
+LOADING STATES:
+All forms use form.formState.isSubmitting:
+```javascript
+const loading = form.formState.isSubmitting;
+
+<LoadingButton type="submit" loading={loading}>
+  Submit
+</LoadingButton>
+```
+
+================================================================================
+                          9. QUICK REFERENCE
+================================================================================
+
+BETTER AUTH CLIENT METHODS:
+----------------------------
+
+authClient.updateUser({ name, image })
+authClient.changeEmail({ newEmail, callbackURL })
+authClient.changePassword({ currentPassword, newPassword, revokeOtherSessions })
+authClient.revokeSessions()
+
+FORM COMPONENTS:
+----------------
+
+<ProfileDetailsForm user={user} />
+<EmailForm currentEmail={user.email} />
+<PasswordForm />
+<LogoutEverywhereButton />
+
+VALIDATION SCHEMAS:
+-------------------
+
+updateProfileSchema: name (required), image (optional)
+updateEmailSchema: newEmail (valid email)
+updatePasswordSchema: currentPassword (required), newPassword (passwordSchema)
+
+================================================================================
+                           END OF DOCUMENTATION
+================================================================================
+

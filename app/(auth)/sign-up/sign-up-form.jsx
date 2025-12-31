@@ -29,50 +29,60 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { passwordSchema } from "@/src/lib/validation";
 
+// use zod schema to validate the signup form
 const signUpSchema = z
   .object({
-    name: z.string().min(1, { message: "Name is required" }),
+    // name: z.string().min(1, { message: "Name is required" }),
+    firstName: z.string().min(1, { message: "First name is required" }),
+    lastName: z.string().min(1, { message: "Last name is required" }),
     email: z.email({ message: "Please enter a valid email" }),
     password: passwordSchema,
     passwordConfirmation: z
       .string()
       .min(1, { message: "Please confirm password" }),
   })
+  // use.refine for cross-field validation (password and password confirmation)
   .refine((data) => data.password === data.passwordConfirmation, {
     message: "Passwords do not match",
     path: ["passwordConfirmation"],
   });
 
+// sign up form component
 export function SignUpForm() {
-  const [error, setError] = useState(null);
 
+  // useRouter hook for navigation
   const router = useRouter();
 
+  // use the useForm hook to create the form state and validation
   const form = useForm({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
-      name: "",
+      // name: "",
+      firstName: "",
+      lastName: "",
       email: "",
       password: "",
       passwordConfirmation: "",
     },
   });
 
-  async function onSubmit({ email, password, name }) {
-    setError(null);
-
+  // when the user submits the form
+  async function onSubmit({ email, password, firstName, lastName }) {
+    // use the authClient (b/c this is a client component) to sign up the user
     const { error } = await authClient.signUp.email({
       email,
       password,
-      name,
-      callbackURL: "/email-verified",
+      firstName,
+      lastName,
+      name: `${firstName} ${lastName}`,
+      callbackURL: "/settings/profile", // Redirect here AFTER user clicks verification link in email
     });
 
     if (error) {
-      setError(error.message || "Something went wrong");
-    } else {
-      toast.success("Signed up successfully");
-      router.push("/dashboard");
+      toast.error("Something went wrong. Please try again.");
+    } else {  // if there is no error, then the user is signed up successfully
+      toast.success("Sign up successful! Please sign in to continue to your account.");
+      router.push("/sign-in");
     }
   }
 
@@ -80,29 +90,50 @@ export function SignUpForm() {
 
   return (
     <Card className="w-full max-w-md">
+
+      {/* Text: Sign Up > Enter your information to create an account */}
       <CardHeader>
         <CardTitle className="text-lg md:text-xl">Sign Up</CardTitle>
         <CardDescription className="text-xs md:text-sm">
           Enter your information to create an account
         </CardDescription>
       </CardHeader>
+
+      {/* Form: First Name, Last Name, Email, Password, Confirm Password */}
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* First Name */}
             <FormField
               control={form.control}
-              name="name"
+              name="firstName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>First Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="John Doe" {...field} />
+                    <Input placeholder="John" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            {/* Last Name */}
+            <FormField
+              control={form.control}
+              name="lastName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Last Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Doe" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Email */}
             <FormField
               control={form.control}
               name="email"
@@ -121,6 +152,7 @@ export function SignUpForm() {
               )}
             />
 
+            {/* Password */}
             <FormField
               control={form.control}
               name="password"
@@ -139,6 +171,7 @@ export function SignUpForm() {
               )}
             />
 
+            {/* Confirm Password */}
             <FormField
               control={form.control}
               name="passwordConfirmation"
@@ -157,18 +190,15 @@ export function SignUpForm() {
               )}
             />
 
-            {error && (
-              <div role="alert" className="text-sm text-red-600">
-                {error}
-              </div>
-            )}
-
+            {/* Button: Create Account */}
             <LoadingButton type="submit" className="w-full" loading={loading}>
               Create an account
             </LoadingButton>
           </form>
         </Form>
       </CardContent>
+
+      {/* Link: Don't have an account? Sign in */}
       <CardFooter>
         <div className="flex w-full justify-center border-t pt-4">
           <p className="text-muted-foreground text-center text-xs">
@@ -179,7 +209,7 @@ export function SignUpForm() {
           </p>
         </div>
       </CardFooter>
+
     </Card>
   );
 }
-

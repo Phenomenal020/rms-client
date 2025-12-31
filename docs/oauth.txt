@@ -1,0 +1,1184 @@
+================================================================================
+                    OAUTH AUTHENTICATION DOCUMENTATION
+                    RMS (Result Management System)
+                    Better Auth + Google & GitHub OAuth
+================================================================================
+
+This document provides a comprehensive explanation of how OAuth authentication
+(Google and GitHub) is implemented in this application using Better Auth.
+
+================================================================================
+                            TABLE OF CONTENTS
+================================================================================
+
+1. Architecture Overview
+2. Prerequisites
+3. Google OAuth Setup
+4. GitHub OAuth Setup
+5. Better Auth OAuth Configuration
+6. OAuth Flow Explanation
+7. Components Breakdown
+8. Environment Variables
+9. Database Schema
+10. Testing OAuth
+11. Common Issues & Troubleshooting
+12. Security Considerations
+13. File Structure Reference
+
+================================================================================
+                        1. ARCHITECTURE OVERVIEW
+================================================================================
+
+The OAuth authentication system uses Better Auth's built-in social provider
+support integrated with Google and GitHub OAuth:
+
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│   User      │────►│  Sign In     │────►│ Better Auth │────►│  Google  │
+│  Clicks     │     │  Button      │     │  Redirects  │     │  /GitHub │
+│  OAuth      │     │  (Google/    │     │  to OAuth    │     │  OAuth   │
+│  Button     │     │   GitHub)    │     │  Provider   │     │  Server  │
+└─────────────┘     └──────────────┘     └─────────────┘     └──────────┘
+                                                                    │
+                                                                    ▼
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│   User      │◄────│  Callback     │◄────│  OAuth      │     │ Database │
+│  Redirected │     │  URL          │     │  Provider   │     │  Creates │
+│  Back       │     │  /api/auth/   │     │  Returns    │     │  Account │
+└─────────────┘     │  callback     │     │  Code       │     └──────────┘
+
+The system follows this flow:
+- User clicks OAuth button → Better Auth redirects to provider
+- User authorizes on provider → Provider redirects back with code
+- Better Auth exchanges code for tokens → Creates/updates user account
+- User is signed in → Redirected to dashboard
+
+================================================================================
+                            2. PREREQUISITES
+================================================================================
+
+Before setting up OAuth, ensure you have:
+- Better Auth configured (see setup-guide.txt)
+- Prisma and PostgreSQL set up
+- Next.js application running
+- Google Cloud Console account (for Google OAuth)
+- GitHub account (for GitHub OAuth)
+- Basic understanding of OAuth 2.0 flow
+
+================================================================================
+                        3. GOOGLE OAUTH SETUP
+================================================================================
+
+3.1 CREATE GOOGLE CLOUD PROJECT
+--------------------------------
+
+1. Visit https://console.cloud.google.com/
+2. Click "Select a project" → "New Project"
+3. Enter project name (e.g., "RMS OAuth")
+4. Click "Create"
+5. Wait for project creation (usually a few seconds)
+
+3.2 ENABLE GOOGLE+ API
+-----------------------
+
+1. In Google Cloud Console, go to "APIs & Services" → "Library"
+2. Search for "Google+ API" or "Google Identity"
+3. Click on "Google Identity Services API" or "Google+ API"
+4. Click "Enable"
+
+Note: Google+ API has been deprecated. Use "Google Identity Services API"
+or "People API" instead. Better Auth handles this automatically.
+
+3.3 CREATE OAUTH 2.0 CREDENTIALS
+---------------------------------
+
+1. Go to "APIs & Services" → "Credentials"
+2. Click "Create Credentials" → "OAuth client ID"
+3. If prompted, configure OAuth consent screen first:
+   - User Type: External (for public apps) or Internal (for G Suite)
+   - App name: Your application name
+   - User support email: Your email
+   - Developer contact: Your email
+   - Click "Save and Continue"
+   - Scopes: Add "email", "profile", "openid" (usually added by default)
+   - Click "Save and Continue"
+   - Test users: Add test emails (for development)
+   - Click "Save and Continue"
+
+4. Create OAuth Client ID:
+   - Application type: "Web application"
+   - Name: "RMS Web Client" (or your preferred name)
+   - Authorized JavaScript origins:
+     - http://localhost:3000 (for development)
+     - https://yourdomain.com (for production)
+   - Authorized redirect URIs:
+     - http://localhost:3000/api/auth/callback/google (for development)
+     - https://yourdomain.com/api/auth/callback/google (for production)
+   - Click "Create"
+
+5. Copy the Client ID and Client Secret:
+   - Client ID: Copy immediately
+   - Client Secret: Copy immediately (you can view it later, but save it now)
+
+IMPORTANT:
+- Keep credentials secure
+- Never commit them to version control
+- Use different credentials for development and production
+- Authorized redirect URIs must match exactly (including http/https and trailing slashes)
+
+3.4 OAUTH CONSENT SCREEN CONFIGURATION
+---------------------------------------
+
+For production, you need to publish your OAuth consent screen:
+
+1. Go to "APIs & Services" → "OAuth consent screen"
+2. Complete all required fields
+3. Add scopes:
+   - email
+   - profile
+   - openid
+4. Add test users (for development/testing)
+5. Submit for verification (for production use)
+
+Note: For development, you can use test users without verification.
+
+================================================================================
+                        4. GITHUB OAUTH SETUP
+================================================================================
+
+4.1 CREATE GITHUB OAUTH APP
+----------------------------
+
+1. Visit https://github.com/settings/developers
+2. Click "New OAuth App" (or "OAuth Apps" → "New OAuth App")
+3. Fill in the application details:
+   - Application name: "RMS" (or your preferred name)
+   - Homepage URL:
+     - http://localhost:3000 (for development)
+     - https://yourdomain.com (for production)
+   - Authorization callback URL:
+     - http://localhost:3000/api/auth/callback/github (for development)
+     - https://yourdomain.com/api/auth/callback/github (for production)
+   - Click "Register application"
+
+4. Copy the Client ID and generate Client Secret:
+   - Client ID: Visible immediately
+   - Client Secret: Click "Generate a new client secret"
+   - Copy the secret immediately (you won't see it again)
+
+IMPORTANT:
+- Keep credentials secure
+- Never commit them to version control
+- Use different apps for development and production
+- Callback URL must match exactly
+
+4.2 GITHUB OAUTH APP SETTINGS
+-------------------------------
+
+After creating the app, you can:
+- Update application name
+- Update homepage URL
+- Update callback URL
+- Regenerate client secret (if needed)
+- View usage statistics
+
+Note: GitHub OAuth apps are simpler than Google - no consent screen
+configuration needed.
+
+================================================================================
+              5. BETTER AUTH OAUTH CONFIGURATION
+================================================================================
+
+5.1 CONFIGURE SOCIAL PROVIDERS
+-------------------------------
+
+Update `src/lib/auth.ts` to include OAuth providers:
+
+```typescript
+import { betterAuth } from 'better-auth'
+import { prismaAdapter } from 'better-auth/adapters/prisma'
+import prisma from './prisma'
+
+export const auth = betterAuth({
+  database: prismaAdapter(prisma, {
+    provider: 'postgresql',
+  }),
+  emailAndPassword: {
+    enabled: true,
+  },
+  // Social OAuth providers
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    },
+    github: {
+      clientId: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+    },
+  },
+  user: {
+    additionalFields: {
+      role: {
+        type: 'string',
+        input: false
+      }
+    }
+  },
+})
+
+export type Session = typeof auth.$Infer.Session;
+export type User = typeof auth.$Infer.Session.user;
+```
+
+KEY CONFIGURATION OPTIONS:
+- socialProviders: Object containing OAuth provider configurations
+- google: Google OAuth configuration with clientId and clientSecret
+- github: GitHub OAuth configuration with clientId and clientSecret
+- Better Auth automatically handles:
+  - OAuth flow (authorization, token exchange)
+  - User account creation/linking
+  - Session management
+  - Callback URL handling
+
+5.2 OAUTH PROVIDER OPTIONS
+---------------------------
+
+Each provider can have additional options:
+
+```typescript
+socialProviders: {
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    scope: ['email', 'profile', 'openid'],  // Optional: custom scopes
+  },
+  github: {
+    clientId: process.env.GITHUB_CLIENT_ID,
+    clientSecret: process.env.GITHUB_CLIENT_SECRET,
+    scope: ['user:email'],  // Optional: custom scopes
+  },
+}
+```
+
+DEFAULT SCOPES:
+- Google: email, profile, openid (automatically requested)
+- GitHub: user:email (automatically requested)
+
+5.3 TRUSTED ORIGINS (OPTIONAL)
+-------------------------------
+
+For additional security, configure trusted origins:
+
+```typescript
+export const auth = betterAuth({
+  // ... other config
+  trustedOrigins: [
+    'http://localhost:3000',
+    'https://yourdomain.com',
+  ],
+})
+```
+
+This ensures OAuth callbacks only come from trusted domains.
+
+================================================================================
+                       6. OAUTH FLOW EXPLANATION
+================================================================================
+
+6.1 COMPLETE OAUTH FLOW
+------------------------
+
+STEP 1: USER INITIATES OAUTH
+Location: app/(auth)/sign-in/sign-in-form.jsx
+
+```javascript
+async function handleSocialSignIn(provider) {
+  setError(null);
+  setLoading(true);
+  
+  const { error } = await authClient.signIn.social({
+    provider,  // "google" or "github"
+    callbackURL: redirect ?? "/dashboard",
+  });
+  
+  setLoading(false);
+  
+  if (error) {
+    setError(error.message || "Something went wrong");
+  }
+}
+```
+
+WHAT HAPPENS:
+- User clicks "Sign in with Google" or "Sign in with GitHub"
+- authClient.signIn.social() is called with provider name
+- Better Auth generates OAuth state and redirects to provider
+- User is redirected to Google/GitHub authorization page
+
+STEP 2: USER AUTHORIZES ON PROVIDER
+------------------------------------
+
+User sees:
+- Provider's authorization page (Google/GitHub)
+- App requesting permissions (email, profile)
+- "Allow" or "Deny" button
+
+If user clicks "Allow":
+- Provider generates authorization code
+- Provider redirects back to callback URL with code
+- Code is temporary and single-use
+
+STEP 3: OAUTH CALLBACK HANDLING
+--------------------------------
+
+Better Auth automatically handles the callback at:
+- /api/auth/callback/google
+- /api/auth/callback/github
+
+Process:
+1. Receives authorization code from provider
+2. Validates state parameter (CSRF protection)
+3. Exchanges code for access token
+4. Fetches user profile from provider
+5. Creates or updates user account
+6. Creates session
+7. Redirects to callbackURL
+
+STEP 4: USER ACCOUNT CREATION/UPDATING
+---------------------------------------
+
+For new users:
+- User account is created in database
+- Account record is created (linking OAuth provider)
+- Session is created
+- User is signed in
+
+For existing users:
+- User account is found by email
+- Account record is updated/linked
+- Session is created
+- User is signed in
+
+STEP 5: REDIRECT TO DASHBOARD
+------------------------------
+
+User is redirected to:
+- callbackURL specified in signIn.social() call
+- Default: /dashboard
+- Or redirect parameter from URL
+
+6.2 ACCOUNT LINKING
+--------------------
+
+If a user signs up with email/password and later signs in with OAuth:
+
+SCENARIO 1: SAME EMAIL
+- User has account with email: user@example.com
+- User signs in with Google (email: user@example.com)
+- Better Auth links OAuth account to existing user
+- User can now sign in with either method
+
+SCENARIO 2: DIFFERENT EMAIL
+- User has account with email: user@example.com
+- User signs in with Google (email: different@example.com)
+- New user account is created
+- User has two separate accounts
+
+BEST PRACTICE:
+- Encourage users to use the same email for OAuth and email/password
+- Provide account linking UI if needed
+- Handle email conflicts gracefully
+
+6.3 OAUTH STATE PARAMETER
+--------------------------
+
+Better Auth automatically:
+- Generates secure state parameter
+- Includes it in OAuth redirect
+- Validates it on callback
+- Prevents CSRF attacks
+
+You don't need to handle this manually - Better Auth does it automatically.
+
+================================================================================
+                        7. COMPONENTS BREAKDOWN
+================================================================================
+
+7.1 SIGN-IN FORM
+-----------------
+Location: app/(auth)/sign-in/sign-in-form.jsx
+
+RESPONSIBILITIES:
+- Displays OAuth sign-in buttons
+- Handles OAuth sign-in flow
+- Manages loading and error states
+- Redirects after successful sign-in
+
+KEY FEATURES:
+- Google sign-in button with icon
+- GitHub sign-in button with icon
+- Loading states during OAuth flow
+- Error handling and display
+- Redirect parameter support
+
+OAUTH BUTTON IMPLEMENTATION:
+
+```javascript
+// Google Sign In Button
+<Button
+  type="button"
+  variant="outline"
+  className="w-full gap-2"
+  disabled={loading}
+  onClick={() => handleSocialSignIn("google")}
+>
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+    {/* Google logo SVG */}
+  </svg>
+  Sign in with Google
+</Button>
+
+// GitHub Sign In Button
+<Button
+  type="button"
+  variant="outline"
+  className="w-full gap-2"
+  disabled={loading}
+  onClick={() => handleSocialSignIn("github")}
+>
+  <Github className="w-4 h-4" />
+  Sign in with Github
+</Button>
+```
+
+7.2 OAUTH HANDLER FUNCTION
+---------------------------
+
+Location: app/(auth)/sign-in/sign-in-form.jsx
+
+```javascript
+async function handleSocialSignIn(provider) {
+  setError(null);
+  setLoading(true);
+  
+  const { error } = await authClient.signIn.social({
+    provider,  // "google" or "github"
+    callbackURL: redirect ?? "/dashboard",
+  });
+  
+  setLoading(false);
+  
+  if (error) {
+    setError(error.message || "Something went wrong");
+  }
+  // Note: On success, user is redirected automatically
+  // No need to handle redirect here
+}
+```
+
+KEY POINTS:
+- Provider parameter: "google" or "github"
+- callbackURL: Where to redirect after successful sign-in
+- Error handling: Displays error if OAuth fails
+- Loading state: Shows loading during OAuth flow
+- Automatic redirect: Better Auth handles redirect on success
+
+7.3 API ROUTE HANDLER
+---------------------
+
+Location: app/api/auth/[...all]/route.ts
+
+```typescript
+import { auth } from '@/src/lib/auth'
+import { toNextJsHandler } from "better-auth/next-js";
+
+export const { GET, POST } = toNextJsHandler(auth)
+```
+
+HOW IT WORKS:
+- Catch-all route handles all auth endpoints
+- Automatically handles OAuth callbacks:
+  - GET /api/auth/callback/google
+  - GET /api/auth/callback/github
+- Processes OAuth flow server-side
+- Creates sessions and redirects users
+
+================================================================================
+                        8. ENVIRONMENT VARIABLES
+================================================================================
+
+Add the following environment variables to your `.env` file:
+
+```env
+# Better Auth Configuration (should already exist)
+BETTER_AUTH_SECRET="your-secret-key"
+BETTER_AUTH_URL="http://localhost:3000"
+
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+
+# GitHub OAuth Configuration
+GITHUB_CLIENT_ID="your-github-client-id"
+GITHUB_CLIENT_SECRET="your-github-client-secret"
+```
+
+ENVIRONMENT VARIABLE EXPLANATION:
+- BETTER_AUTH_SECRET: Secret key for Better Auth (should already exist)
+- BETTER_AUTH_URL: Your application's base URL
+- GOOGLE_CLIENT_ID: Google OAuth Client ID from Google Cloud Console
+- GOOGLE_CLIENT_SECRET: Google OAuth Client Secret from Google Cloud Console
+- GITHUB_CLIENT_ID: GitHub OAuth Client ID from GitHub Settings
+- GITHUB_CLIENT_SECRET: GitHub OAuth Client Secret from GitHub Settings
+
+PRODUCTION CONSIDERATIONS:
+- Use different credentials for development and production
+- Never commit credentials to version control
+- Use environment-specific files: `.env.local`, `.env.production`
+- Rotate secrets periodically
+- Store secrets securely (use secret management services)
+
+================================================================================
+                          9. DATABASE SCHEMA
+================================================================================
+
+OAuth accounts are stored in the Account model:
+
+```prisma
+model Account {
+  id                    String    @id
+  accountId             String    // Provider's user ID
+  providerId            String    // "google" or "github"
+  userId                String    // Reference to User
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?   // OAuth access token
+  refreshToken          String?   // OAuth refresh token (if available)
+  idToken               String?   // OAuth ID token (for OpenID Connect)
+  accessTokenExpiresAt  DateTime? // Token expiration
+  refreshTokenExpiresAt DateTime? // Refresh token expiration
+  scope                 String?   // Granted OAuth scopes
+  password              String?   // null for OAuth accounts
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+```
+
+KEY FIELDS:
+- accountId: Unique identifier from OAuth provider (e.g., Google user ID)
+- providerId: OAuth provider name ("google" or "github")
+- userId: Links to User model
+- accessToken: OAuth access token (encrypted/stored securely)
+- refreshToken: Used to refresh expired access tokens
+- scope: OAuth scopes granted by user
+
+USER MODEL RELATIONSHIP:
+
+```prisma
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?   // Profile image from OAuth provider
+  accounts      Account[] // One user can have multiple OAuth accounts
+  // ... other fields
+}
+```
+
+ACCOUNT LINKING:
+- One User can have multiple Account records
+- Each Account represents one OAuth provider
+- User can sign in with email/password AND OAuth providers
+- All accounts are linked to the same User record
+
+================================================================================
+                         10. TESTING OAUTH
+================================================================================
+
+10.1 TESTING IN DEVELOPMENT
+-----------------------------
+
+1. START DEVELOPMENT SERVER
+   ```bash
+   npm run dev
+   ```
+
+2. NAVIGATE TO SIGN-IN PAGE
+   - Go to http://localhost:3000/sign-in
+   - You should see Google and GitHub sign-in buttons
+
+3. TEST GOOGLE OAUTH
+   - Click "Sign in with Google"
+   - Should redirect to Google sign-in page
+   - Sign in with test account
+   - Should redirect back to your app
+   - Should be signed in and redirected to dashboard
+
+4. TEST GITHUB OAUTH
+   - Click "Sign in with GitHub"
+   - Should redirect to GitHub authorization page
+   - Authorize the application
+   - Should redirect back to your app
+   - Should be signed in and redirected to dashboard
+
+5. VERIFY DATABASE
+   - Check User table: New user should be created
+   - Check Account table: OAuth account should be linked
+   - Check Session table: Active session should exist
+
+10.2 TESTING ACCOUNT LINKING
+-----------------------------
+
+1. SIGN UP WITH EMAIL/PASSWORD
+   - Create account with email: test@example.com
+   - Verify account is created
+
+2. SIGN IN WITH OAUTH (SAME EMAIL)
+   - Sign in with Google using test@example.com
+   - Verify account is linked (not duplicated)
+   - Check Account table: Should have OAuth account linked
+
+3. VERIFY BOTH METHODS WORK
+   - Sign out
+   - Sign in with email/password: Should work
+   - Sign out
+   - Sign in with OAuth: Should work
+   - Both should access the same user account
+
+10.3 TESTING ERROR SCENARIOS
+-----------------------------
+
+1. INVALID CREDENTIALS
+   - Use wrong Client ID or Secret
+   - Should show error message
+   - Check console for detailed error
+
+2. MISSING ENVIRONMENT VARIABLES
+   - Remove GOOGLE_CLIENT_ID from .env
+   - Try to sign in with Google
+   - Should show configuration error
+
+3. USER DENIES AUTHORIZATION
+   - Click "Deny" on OAuth provider page
+   - Should redirect back with error
+   - Should show appropriate error message
+
+10.4 TESTING WITH PRISMA STUDIO
+---------------------------------
+
+View OAuth accounts in database:
+
+```bash
+npx prisma studio
+```
+
+Check:
+- User table: OAuth users should have email, name, image
+- Account table: Should have providerId, accountId, accessToken
+- Session table: Active sessions for OAuth users
+
+================================================================================
+                  11. COMMON ISSUES & TROUBLESHOOTING
+================================================================================
+
+11.1 "REDIRECT URI MISMATCH"
+-----------------------------
+
+Symptoms:
+- Error: redirect_uri_mismatch
+- OAuth provider shows error page
+
+Solutions:
+- Verify callback URL in provider settings matches exactly:
+  - http://localhost:3000/api/auth/callback/google
+  - https://yourdomain.com/api/auth/callback/github
+- Check for trailing slashes
+- Verify http vs https
+- Ensure BETTER_AUTH_URL matches your domain
+- For Google: Check both Authorized JavaScript origins and redirect URIs
+
+11.2 "INVALID CLIENT"
+---------------------
+
+Symptoms:
+- Error: invalid_client
+- OAuth provider rejects request
+
+Solutions:
+- Verify GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are correct
+- Verify GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are correct
+- Check for typos or extra spaces
+- Ensure credentials are from the correct environment (dev/prod)
+- Regenerate client secret if needed
+
+11.3 "OAUTH BUTTON DOES NOTHING"
+---------------------------------
+
+Symptoms:
+- Clicking OAuth button doesn't redirect
+- No error message shown
+
+Solutions:
+- Check browser console for errors
+- Verify authClient.signIn.social() is called
+- Check network tab for failed requests
+- Verify Better Auth is configured correctly
+- Ensure environment variables are loaded
+- Restart dev server after adding env variables
+
+11.4 "USER NOT CREATED AFTER OAUTH"
+------------------------------------
+
+Symptoms:
+- OAuth flow completes successfully
+- But user is not signed in
+- No user in database
+
+Solutions:
+- Check database connection
+- Verify Prisma Client is up to date
+- Check server logs for errors
+- Verify Account model in schema is correct
+- Check for database transaction errors
+
+11.5 "EMAIL ALREADY EXISTS"
+---------------------------
+
+Symptoms:
+- User tries OAuth with email that already has account
+- Error: email already exists
+
+Solutions:
+- This is expected behavior
+- Better Auth should link accounts automatically
+- If not linking, check email matching logic
+- Verify user email from OAuth provider matches database email
+- Check Account table for existing provider link
+
+11.6 "OAUTH CALLBACK NOT WORKING"
+----------------------------------
+
+Symptoms:
+- Redirected to OAuth provider
+- Authorized successfully
+- But callback doesn't work
+- Stuck on loading or error page
+
+Solutions:
+- Verify callback URL in provider settings
+- Check API route handler is set up correctly
+- Verify Better Auth is handling callbacks
+- Check server logs for callback errors
+- Ensure BETTER_AUTH_URL is correct
+- Test callback URL directly: /api/auth/callback/google
+
+11.7 "TOKEN EXPIRED OR INVALID"
+--------------------------------
+
+Symptoms:
+- Error: token expired
+- Cannot refresh access token
+
+Solutions:
+- Check refreshToken is stored in Account table
+- Verify refresh token hasn't expired
+- Re-authenticate with OAuth provider
+- Check token expiration times
+- Verify OAuth provider token refresh endpoint
+
+11.8 "GOOGLE CONSENT SCREEN ISSUES"
+------------------------------------
+
+Symptoms:
+- Google shows "This app isn't verified"
+- User cannot proceed
+
+Solutions:
+- For development: Add test users in OAuth consent screen
+- For production: Submit app for verification
+- Complete all required fields in consent screen
+- Add privacy policy and terms of service URLs
+- Wait for Google verification (can take days/weeks)
+
+================================================================================
+                      12. SECURITY CONSIDERATIONS
+================================================================================
+
+12.1 OAUTH SECURITY BEST PRACTICES
+------------------------------------
+
+1. SECURE CREDENTIALS
+   - Never commit OAuth credentials to version control
+   - Use environment variables
+   - Rotate secrets periodically
+   - Use different credentials for dev/prod
+
+2. CALLBACK URL VALIDATION
+   - Always validate callback URLs
+   - Use exact match (no wildcards in production)
+   - Verify HTTPS in production
+   - Better Auth handles this automatically
+
+3. STATE PARAMETER
+   - Better Auth automatically generates and validates state
+   - Prevents CSRF attacks
+   - No manual handling needed
+
+4. TOKEN STORAGE
+   - Access tokens stored securely in database
+   - Refresh tokens encrypted
+   - Tokens never exposed to client
+   - Better Auth handles secure storage
+
+5. HTTPS IN PRODUCTION
+   - Always use HTTPS for OAuth callbacks
+   - Prevents token interception
+   - Required by most OAuth providers
+
+12.2 SCOPE MANAGEMENT
+----------------------
+
+Request only necessary scopes:
+- Google: email, profile, openid (default)
+- GitHub: user:email (default)
+
+Don't request unnecessary permissions:
+- Reduces user friction
+- Improves security
+- Follows principle of least privilege
+
+12.3 ACCOUNT LINKING SECURITY
+------------------------------
+
+When linking accounts:
+- Verify email matches before linking
+- Require user confirmation for account linking
+- Log account linking events
+- Handle conflicts gracefully
+
+12.4 ERROR HANDLING
+-------------------
+
+Don't expose sensitive information:
+- Generic error messages for users
+- Detailed errors in server logs only
+- Don't leak OAuth provider errors
+- Handle errors gracefully
+
+================================================================================
+                      13. FILE STRUCTURE REFERENCE
+================================================================================
+
+OAuth-related files:
+
+```
+project-root/
+├── .env                          # Environment variables (OAuth credentials)
+├── src/
+│   └── lib/
+│       ├── auth.ts              # Better Auth config with OAuth providers
+│       └── auth-client.ts       # Client-side auth (includes OAuth methods)
+├── app/
+│   ├── (auth)/
+│   │   └── sign-in/
+│   │       └── sign-in-form.jsx # OAuth sign-in buttons and handlers
+│   └── api/
+│       └── auth/
+│           └── [...all]/
+│               └── route.ts     # Handles OAuth callbacks
+└── prisma/
+    └── schema.prisma            # Account model for OAuth accounts
+```
+
+KEY FILES SUMMARY:
+- src/lib/auth.ts: OAuth provider configuration
+- app/(auth)/sign-in/sign-in-form.jsx: OAuth UI and handlers
+- app/api/auth/[...all]/route.ts: OAuth callback handler
+- .env: OAuth credentials (never commit)
+- prisma/schema.prisma: Account model for OAuth data
+
+================================================================================
+                          14. DATA FLOW DIAGRAM
+================================================================================
+
+COMPLETE OAUTH FLOW:
+
+1. USER INITIATES OAUTH
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│   User      │────►│  Sign In     │────►│ authClient  │────►│ Better   │
+│  Clicks     │     │  Button      │     │ .signIn.    │     │   Auth   │
+│  OAuth      │     │  (Google/    │     │ social()    │     │          │
+│  Button     │     │   GitHub)    │     │             │     │          │
+└─────────────┘     └──────────────┘     └─────────────┘     └──────────┘
+                                                                    │
+                                                                    ▼
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│  Redirect   │◄────│  Generate    │◄────│  Create     │     │ OAuth     │
+│  to OAuth   │     │  State       │     │  Auth URL   │     │ Provider  │
+│  Provider   │     │  Parameter   │     │             │     │ (Google/  │
+└─────────────┘     └──────────────┘     └─────────────┘     │ GitHub)   │
+                                                              └──────────┘
+
+2. USER AUTHORIZES
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│   User      │────►│  OAuth       │────►│  User       │────►│  OAuth    │
+│  Sees       │     │  Provider    │     │  Clicks     │     │  Provider │
+│  Auth Page  │     │  Auth Page   │     │  "Allow"    │     │  Generates│
+└─────────────┘     └──────────────┘     └─────────────┘     │  Code     │
+                                                              └──────────┘
+
+3. OAUTH CALLBACK
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│   User      │────►│  Callback    │────►│  Better     │────►│  OAuth   │
+│  Redirected │     │  URL         │     │  Auth       │     │  Provider │
+│  Back       │     │  /api/auth/  │     │  Validates  │     │  Exchanges│
+│  with Code  │     │  callback    │     │  State      │     │  Code for │
+└─────────────┘     └──────────────┘     └─────────────┘     │  Token    │
+                                                              └──────────┘
+
+4. ACCOUNT CREATION
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│  Better     │────►│  Fetch User  │────►│  Create/    │────►│ Prisma   │
+│  Auth       │     │  Profile     │     │  Update     │     │ Database │
+│  Gets Token │     │  from        │     │  User       │     │          │
+│             │     │  Provider    │     │  Account    │     │          │
+└─────────────┘     └──────────────┘     └─────────────┘     └──────────┘
+
+5. SESSION CREATION
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│  Better     │────►│  Create      │────►│  Set        │────►│  User    │
+│  Auth       │     │  Session     │     │  Cookie     │     │  Signed  │
+│  Creates    │     │              │     │              │     │  In      │
+│  Session    │     │              │     │              │     │          │
+└─────────────┘     └──────────────┘     └─────────────┘     └──────────┘
+
+6. REDIRECT
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+│  User       │◄────│  Redirect    │◄────│  Better     │
+│  Redirected │     │  to          │     │  Auth       │
+│  to         │     │  callbackURL │     │  Redirects  │
+│  Dashboard  │     │  /dashboard  │     │             │
+└─────────────┘     └──────────────┘     └─────────────┘
+
+================================================================================
+                          15. API ENDPOINTS
+================================================================================
+
+Better Auth automatically creates these endpoints for OAuth:
+
+GET /api/auth/sign-in/social?provider=google
+- Initiates OAuth flow for specified provider
+- Redirects to OAuth provider authorization page
+- Includes state parameter for CSRF protection
+
+GET /api/auth/callback/google
+- Handles Google OAuth callback
+- Validates state parameter
+- Exchanges code for tokens
+- Creates/updates user account
+- Creates session
+- Redirects to callbackURL
+
+GET /api/auth/callback/github
+- Handles GitHub OAuth callback
+- Same process as Google callback
+- Provider-specific token exchange
+
+GET /api/auth/session
+- Returns current session
+- Includes OAuth account information
+- Shows linked providers
+
+================================================================================
+                          16. QUICK REFERENCE
+================================================================================
+
+ESSENTIAL COMMANDS:
+-------------------
+
+# No additional packages needed
+# Better Auth includes OAuth support
+
+# View database (check OAuth accounts)
+npx prisma studio
+
+# Start development server
+npm run dev
+
+ENVIRONMENT VARIABLES:
+----------------------
+
+BETTER_AUTH_SECRET="your-secret-key"
+BETTER_AUTH_URL="http://localhost:3000"
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+GITHUB_CLIENT_ID="your-github-client-id"
+GITHUB_CLIENT_SECRET="your-github-client-secret"
+
+CLIENT METHODS:
+---------------
+
+# Sign in with OAuth
+authClient.signIn.social({
+  provider: "google" | "github",
+  callbackURL: "/dashboard"
+})
+
+# Check if user is signed in
+const session = await getServerSession();
+const isSignedIn = !!session;
+
+OAUTH PROVIDER SETUP:
+---------------------
+
+Google:
+- Console: https://console.cloud.google.com/
+- OAuth Client: APIs & Services → Credentials
+- Callback: /api/auth/callback/google
+
+GitHub:
+- Settings: https://github.com/settings/developers
+- OAuth App: New OAuth App
+- Callback: /api/auth/callback/github
+
+KEY URLS:
+---------
+
+/sign-in              # Sign-in page with OAuth buttons
+/api/auth/callback/google   # Google OAuth callback
+/api/auth/callback/github   # GitHub OAuth callback
+/dashboard            # Redirect after successful OAuth
+
+================================================================================
+                          17. ADDING MORE PROVIDERS
+================================================================================
+
+Better Auth supports many OAuth providers. To add more:
+
+1. SET UP PROVIDER OAUTH APP
+   - Create OAuth app with provider
+   - Get Client ID and Secret
+   - Configure callback URL
+
+2. ADD TO ENVIRONMENT VARIABLES
+   ```env
+   PROVIDER_CLIENT_ID="your-client-id"
+   PROVIDER_CLIENT_SECRET="your-client-secret"
+   ```
+
+3. ADD TO AUTH CONFIGURATION
+   ```typescript
+   socialProviders: {
+     google: { /* ... */ },
+     github: { /* ... */ },
+     provider: {
+       clientId: process.env.PROVIDER_CLIENT_ID,
+       clientSecret: process.env.PROVIDER_CLIENT_SECRET,
+     },
+   }
+   ```
+
+4. ADD BUTTON TO UI
+   ```javascript
+   <Button onClick={() => handleSocialSignIn("provider")}>
+     Sign in with Provider
+   </Button>
+   ```
+
+SUPPORTED PROVIDERS:
+- Google
+- GitHub
+- Discord
+- Facebook
+- Twitter/X
+- And many more (check Better Auth docs)
+
+================================================================================
+                          18. NEXT STEPS
+================================================================================
+
+After implementing OAuth:
+
+1. ✅ Test Google OAuth flow
+2. ✅ Test GitHub OAuth flow
+3. ✅ Test account linking
+4. ✅ Configure production OAuth apps
+5. ✅ Set up production environment variables
+6. ✅ Test error scenarios
+7. ✅ Add OAuth to sign-up page (optional)
+8. ✅ Implement account unlinking (optional)
+9. ✅ Add OAuth provider icons
+10. ✅ Monitor OAuth usage
+
+For advanced features:
+- Custom OAuth scopes
+- Account linking UI
+- Provider-specific user data
+- OAuth token refresh
+- Multiple OAuth providers per user
+
+================================================================================
+                          19. ADDITIONAL RESOURCES
+================================================================================
+
+OFFICIAL DOCUMENTATION:
+- Better Auth OAuth: https://www.better-auth.com/docs/guides/social-auth
+- Better Auth Social Providers: https://www.better-auth.com/docs/plugins/social-providers
+- Google OAuth: https://developers.google.com/identity/protocols/oauth2
+- GitHub OAuth: https://docs.github.com/en/apps/oauth-apps/building-oauth-apps
+
+OAUTH PROVIDER DOCUMENTATION:
+- Google Cloud Console: https://console.cloud.google.com/
+- GitHub OAuth Apps: https://github.com/settings/developers
+- OAuth 2.0 Specification: https://oauth.net/2/
+
+BETTER AUTH RESOURCES:
+- Better Auth Documentation: https://www.better-auth.com/docs
+- Better Auth GitHub: https://github.com/better-auth/better-auth
+- Better Auth Examples: https://github.com/better-auth/better-auth/tree/main/examples
+
+================================================================================
+                           CONCLUSION
+================================================================================
+
+This OAuth authentication system provides a seamless, secure solution for
+social authentication in the RMS application. It leverages:
+
+✅ Better Auth's built-in OAuth support
+✅ Google OAuth 2.0 integration
+✅ GitHub OAuth integration
+✅ Secure token management
+✅ Automatic account linking
+✅ User-friendly authentication flow
+
+Key strengths:
+- Simple configuration
+- Automatic OAuth flow handling
+- Secure token storage
+- Account linking support
+- Multiple provider support
+- Production-ready
+
+The system is ready for production use and can be extended with:
+- Additional OAuth providers
+- Custom OAuth scopes
+- Account management UI
+- Provider-specific features
+- Advanced security features
+
+Remember to:
+- Keep OAuth credentials secure
+- Configure callback URLs correctly
+- Test OAuth flows thoroughly
+- Monitor OAuth usage
+- Handle errors gracefully
+
+For questions or issues, refer to the official documentation or community
+resources listed above.
+
+================================================================================
+                           END OF DOCUMENTATION
+================================================================================
+

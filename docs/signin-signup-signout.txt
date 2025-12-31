@@ -1,0 +1,687 @@
+================================================================================
+                    AUTHENTICATION SYSTEM DOCUMENTATION
+                    RMS (Result Management System)
+================================================================================
+
+This document provides a comprehensive explanation of how authentication 
+(sign-in, sign-up, and sign-out) is implemented in this application.
+
+================================================================================
+                            TABLE OF CONTENTS
+================================================================================
+
+1. Architecture Overview
+2. Technology Stack
+3. Backend Authentication Setup
+4. Frontend Authentication Client
+5. Sign Up Flow
+6. Sign In Flow
+7. Sign Out Flow
+8. Session Management
+9. Form Validation
+10. Security Features
+11. File Structure
+12. Key Components Breakdown
+
+================================================================================
+                        1. ARCHITECTURE OVERVIEW
+================================================================================
+
+The authentication system uses a modern, secure architecture with the following
+components:
+
+┌─────────────────┐         ┌──────────────────┐         ┌──────────────┐
+│   React Client  │ ◄─────► │  Better Auth     │ ◄─────► │   Prisma     │
+│   Components    │         │  API Handler     │         │   Database   │
+└─────────────────┘         └──────────────────┘         └──────────────┘
+        │                            │
+        │                            │
+        └──────── authClient ─────────┘
+
+The system follows a client-server architecture where:
+- Frontend components use authClient to communicate with the backend
+- Backend uses Better Auth library for authentication logic
+- Prisma ORM manages database operations
+- PostgreSQL database stores user credentials and sessions
+
+================================================================================
+                        2. TECHNOLOGY STACK
+================================================================================
+
+Core Technologies:
+- Better Auth: Modern authentication library for Next.js
+- Next.js 16+: React framework with App Router
+- Prisma: Type-safe ORM for database operations
+- PostgreSQL: Relational database for storing user data
+- Zod: Schema validation library
+- React Hook Form: Form state management
+- Sonner: Toast notification library
+
+================================================================================
+                    3. BACKEND AUTHENTICATION SETUP
+================================================================================
+
+Location: src/lib/auth.ts
+
+The backend authentication is configured using Better Auth:
+
+```typescript
+import { betterAuth } from 'better-auth'
+import { prismaAdapter } from 'better-auth/adapters/prisma'
+import prisma from './prisma'
+
+export const auth = betterAuth({
+  database: prismaAdapter(prisma, {
+    provider: 'postgresql',   // PostgreSQL database adapter
+  }),
+  emailAndPassword: {
+    enabled: true,            // Enable email/password authentication
+  },
+})
+```
+
+KEY CONCEPTS:
+- betterAuth(): Creates the main authentication instance
+- prismaAdapter(): Connects Better Auth to Prisma ORM
+- emailAndPassword: Enables traditional email/password sign-up/sign-in
+- The auth instance handles all authentication logic server-side
+
+API ROUTE HANDLER
+Location: app/api/auth/[...all]/route.ts
+
+```typescript
+import { auth } from '@/src/lib/auth'
+import { toNextJsHandler } from "better-auth/next-js";
+
+export const { GET, POST } = toNextJsHandler(auth)
+```
+
+This catch-all route handler (`[...all]`) captures all authentication-related
+API requests and forwards them to Better Auth. It handles:
+- POST /api/auth/sign-up
+- POST /api/auth/sign-in
+- POST /api/auth/sign-out
+- GET /api/auth/session
+- And other auth-related endpoints
+
+================================================================================
+                    4. FRONTEND AUTHENTICATION CLIENT
+================================================================================
+
+Location: src/lib/auth-client.ts
+
+The frontend client is a thin wrapper around Better Auth's client:
+
+```typescript
+import { createAuthClient } from "better-auth/client";
+import { nextCookies } from "better-auth/next-js";
+
+export const authClient = createAuthClient({
+    plugins: [
+        nextCookies()  // Enables cookie-based session management
+    ]
+})
+```
+
+KEY CONCEPTS:
+- createAuthClient(): Creates a client-side authentication instance
+- nextCookies(): Plugin that manages authentication cookies in Next.js
+- The client provides methods like:
+  - authClient.signUp.email()
+  - authClient.signIn.email()
+  - authClient.signIn.social()
+  - authClient.signOut()
+
+================================================================================
+                          5. SIGN UP FLOW
+================================================================================
+
+COMPONENT: app/(auth)/sign-up/sign-up-form.jsx
+
+STEP-BY-STEP PROCESS:
+
+1. FORM VALIDATION SETUP
+   - Uses Zod schema (signUpSchema) for validation
+   - Integrates with React Hook Form via zodResolver
+   - Validates:
+     * Name: Required, non-empty string
+     * Email: Valid email format
+     * Password: Must meet passwordSchema requirements
+     * Password Confirmation: Must match password
+
+2. PASSWORD VALIDATION
+   Location: src/lib/validation.js
+   
+   Requirements:
+   - Minimum 8 characters
+   - At least one special character (non-alphanumeric)
+   - Uses regex: /[^A-Za-z0-9]/
+
+3. CROSS-FIELD VALIDATION
+   Uses Zod's .refine() method to ensure passwords match:
+   
+   ```javascript
+   .refine((data) => data.password === data.passwordConfirmation, {
+     message: "Passwords do not match",
+     path: ["passwordConfirmation"],
+   })
+   ```
+
+4. FORM SUBMISSION
+   When user submits the form:
+   
+   ```javascript
+   async function onSubmit({ email, password, name }) {
+     setError(null);
+     
+     const { error } = await authClient.signUp.email({
+       email,
+       password,
+       name,
+       callbackURL: "/email-verified",
+     });
+     
+     if (error) {
+       setError(error.message || "Something went wrong");
+     } else {
+       toast.success("Signed up successfully");
+       router.push("/onboard");
+     }
+   }
+   ```
+
+5. SUCCESS FLOW
+   - Shows success toast notification
+   - Redirects to /onboard page
+   - User account is created in database
+   - Email verification may be sent (callbackURL: "/email-verified")
+
+6. ERROR HANDLING
+   - Displays error message in red alert box
+   - Error comes from Better Auth backend
+   - Common errors: email already exists, weak password, etc.
+
+================================================================================
+                          6. SIGN IN FLOW
+================================================================================
+
+COMPONENT: app/(auth)/sign-in/sign-in-form.jsx
+
+STEP-BY-STEP PROCESS:
+
+1. FORM VALIDATION SETUP
+   - Uses Zod schema (signInSchema) for validation
+   - Fields validated:
+     * Email: Valid email format
+     * Password: Required, non-empty string
+     * Remember Me: Optional boolean checkbox
+
+2. REDIRECT HANDLING
+   Supports redirect parameter from URL:
+   
+   ```javascript
+   const searchParams = useSearchParams();
+   const redirect = searchParams.get("redirect");
+   ```
+   
+   This allows protected pages to redirect users back after sign-in.
+
+3. EMAIL/PASSWORD SIGN IN
+   
+   ```javascript
+   async function onSubmit({ email, password, rememberMe }) {
+     setError(null);
+     setLoading(true);
+     
+     const { error } = await authClient.signIn.email({
+       email,
+       password,
+       rememberMe,
+     });
+     
+     setLoading(false);
+     
+     if (error) {
+       setError(error.message || "Something went wrong");
+     } else {
+       toast.success("Signed in successfully");
+       router.push(redirect ?? "/dashboard");
+     }
+   }
+   ```
+
+4. SOCIAL SIGN IN (Google & GitHub)
+   Currently implemented but marked as TODO:
+   
+   ```javascript
+   async function handleSocialSignIn(provider) {
+     setError(null);
+     setLoading(true);
+     
+     const { error } = await authClient.signIn.social({
+       provider,  // "google" or "github"
+       callbackURL: redirect ?? "/dashboard",
+     });
+     
+     setLoading(false);
+     
+     if (error) {
+       setError(error.message || "Something went wrong");
+     }
+   }
+   ```
+
+5. SUCCESS FLOW
+   - Shows success toast notification
+   - Redirects to dashboard or specified redirect URL
+   - Session cookie is set automatically
+   - User is now authenticated
+
+6. ERROR HANDLING
+   - Displays error message in red alert box
+   - Common errors: invalid credentials, account not found, etc.
+
+7. REMEMBER ME FUNCTIONALITY
+   - When checked, extends session duration
+   - Managed by Better Auth's session system
+   - Stored in secure HTTP-only cookies
+
+================================================================================
+                          7. SIGN OUT FLOW
+================================================================================
+
+COMPONENT: shared-components/user-dropdown.jsx
+
+STEP-BY-STEP PROCESS:
+
+1. USER DROPDOWN MENU
+   The sign-out functionality is accessed through a user dropdown menu
+   that displays:
+   - User avatar/image
+   - User name
+   - User email
+   - Profile link
+   - Admin link (if user is admin)
+   - Sign out option
+
+2. SIGN OUT HANDLER
+   
+   ```javascript
+   async function handleSignOut() {
+     const { error } = await authClient.signOut();
+     
+     if (error) {
+       toast.error(error.message || "Something went wrong");
+     } else {
+       toast.success("Signed out successfully");
+       router.push("/sign-in");
+     }
+   }
+   ```
+
+3. PROCESS
+   - Calls authClient.signOut() which:
+     * Invalidates the session on the server
+     * Removes authentication cookies
+     * Clears session data
+   - Shows success/error toast notification
+   - Redirects to sign-in page
+
+4. SECURITY
+   - Session is properly invalidated server-side
+   - Cookies are cleared client-side
+   - User cannot access protected routes after sign-out
+
+================================================================================
+                        8. SESSION MANAGEMENT
+================================================================================
+
+SERVER-SIDE SESSION RETRIEVAL
+Location: src/lib/get-session.ts
+
+```typescript
+import { headers } from "next/headers";
+import { cache } from "react";
+import { auth } from "./auth";
+
+export const getServerSession = cache(async () => {
+  return await auth.api.getSession({ headers: await headers() });
+});
+```
+
+KEY CONCEPTS:
+- getServerSession(): Retrieves current user session on server
+- Uses React's cache() to prevent duplicate requests
+- Reads authentication headers from Next.js request
+- Returns user object if authenticated, null otherwise
+
+USAGE IN PROTECTED PAGES:
+```javascript
+import { getServerSession } from "@/src/lib/get-session";
+
+export default async function Dashboard() {
+  const session = await getServerSession();
+  
+  if (!session) {
+    redirect("/sign-in");
+  }
+  
+  // Render protected content
+}
+```
+
+CLIENT-SIDE SESSION:
+- Managed automatically by Better Auth
+- Stored in HTTP-only cookies (secure)
+- Accessible via authClient methods
+- Automatically included in API requests
+
+================================================================================
+                        9. FORM VALIDATION
+================================================================================
+
+VALIDATION LIBRARY: Zod
+
+Zod provides type-safe schema validation with excellent error messages.
+
+SIGN UP VALIDATION:
+```javascript
+const signUpSchema = z
+  .object({
+    name: z.string().min(1, { message: "Name is required" }),
+    email: z.email({ message: "Please enter a valid email" }),
+    password: passwordSchema,
+    passwordConfirmation: z.string().min(1, { message: "Please confirm password" }),
+  })
+  .refine((data) => data.password === data.passwordConfirmation, {
+    message: "Passwords do not match",
+    path: ["passwordConfirmation"],
+  });
+```
+
+SIGN IN VALIDATION:
+```javascript
+const signInSchema = z.object({
+  email: z.email({ message: "Please enter a valid email" }),
+  password: z.string().min(1, { message: "Password is required" }),
+  rememberMe: z.boolean().optional(),
+});
+```
+
+INTEGRATION WITH REACT HOOK FORM:
+```javascript
+const form = useForm({
+  resolver: zodResolver(schema),  // Connects Zod to React Hook Form
+  defaultValues: { ... },
+});
+```
+
+VALIDATION FLOW:
+1. User types in form field
+2. React Hook Form triggers validation
+3. Zod schema validates the value
+4. Error message displayed via <FormMessage /> component
+5. Form submission blocked until all validations pass
+
+================================================================================
+                       10. SECURITY FEATURES
+================================================================================
+
+1. PASSWORD REQUIREMENTS
+   - Minimum 8 characters
+   - Must contain special characters
+   - Prevents weak passwords
+
+2. HTTP-ONLY COOKIES
+   - Session cookies are HTTP-only
+   - Cannot be accessed via JavaScript
+   - Prevents XSS attacks
+
+3. SECURE SESSION MANAGEMENT
+   - Sessions stored server-side
+   - Automatic session expiration
+   - Secure cookie flags
+
+4. EMAIL VALIDATION
+   - Email format validation
+   - Prevents invalid email addresses
+
+5. CROSS-FIELD VALIDATION
+   - Password confirmation must match
+   - Prevents typos in password
+
+6. ERROR HANDLING
+   - Generic error messages to prevent information leakage
+   - Proper error boundaries
+
+7. REMEMBER ME OPTION
+   - Controlled session duration
+   - User choice for convenience vs security
+
+================================================================================
+                         11. FILE STRUCTURE
+================================================================================
+
+Authentication-related files:
+
+BACKEND:
+├── src/lib/
+│   ├── auth.ts                 # Better Auth configuration
+│   ├── auth-client.ts          # Frontend auth client
+│   ├── get-session.ts          # Server-side session helper
+│   └── validation.js           # Password validation schema
+│
+└── app/api/auth/
+    └── [...all]/
+        └── route.ts            # API route handler
+
+FRONTEND:
+├── app/(auth)/
+│   ├── sign-in/
+│   │   ├── page.jsx            # Sign-in page wrapper
+│   │   └── sign-in-form.jsx    # Sign-in form component
+│   │
+│   └── sign-up/
+│       ├── page.jsx            # Sign-up page wrapper
+│       └── sign-up-form.jsx    # Sign-up form component
+│
+└── shared-components/
+    └── user-dropdown.jsx       # User menu with sign-out
+
+================================================================================
+                    12. KEY COMPONENTS BREAKDOWN
+================================================================================
+
+1. SIGN-UP FORM (sign-up-form.jsx)
+   - Form fields: name, email, password, passwordConfirmation
+   - Validation: Zod schema with cross-field validation
+   - Submission: authClient.signUp.email()
+   - Success: Redirects to /onboard
+   - Error: Displays error message
+
+2. SIGN-IN FORM (sign-in-form.jsx)
+   - Form fields: email, password, rememberMe
+   - Validation: Zod schema
+   - Submission: authClient.signIn.email()
+   - Social auth: Google and GitHub (TODO)
+   - Success: Redirects to /dashboard or redirect URL
+   - Error: Displays error message
+
+3. USER DROPDOWN (user-dropdown.jsx)
+   - Displays user information
+   - Provides sign-out functionality
+   - Links to profile and admin (if applicable)
+   - Sign-out: authClient.signOut()
+
+4. AUTH CLIENT (auth-client.ts)
+   - Wrapper around Better Auth client
+   - Provides authentication methods
+   - Manages cookies via nextCookies plugin
+
+5. AUTH SERVER (auth.ts)
+   - Better Auth configuration
+   - Prisma adapter setup
+   - Email/password authentication enabled
+
+6. API ROUTE (route.ts)
+   - Catch-all route for auth endpoints
+   - Forwards requests to Better Auth
+   - Handles GET and POST requests
+
+================================================================================
+                           DATA FLOW DIAGRAM
+================================================================================
+
+SIGN UP FLOW:
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│   User      │────►│ SignUpForm  │────►│ authClient  │────►│   API    │
+│  Fills Form │     │  Validates   │     │  .signUp()   │     │  Route   │
+└─────────────┘     └──────────────┘     └─────────────┘     └──────────┘
+                                                                    │
+                                                                    ▼
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│  Redirect   │◄────│   Success    │◄────│ Better Auth │◄────│ Prisma   │
+│  /onboard   │     │   Toast      │     │  Creates    │     │ Database │
+└─────────────┘     └──────────────┘     └─────────────┘     └──────────┘
+
+SIGN IN FLOW:
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│   User      │────►│ SignInForm   │────►│ authClient  │────►│   API    │
+│  Enters     │     │  Validates   │     │  .signIn()  │     │  Route   │
+│ Credentials │     └──────────────┘     └─────────────┘     └──────────┘
+└─────────────┘                                                      │
+                                                                     ▼
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│  Redirect   │◄────│   Success    │◄────│ Better Auth │◄────│ Prisma   │
+│ /dashboard  │     │   Toast      │     │  Validates  │     │ Database │
+└─────────────┘     │  Set Cookie  │     │  Creates    │     └──────────┘
+                    └──────────────┘     │  Session    │
+                                         └─────────────┘
+
+SIGN OUT FLOW:
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│   User      │────►│ UserDropdown │────►│ authClient  │────►│   API    │
+│  Clicks     │     │  handleSign  │     │ .signOut()  │     │  Route   │
+│ Sign Out    │     │    Out()     │     └─────────────┘     └──────────┘
+└─────────────┘     └──────────────┘                              │
+                                                                   ▼
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│  Redirect   │◄────│   Success    │◄────│ Better Auth │◄────│ Prisma   │
+│  /sign-in   │     │   Toast      │     │  Invalidates│     │ Database │
+└─────────────┘     │  Clear Cookie│     │  Session    │     └──────────┘
+                    └──────────────┘     └─────────────┘
+
+================================================================================
+                           COMMON PATTERNS
+================================================================================
+
+1. ERROR HANDLING PATTERN:
+   ```javascript
+   const { error } = await authClient.method();
+   if (error) {
+     setError(error.message || "Something went wrong");
+   } else {
+     // Success handling
+   }
+   ```
+
+2. LOADING STATE PATTERN:
+   ```javascript
+   const [loading, setLoading] = useState(false);
+   // Set loading before async operation
+   setLoading(true);
+   await authClient.method();
+   setLoading(false);
+   ```
+
+3. TOAST NOTIFICATION PATTERN:
+   ```javascript
+   if (error) {
+     toast.error(error.message);
+   } else {
+     toast.success("Operation successful");
+   }
+   ```
+
+4. REDIRECT PATTERN:
+   ```javascript
+   router.push(redirect ?? "/default-route");
+   ```
+
+5. FORM VALIDATION PATTERN:
+   ```javascript
+   const form = useForm({
+     resolver: zodResolver(schema),
+     defaultValues: { ... },
+   });
+   ```
+
+================================================================================
+                           BEST PRACTICES
+================================================================================
+
+1. Always validate input on both client and server
+2. Use HTTP-only cookies for session management
+3. Provide clear, user-friendly error messages
+4. Implement loading states for better UX
+5. Use toast notifications for user feedback
+6. Handle errors gracefully
+7. Redirect users appropriately after auth operations
+8. Use TypeScript for type safety
+9. Keep authentication logic centralized
+10. Test authentication flows thoroughly
+
+================================================================================
+                           TROUBLESHOOTING
+================================================================================
+
+COMMON ISSUES:
+
+1. "Email already exists" on sign-up
+   - User already has an account
+   - Solution: Prompt user to sign in instead
+
+2. "Invalid credentials" on sign-in
+   - Wrong email or password
+   - Solution: Clear error message, allow retry
+
+3. Session not persisting
+   - Cookie issues
+   - Solution: Check cookie settings, domain, secure flags
+
+4. Redirect not working
+   - Router not initialized
+   - Solution: Ensure useRouter() is called in client component
+
+5. Validation errors not showing
+   - Form not connected to schema
+   - Solution: Check zodResolver integration
+
+================================================================================
+                           CONCLUSION
+================================================================================
+
+This authentication system provides a robust, secure, and user-friendly
+solution for managing user authentication in the RMS application. It leverages
+modern technologies (Better Auth, Next.js, Prisma) to create a seamless
+experience while maintaining security best practices.
+
+Key strengths:
+- Type-safe validation with Zod
+- Secure session management
+- Clean separation of concerns
+- Excellent user experience
+- Extensible architecture
+
+The system is ready for production use and can be extended with additional
+features like:
+- Two-factor authentication
+- Password reset flow (already has components)
+- Email verification (callback URL configured)
+- Social authentication (partially implemented)
+- Role-based access control (admin role exists)
+
+================================================================================
+                           END OF DOCUMENTATION
+================================================================================
+

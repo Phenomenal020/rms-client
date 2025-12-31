@@ -36,7 +36,7 @@
     "**/*.tsx",
     "**/*.jsx",
     ".next/dev/types/**/*.ts"
-  ],
+, "app/api/profile/route.js", "app/api/school/actions.js"  ],
   "exclude": [
     "node_modules"
   ]

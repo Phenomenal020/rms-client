@@ -1,0 +1,10 @@
+Teacher's aid is an ai-powered result management platform to assist teachers in quickly and reliably computing results. 
+
+Flow: 
+Teachers sign up with personal details: first name, last name, email, etc.
+
+Then, they create an academic term entry that will contain result information for a term. 
+Note: They can have mutiple terms but each must be unique (class + term + academic year) for each user to avoid overriding previous term results with new term data.
+
+
+

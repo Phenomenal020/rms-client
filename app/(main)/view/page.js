@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shadcn/ui/card";
 import { GraduationCap } from "lucide-react";
 
 export default function ViewPage() {

@@ -1,6 +1,5 @@
 import ResultsComponent from "./ResultsComponent";
 import { getServerSession } from "@/src/lib/get-session";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import prisma from "@/src/lib/prisma";
 

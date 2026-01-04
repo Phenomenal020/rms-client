@@ -1,10 +1,10 @@
 import { getServerSession } from "@/src/lib/get-session";
 import { unauthorized } from "next/navigation";
-import { SubjectsForm } from "./subjects-form2";
 import prisma from "@/src/lib/prisma";
 import VerifyEmailButton from "../shared/verify-email-button";
+import SubjectsTabs from "./subjects-tabs";
 
-// Metadata
+// Metadata for the subjects settings page
 export const metadata = {
   title: "Settings - Subjects",
   description: "Manage your subjects and assessment structures",
@@ -12,6 +12,7 @@ export const metadata = {
 
 // Subjects Settings Page
 export default async function SubjectsSettingsPage() {
+
   // get the server session
   const session = await getServerSession();
   // get the session user
@@ -20,7 +21,7 @@ export default async function SubjectsSettingsPage() {
   // if there is no session user, then return the unauthorised page
   if (!sessionUser) unauthorized();
 
-  // get the user from the database using the id from the session user
+  // get the user from the database using the id from the session user. Include subjects and assessment structure.
   const user = await prisma.user.findUnique({
     where: {
       id: sessionUser.id,
@@ -51,17 +52,18 @@ export default async function SubjectsSettingsPage() {
     },
   });
 
-  // Attach subjects and assessmentStructure from the most recent academic term to the school object
-  // This makes it compatible with the form which expects user.school.subjects and user.school.assessmentStructure
+  // Retrieve the subjects and assessment structure from the most recent academic term
+  let subjects = [];
+  let assessmentStructure = [];
   if (user?.school) {
-    const mostRecentTerm = user.school.academicTerms?.[0];
-    if (mostRecentTerm) {
-      user.school.subjects = mostRecentTerm.subjects || [];
-      user.school.assessmentStructure = mostRecentTerm.assessmentStructure || [];
+    const term = user.school.academicTerms?.[0];
+    if (term) {
+      subjects = term.subjects || [];
+      assessmentStructure = term.assessmentStructure || [];
     } else {
       // If no academic term exists, initialize with empty arrays
-      user.school.subjects = [];
-      user.school.assessmentStructure = [];
+      subjects = [];
+      assessmentStructure = [];
     }
   }
 
@@ -87,9 +89,9 @@ export default async function SubjectsSettingsPage() {
           </p>
         </div>
 
-        {/* Subjects Form */}
+        {/* Subjects and Assessment Structure Forms in Tabs */}
         <div className="w-full mx-auto">
-          <SubjectsForm user={user} />
+          <SubjectsTabs subjects={subjects} assessmentStructure={assessmentStructure} />
         </div>
       </div>
     </main>

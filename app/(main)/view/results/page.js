@@ -4,60 +4,37 @@ import { redirect } from "next/navigation";
 import prisma from "@/src/lib/prisma";
 
 const ResultsPage = async () => {
+  // Get the current session to identify the user
   const session = await getServerSession();
-  if (!session) {
+  const sessionUser = session?.user;
+  if (!sessionUser) {
     redirect("/sign-in");
   }
 
   const user = await prisma.user.findUnique({
-    where: {
-      id: session.user.id,
-    },
+    where: { id: sessionUser.id },
     include: {
       school: true,
       academicTerms: {
         include: {
-          class: true,
-          subjects: {
-            orderBy: {
-              createdAt: 'asc',
-            },
-          },
-          assessmentStructure: {
-            orderBy: {
-              order: 'asc', // Order by the order field
-            },
-          },
-          gradingSystem: {
-            orderBy: {
-              minScore: 'desc',
-            },
-          },
+          class: true, // get class information for the term
+          subjects: { orderBy: { createdAt: "asc" } }, // get subjects for the term
+          assessmentStructure: { orderBy: { order: "asc" } }, // get assessment structures for the term
+          gradingSystem: { orderBy: { minScore: "desc" } }, // get grading system for the term
           students: {
             include: {
-              subjects: {
-                include: {
-                  subject: true,
-                },
-              },
+              subjects: { include: { subject: true } }, // get subjects for the student
               assessments: {
                 include: {
                   subject: true,
-                  scores: {
-                    include: {
-                      assessmentStructure: true,
-                    },
-                  },
+                  scores: { include: { assessmentStructure: true } }, // get scores for the assessment
                 },
               },
             },
           },
-          school: true,
         },
-        orderBy: {
-          createdAt: 'desc', // Get most recent term first
-        },
-        take: 1, // Get only the most recent term
+        orderBy: { createdAt: "desc" },
+        take: 1,
       },
     },
   });
@@ -72,14 +49,14 @@ const ResultsPage = async () => {
   if (!academicTerm) {
     return (
       <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
-        <p className="text-gray-500">No academic term found. Please create an academic term first.</p>
+        <p className="text-gray-500">
+          No academic term found. Please create an academic term first.
+        </p>
       </div>
     );
   }
 
-  return (
-    <ResultsComponent user={user} academicTerm={academicTerm} />
-  );
+  return <ResultsComponent user={user} academicTerm={academicTerm} />;
 };
 
 export default ResultsPage;

@@ -4,6 +4,8 @@
 import Link from "next/link";
 import { LoadingButton } from "@/shared-components/loading-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shadcn/ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/shadcn/ui/accordion";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shadcn/ui/table";
 import {
   Form,
   FormControl,
@@ -375,7 +377,7 @@ export function StudentsForm({ user }) {
               <Card className="border border-gray-200">
                 <CardContent className="space-y-4">
 
-                  {/* Basic Information */}
+                  {/* Basic Information: Names */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
                     {/* First Name */}
@@ -437,6 +439,7 @@ export function StudentsForm({ user }) {
 
                   </div>
 
+                  {/* DoB, Gender */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                     {/* Date of Birth */}
@@ -455,7 +458,7 @@ export function StudentsForm({ user }) {
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
-                            className="w-full justify-between font-normal"
+                          className="w-full justify-between font-normal cursor-pointer"
                           >
                             {newStudent.dateOfBirth
                               ? newStudent.dateOfBirth instanceof Date
@@ -528,6 +531,7 @@ export function StudentsForm({ user }) {
                     </div>
                   </div>
 
+                  {/* Department, Days Present */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Department */}
                     <div className="space-y-2">
@@ -611,7 +615,7 @@ export function StudentsForm({ user }) {
                                 onClick={() =>
                                   toggleStudentSubject(subject)
                                 }
-                                className="flex items-center hover:bg-gray-50 p-2 rounded-md transition-colors w-full justify-start"
+                                className="flex items-center hover:bg-gray-50 p-2 rounded-md transition-colors w-full justify-start cursor-pointer"
                               >
                                 {isSelected ? (
                                   <CheckSquare className="w-4 h-4 text-blue-600" />
@@ -632,7 +636,7 @@ export function StudentsForm({ user }) {
                   {/* No subjects available message */}
                   {availableSubjects.length === 0 && (
                     <div className="text-center py-4 text-gray-500 text-sm">
-                      No subjects available. Please add subjects in the <Link href="/settings/subjects" className="text-blue-500 hover:text-blue-700">Subjects Settings</Link> first.
+                      No subjects to assign. Please add subjects in the <Link href="/settings/subjects" className="text-blue-500 hover:text-blue-700">Subjects Settings</Link> first.
                     </div>
                   )}
 
@@ -649,10 +653,11 @@ export function StudentsForm({ user }) {
                         Cancel
                       </Button>
                     )}
+                    {/* Show Add / Update button based on editing mode */}
                     <Button
                       type="button"
                       onClick={addStudent}
-                      className={editingStudentIndex !== null ? "flex-1" : "w-full cursor-pointer"}
+                      className={`${editingStudentIndex !== null ? "flex-1" : "w-full"} cursor-pointer`}
                       disabled={loading}
                     >
                       {/* Show add/edit based on editing mode */}
@@ -684,7 +689,7 @@ export function StudentsForm({ user }) {
                   </h3>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Accordion type="single" collapsible className="space-y-3">
                   {studentFields.map((studentField, studentIndex) => {
                     // get the student data from the form
                     const student = form.getValues(`students.${studentIndex}`);
@@ -699,98 +704,106 @@ export function StudentsForm({ user }) {
                       : "";
 
                     return (
-                      // return the student card
-                      <Card
+                      <AccordionItem
                         key={studentField.id}
-                        className={`border border-gray-200 ${isBeingEdited ? "ring-2 ring-blue-500" : ""
-                          }`}
+                        value={`student-${studentField.id}`}
+                        className={`border border-gray-200 rounded-lg ${isBeingEdited ? "ring-2 ring-blue-500" : ""}`}
                       >
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-
+                        <div className="flex items-start justify-between gap-2 p-2">
+                          <AccordionTrigger className="flex-1 text-left cursor-pointer">
+                            <div className="min-w-0">
                               {/* Student Full Name */}
                               <h4 className="font-semibold text-gray-900">
                                 {fullName}
                               </h4>
-
-                              {/* Student Department */}
-                              <p className="text-sm text-gray-700 mt-1">
-                                {student?.department ? `Department: ${student?.department}` : "Department: N/A"}
-                              </p>
-
-                              {/* Student Gender */}
-                              <p className="text-sm text-gray-700 mt-1">
-                                {student?.gender ? `Gender: ${student?.gender}` : "Gender: N/A"}
-                              </p>
-
-                              {/* Student Date of Birth */}
-                              <p className="text-sm text-gray-700 mt-1">
-                                {student?.dateOfBirth ? `DOB: ${format(new Date(student.dateOfBirth), "PPP")}` : "DOB: N/A"}
-                              </p>
-
-                              {/* Student Attendance: uses school term days if available */}
-                              <p className="text-sm text-gray-700 mt-1">
-                                {student?.daysPresent ? `Days Present: ${student?.daysPresent} days` : "Days Present: N/A"}
-                              </p>
-
-                              {/* Student Subjects */}
-                              {student?.subjects &&
-                                student.subjects.length > 0 && (
-                                  <div className="mt-2">
-                                    <p className="text-xs text-gray-500">
-                                      Subjects:
-                                    </p>
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                      {student.subjects.map(
-                                        (subject, index) => (
-                                          <span
-                                            key={index}
-                                            className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded"
-                                          >
-                                            {typeof subject === "object"
-                                              ? subject.name
-                                              : subject}
-                                          </span>
-                                        )
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-
                             </div>
-                            <div className="flex items-start">
-                              {/* Edit Button */}
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => startEditingStudent(studentIndex)}
-                                className="text-blue-500 hover:text-blue-700 cursor-pointer"
-                                title="Edit"
-                                disabled={isBeingEdited}
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-                              {/* Delete Button */}
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeStudent(studentIndex)}
-                                className="text-red-500 hover:text-red-700 cursor-pointer"
-                                title="Delete"
-                                disabled={isBeingEdited}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
+                          </AccordionTrigger>
+                          <div className="flex items-start">
+                            {/* Edit Button */}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => startEditingStudent(studentIndex)}
+                              className="text-blue-500 hover:text-blue-700 cursor-pointer"
+                              title="Edit"
+                              disabled={isBeingEdited}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            {/* Delete Button */}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeStudent(studentIndex)}
+                              className="text-red-500 hover:text-red-700 cursor-pointer"
+                              title="Delete"
+                              disabled={isBeingEdited}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
-                        </CardContent>
-                      </Card>
+                        </div>
+                        <AccordionContent>
+                          <div className="px-2 pb-2 space-y-2 border-gray-400">
+                             <div className="overflow-x-auto ">
+                               <Table className="w-full text-sm border border-gray-200 rounded-md overflow-hidden">
+                                 <TableHeader className="bg-gray-50 font-semibold text-xs border-b border-gray-200">
+                                   <TableRow className="divide-x divide-gray-200">
+                                     <TableHead className="px-3 py-2 ">DOB</TableHead>
+                                     <TableHead className="px-3 py-2 ">Gender</TableHead>
+                                     <TableHead className="px-3 py-2 ">Department</TableHead>
+                                     <TableHead className="px-3 py-2 ">Days Present</TableHead>
+                                   </TableRow>
+                                 </TableHeader>
+                                 <TableBody>
+                                   <TableRow className="text-gray-800 text-xs text-left divide-x divide-gray-200 border-b border-gray-400">
+                                     <TableCell className="px-3 py-2">
+                                       {student?.dateOfBirth ? format(new Date(student.dateOfBirth), "PPP") : "N/A"}
+                                     </TableCell>
+                                     <TableCell className="px-3 py-2">
+                                       {student?.gender ? student.gender : "N/A"}
+                                     </TableCell>
+                                     <TableCell className="px-3 py-2">
+                                       {student?.department ? student.department : "N/A"}
+                                     </TableCell>
+                                     <TableCell className="px-3 py-2">
+                                       {student?.daysPresent ? `${student.daysPresent} days` : "N/A"}
+                                     </TableCell>
+                                   </TableRow>
+                                 </TableBody>
+                               </Table>
+                            </div>
+
+                            {/* Student Subjects */}
+                            {student?.subjects && student.subjects.length > 0 && (
+                              <div className="px-2">
+                                <p className="text-xs text-gray-500">
+                                  Subjects:
+                                </p>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {student.subjects.map(
+                                    (subject, index) => (
+                                      <span
+                                        key={index}
+                                        className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded"
+                                      >
+                                        {typeof subject === "object"
+                                          ? subject.name
+                                          : subject}
+                                      </span>
+                                    )
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
                     );
                   })}
-                </div>
+                </Accordion>
               </div>
             )}
 
@@ -811,7 +824,8 @@ export function StudentsForm({ user }) {
                 <LoadingButton
                   type="submit"
                   loading={loading}
-                  className="w-full sm:w-auto min-w-[160px] h-10 font-medium shadow-sm hover:shadow transition-shadow"
+                  disabled={editingStudentIndex !== null}
+                  className="w-full sm:w-auto min-w-[160px] h-10 font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
                 >
                   {loading ? "Saving..." : "Save Changes"}
                 </LoadingButton>

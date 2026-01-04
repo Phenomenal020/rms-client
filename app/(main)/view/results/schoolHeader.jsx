@@ -59,6 +59,7 @@ export const SchoolHeader = ({
       {isEditingSchool ? (
         <Input
           value={displayData?.name}
+          placeholder="School Name"
           onChange={(e) =>
             setEditingSchoolData((prev) => ({
               ...prev,
@@ -73,10 +74,30 @@ export const SchoolHeader = ({
         </h1>
       )}
 
+      {/* Motto - show input in edit mode or show the motto in view mode */}
+      {isEditingSchool ? (
+        <Input
+          value={displayData?.motto || ""}
+          placeholder="School Motto"
+          onChange={(e) =>
+            setEditingSchoolData((prev) => ({
+              ...prev,
+              motto: e.target.value,
+            }))
+          }
+          className="text-2xl text-center mb-2 p-3"
+        />
+      ) : (
+        <p className="text-2xl text-gray-700 mb-1">
+          {displayData?.motto || ""}
+        </p>
+      )}
+
       {/* Address - show input in edit mode or show the address in view mode */}
       {isEditingSchool ? (
         <Input
           value={displayData?.address || ""}
+          placeholder="School Address"
           onChange={(e) =>
             setEditingSchoolData((prev) => ({
               ...prev,
@@ -98,13 +119,13 @@ export const SchoolHeader = ({
           <>
             <Input
               value={displayData?.tel || ""}
+              placeholder="School Phone"
               onChange={(e) =>
                 setEditingSchoolData((prev) => ({
                   ...prev,
                   phone: e.target.value,
                 }))
               }
-              placeholder="Phone"
               className="text-sm text-center w-full p-3 mb-2"
             />
             <Input
@@ -135,6 +156,7 @@ export const SchoolHeader = ({
       <div className="flex flex-col items-center gap-1 mt-2">
         {isEditingSchool ? (
           <>
+          {/* Academic Year: */}
             <Input
               value={displayData?.academicYear || ""}
               onChange={(e) =>
@@ -146,6 +168,7 @@ export const SchoolHeader = ({
               placeholder="Academic Year"
               className="text-sm text-center w-full p-3 mb-2"
             />
+            {/* Term: */}
             <Input
               value={displayData?.term || ""}
               onChange={(e) =>

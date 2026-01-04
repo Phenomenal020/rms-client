@@ -573,3 +573,4 @@ export function TermForm({ academicTerm, schoolId }) {
     </Card>
   );
 }
+

@@ -8,7 +8,6 @@ import { toast } from "sonner";
 
 // components
 import { Signatures } from "./signatures";
-import { Comments } from "./comments";
 import { StudentStats } from "./studentStats";
 import { EditingStudents } from "./editingStudents";
 import { SchoolHeader } from "./schoolHeader";
@@ -38,10 +37,6 @@ const ResultsPage = ({ user, academicTerm }) => {
   const [editingStudentData, setEditingStudentData] = useState({})
   const [isEditingScores, setIsEditingScores] = useState(false);
   const [editingSubjects, setEditingSubjects] = useState([]);
-
-  // TODO: Comments not in schema yet
-  // const [editingComment, setEditingComment] = useState("");
-  // const [isEditingComments, setIsEditingComments] = useState(false);
 
   // school state
   const [schoolData, setSchoolData] = useState(transformedData.schoolData);
@@ -208,36 +203,6 @@ const ResultsPage = ({ user, academicTerm }) => {
     setIsEditingSchool(false);
   };
 
-  // -------------------------------------------------------------------
-
-  // TODO: Comments not in schema yet - Commented out until comments field is added to Student model
-  // Edit functions - start editing comments (copy the selected student's comments into the editing comment state) and update isEditingComments to true to render input fields (span when not editing, textarea when editing)
-  // const startEditingComments = () => {
-  //   setEditingComment(selectedStudent.comments || "");
-  //   setIsEditingComments(true);
-  // };
-
-  // Edit functions - cancel editing comments
-  // const cancelEditingComments = () => {
-  //   setEditingComment("");
-  //   setIsEditingComments(false);
-  // };
-
-  // Edit functions - save editing comments
-  // const saveCommentsChanges = () => {
-  //   setStudents((prev) =>
-  //     prev.map((student) =>
-  //       student._id === selectedStudent._id
-  //         ? { ...student, comments: editingComment }
-  //         : student
-  //     )
-  //   );
-  //   setSelectedStudent({ ...selectedStudent, comments: editingComment });
-  //   setIsEditingComments(false);
-  // };
-
-  // -------------------------------------------------------------------
-
   // Todo: Handle Print functionality
   const handlePrint = () => {
     window.print();
@@ -245,7 +210,7 @@ const ResultsPage = ({ user, academicTerm }) => {
 
   // Todo: Handle Export functionality
   const handleExport = () => {
-    toast.success("Result sheet exported successfully!");
+    toast.info("Export functionality not available yet!");
   };
 
   // -------------------------------------------------------------------
@@ -287,7 +252,7 @@ const ResultsPage = ({ user, academicTerm }) => {
               cancelEditingSchool={cancelEditingSchool}
               editingSchoolData={editingSchoolData}
               setEditingSchoolData={setEditingSchoolData}
-              school={schoolData}
+              school={schoolData}  // to render the students names in the select dropdown
             />
 
             {/* Student Information, class and Total Days Present */}
@@ -298,8 +263,8 @@ const ResultsPage = ({ user, academicTerm }) => {
               cancelEditingStudent={cancelEditingStudent}
               editingStudentData={editingStudentData}
               setEditingStudentData={setEditingStudentData}
-              selectedStudent={selectedStudent}
-              classData={transformedData.classData}
+              selectedStudent={selectedStudent} // for student name and daysPresent. Included in the transformed datais the total days variable from academic term.
+              classData={transformedData.classData} // for the class name (from academic term)
             />
 
             {/* Academic Performance: Main section */}
@@ -312,25 +277,13 @@ const ResultsPage = ({ user, academicTerm }) => {
               selectedStudent={selectedStudent}
               handleScoreChange={handleScoreChange}
               getSubjectScores={getSubjectScoresWrapper}
-              getGrade={getGrade}
-              getRemark={getRemark}
+              getGrade={getGrade} // for the grade calculation
+              getRemark={getRemark} // for the remark calculation
               assessmentStructure={academicTerm?.assessmentStructure || []}
             />
 
             {/* Summary Statistics */}
             {studentStats && <StudentStats studentStats={studentStats} />}
-
-            {/* Comments Section */}
-            {/* TODO: Comments not in schema yet - Commented out until comments field is added to Student model */}
-            {/* <Comments
-              isEditingComments={isEditingComments}
-              startEditingComments={startEditingComments}
-              saveCommentsChanges={saveCommentsChanges}
-              cancelEditingComments={cancelEditingComments}
-              selectedStudent={selectedStudent}
-              editingComment={editingComment}
-              setEditingComment={setEditingComment}
-            /> */}
 
             {/* Signatures */}
             <Signatures />

@@ -14,7 +14,7 @@ export const StudentSelection = ({
     goToNextStudent,
     currentStudentIndex,
     setCurrentStudentIndex,
-    students = [],
+    students = [],  // default to an empty array
     setSelectedStudent,
     selectedStudent
 }) => {
@@ -25,6 +25,7 @@ export const StudentSelection = ({
 
                     {/* Student Selection Dropdown - updates the selected student and the current student index */}
                     <div className="flex items-center gap-4">
+                        
                         {/* Student Icon */}
                         <User className="w-5 h-5 text-gray-600" />
 
@@ -98,4 +99,3 @@ export const StudentSelection = ({
         </Card>
     )
 }
-// 

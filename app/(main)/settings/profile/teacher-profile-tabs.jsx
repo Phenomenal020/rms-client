@@ -7,7 +7,7 @@ import { PasswordForm } from "./password-form";
 import { SessionManagement } from "./session-management";
 import { SettingsTab } from "./settings-tab";
 
-export default function TeacherProfileTabs({ user, sessions = [], currentSessionToken }) {
+export default function TeacherProfileTabs({ user, hasPasswordAccount, sessions, currentSessionToken }) {
     return (
         <Tabs defaultValue="account" className="w-full">
             <TabsList className="flex justify-center w- mx-auto bg-transparent p-0 gap-0 mb-8">
@@ -55,27 +55,27 @@ export default function TeacherProfileTabs({ user, sessions = [], currentSession
 
             {/* Tabs Content */}
             <div className="w-full">
-                {/* Teacher Profile Tab Content */}
+                {/* Teacher Profile Tab Content - Renders basic user information */}
                 <TabsContent value="account" className="mt-0 space-y-6">
                     <TeacherProfileForm user={user} />
                 </TabsContent>
 
-                {/* Email Tab Content */}
+                {/* Email Tab Content - Renders email change form */}
                 <TabsContent value="email" className="mt-0">
                     <EmailForm currentEmail={user.email} />
                 </TabsContent>
 
-                {/* Password Tab Content */}
+                {/* Password Tab Content - Renders password change form */}
                 <TabsContent value="password" className="mt-0">
-                    <PasswordForm />
+                    <PasswordForm hasPasswordAccount={hasPasswordAccount} />
                 </TabsContent>
 
-                {/* Sessions Tab Content */}
+                {/* Sessions Tab Content - Renders user sessions */}
                 <TabsContent value="sessions" className="mt-0">
                     <SessionManagement sessions={sessions} currentSessionToken={currentSessionToken} />
                 </TabsContent>
 
-                {/* Settings Tab Content */}
+                {/* Settings Tab Content - Renders settings form */}
                 <TabsContent value="settings" className="mt-0">
                     <SettingsTab />
                 </TabsContent>

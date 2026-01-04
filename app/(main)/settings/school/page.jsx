@@ -1,15 +1,17 @@
 import { getServerSession } from "@/src/lib/get-session";
 import { unauthorized } from "next/navigation";
-import { SchoolForm } from "./school-form";
 import prisma from "@/src/lib/prisma";
 import VerifyEmailButton from "../shared/verify-email-button";
+import SchoolTabs from "./school-tabs";
 
+// metadata for the school settings page
 export const metadata = {
   title: "Settings - School",
   description: "Manage school information",
 };
 
 export default async function SchoolSettingsPage() {
+  
   // get the server session
   const session = await getServerSession();
 
@@ -19,13 +21,20 @@ export default async function SchoolSettingsPage() {
   // if there is no session user, then return the unauthorised page
   if (!sessionUser) unauthorized();
 
-  // get the user from the database with school information only
+  // get the user from the database with school and academic term information
   const user = await prisma.user.findUnique({
     where: {
       id: sessionUser.id,
     },
     include: {
       school: true,
+      academicTerms: {
+        include: {
+          gradingSystem: true,
+          class: true,
+        },
+        take: 1, // Get the first term for now
+      },
     },
   });
 
@@ -41,20 +50,24 @@ export default async function SchoolSettingsPage() {
 
         {/* Header Section - School Settings + paragraph */}
         <div className="text-center mb-10 sm:mb-12">
-          {/* School Settings header */}
+          {/* School Settings > header */}
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 tracking-tight mb-2 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
             School Settings
           </h1>
 
-          {/* School Settings description */}
+          {/* School Settings > description */}
           <p className="text-base sm:text-lg text-gray-600 font-medium mx-auto">
-            Manage your school information.
+            Manage your school and term information.
           </p>
         </div>
 
-        {/* School Form */}
+        {/* School and Term Forms in Tabs */}
         <div className="w-full mx-auto">
-          <SchoolForm school={user.school} />
+          <SchoolTabs 
+            school={user.school} 
+            academicTerm={user.academicTerms?.[0]}
+            schoolId={user.schoolId}
+          />
         </div>
       </div>
     </main>

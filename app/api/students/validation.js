@@ -113,4 +113,3 @@ export function validateStudentsUpdate(data) {
 
   return { isValid: true };
 }
-

@@ -1,27 +1,32 @@
 // Transform database data to component format
 export default function transformData(user, academicTerm) {
+
   // If there is nothing to transform, return empty data
   if (!user || !academicTerm)
     return { students: [], schoolData: null, classData: null };
 
   // Transform school data from academicTerm's school
-  const schoolData = academicTerm.school
+  const schoolData = user.school
     ? {
-        name: academicTerm.school.schoolName, // Required field
-        address: academicTerm.school.schoolAddress || "", // Optional field
-        tel: academicTerm.school.schoolTelephone || "", // Optional field
-        email: academicTerm.school.schoolEmail || "", // Optional field
-        academicYear: academicTerm.academicYear, // Required field
-        term: academicTerm.term, // Has schema default
+        name: user.school.schoolName, // Required field
+        address: user.school.schoolAddress || "", // Optional field
+        tel: user.school.schoolTelephone || "", // Optional field
+        email: user.school.schoolEmail || "", // Optional field
+        academicYear: user.academicTerms[0].academicYear, // Required field
+        term: user.academicTerms[0].term, // Has schema default
+        motto: user.school.schoolMotto || "", // Optional field
       }
     : null;
 
   // Transform students data - students belong to academicTerm
   const students = (academicTerm.students || []).map((student) => {
-    // Get the full name of the student
+    // Get the full name of the student (required by the Student information section)
     const fullName = `${student.firstName}${
       student.middleName ? ` ${student.middleName}` : ""
     } ${student.lastName}`.trim();
+
+    // include days Present
+    const daysPresent = student.daysPresent ?? null;
 
     // Transform subjects with assessments and scores
     const subjects = (student.subjects || []).map((studentSubject) => {
@@ -41,6 +46,7 @@ export default function transformData(user, academicTerm) {
         name: studentSubject.subject?.name,
         subjectId: studentSubject.subjectId,
         assessmentId: assessment?.id || null,
+        daysPresent: daysPresent,
         scores,
       };
     });
@@ -50,8 +56,6 @@ export default function transformData(user, academicTerm) {
       firstName: student.firstName,
       middleName: student.middleName,
       lastName: student.lastName,
-      studentId: student.id,
-      classId: academicTerm.className, // Required field
       daysPresent: student.daysPresent ?? null, // Optional field
       totalDays: academicTerm.termDays ?? null, // Optional field
       subjects,
@@ -61,8 +65,10 @@ export default function transformData(user, academicTerm) {
 
   // Transform class data
   const classData = {
-    name: academicTerm.className, // Required field
+    name: user.academicTerms[0].class.name, // Required field
   };
+
+  console.log('Academic class data:', classData);
 
   return { students, schoolData, classData };
 };

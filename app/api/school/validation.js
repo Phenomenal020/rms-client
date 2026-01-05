@@ -1,28 +1,13 @@
-/**
- * Validation functions for school actions
- */
+// SERVER SIDE VALIDATION FOR SCHOOL UPDATES (required as client side validation is not reliable)
 
-/**
- * Helper to parse optional string fields
- * @param {any} value - Value to parse
- * @returns {string | null | undefined} Parsed value
- */
+
+// Parse optional string values. Returns null if the value is an empty string (implying the user cleared the field) and undefined if the value is not a string.
 function parseStringValues(value) {
   if (value === undefined) return undefined; // untouched
   if (typeof value !== "string" || value.trim() === "") return null; // cleared
   return value.trim(); // valid value
 }
 
-/**
- * Validates school update data
- * @param {Object} schoolData - School data to validate
- * @param {string} schoolData.schoolName - School name (required)
- * @param {string} [schoolData.schoolAddress] - School address (optional)
- * @param {string} [schoolData.schoolMotto] - School motto (optional)
- * @param {string} [schoolData.schoolTelephone] - School telephone (optional)
- * @param {string} [schoolData.schoolEmail] - School email (optional)
- * @returns {{ isValid: boolean, error?: string, validated?: Object }}
- */
 export function validateSchoolUpdate(schoolData) {
   const errors = [];
 
@@ -62,4 +47,3 @@ export function validateSchoolUpdate(schoolData) {
     },
   };
 }
-

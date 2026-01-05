@@ -18,6 +18,12 @@ export const StudentSelection = ({
     setSelectedStudent,
     selectedStudent
 }) => {
+
+    // Helper function to get the full name of a student
+    const getName = (student) => {
+        return student?.firstName + student?.middleName ? `${student?.firstName} ${student?.middleName} ${student?.lastName}` : `${student?.firstName} ${student?.lastName}`;
+    }
+
     return (
         <Card className="mb-6">
             <CardContent className="p-4">
@@ -25,23 +31,23 @@ export const StudentSelection = ({
 
                     {/* Student Selection Dropdown - updates the selected student and the current student index */}
                     <div className="flex items-center gap-4">
-                        
+
                         {/* Student Icon */}
                         <User className="w-5 h-5 text-gray-600" />
 
                         {/* Student Selection Dropdown - Show student names in a dropdown */}
                         <Select
-                            value={selectedStudent?.name}
+                            value={getName(selectedStudent)}
                             onValueChange={(value) => {
                                 // find the student with the given name
                                 const student = students.find(
-                                    (s) => s.name === value
+                                    (s) => getName(s) === value
                                 );
                                 // if the student is found, update the selected student and the current student index
                                 if (student) {
                                     setSelectedStudent(student);
                                     setCurrentStudentIndex(
-                                        students.findIndex((s) => s.name === student.name)
+                                        students.findIndex((s) => getName(s) === value)
                                     );
                                 }
                             }}
@@ -50,17 +56,17 @@ export const StudentSelection = ({
                             <SelectTrigger className="w-64">
                                 <SelectValue placeholder="Select student" />
                             </SelectTrigger>
-                            
+
                             {/* Select Dropdown Content */}
                             <SelectContent>
                                 {students && students.length > 0 ? (
                                     students.map((student, index) => (
                                         <SelectItem
                                             key={index}
-                                            value={student.name}
+                                            value={getName(student)}
                                         >
                                             {/* Render the student name  */}
-                                            {student.name}
+                                            {getName(student)}
                                         </SelectItem>
                                     ))
                                 ) : (

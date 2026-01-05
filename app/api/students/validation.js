@@ -1,12 +1,4 @@
-/**
- * Validation functions for students actions
- */
-
-/**
- * Helper to parse optional dates
- * @param {any} value - Value to parse
- * @returns {Date | null | undefined} Parsed date
- */
+// parse (optional) start and end dates
 function parseOptionalDate(value) {
   if (value === undefined || value === null || value === "") return undefined;
   const date = value instanceof Date ? value : new Date(value);
@@ -14,23 +6,14 @@ function parseOptionalDate(value) {
   return date;
 }
 
-/**
- * Helper to parse optional numbers
- * @param {any} value - Value to parse
- * @returns {number | undefined} Parsed number
- */
+// Convert string to number if it is a valid number
 function parseOptionalNumber(value) {
   if (value === undefined || value === null || value === "") return undefined;
   const num = typeof value === "number" ? value : Number(value);
   return Number.isNaN(num) ? undefined : num;
 }
 
-/**
- * Validates students update data
- * @param {Object} data - Students data to validate
- * @param {Array} data.students - Array of student objects
- * @returns {{ isValid: boolean, error?: string }}
- */
+// Validate students update data
 export function validateStudentsUpdate(data) {
   const { students } = data;
 

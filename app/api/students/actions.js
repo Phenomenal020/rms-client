@@ -10,6 +10,7 @@ import { validateStudentsUpdate } from "./validation";
 
 // Update students function
 export async function updateStudents(studentsData) {
+  console.log('students data', studentsData);
   try {
     // Get the current session to identify the user
     const session = await auth.api.getSession({
@@ -18,7 +19,7 @@ export async function updateStudents(studentsData) {
 
     // If there is no user, return unauthorised
     if (!session?.user) {
-      return { error: "Unauthorised user" };
+      return { error: "Unauthorised" };
     }
 
     // Validate the data

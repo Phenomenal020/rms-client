@@ -14,35 +14,32 @@ import { SchoolHeader } from "./schoolHeader";
 import { ResultTable } from "./resultTable";
 import { StudentSelection } from "./studentSelection";
 import createGradingFunctions from "./utils/gradingFns";
-import transformData from "./utils/transformDataFn";
 import { getSubjectScores, calculateStudentStats } from "./utils/scoreFns";
+import { updateStudentScores } from "@/app/api/views/edit-student-action";
 
-const ResultsPage = ({ user, academicTerm }) => {
-  // Transform the data to format required by the component. This function does a lot of nested mapping. So, it is memoised to avoid re-calculating it unless the academic term changes.
-  const transformedData = useMemo(() => transformData(user, academicTerm), [academicTerm]);
-  // Likewise
-  const gradingFunctions = useMemo(() => createGradingFunctions(academicTerm?.gradingSystem), [academicTerm?.gradingSystem]);
+const ResultsPage = ({ user }) => {
+  // Grading helper functions
+  const gradingFunctions = useMemo(() => createGradingFunctions(user.academicTerms[0]?.gradingSystem), [user.academicTerms[0]?.gradingSystem]);
 
   // Extract grading functions - grade, remark, overall grade, overall remark
   const { getGrade, getRemark, getOverallGrade, getOverallRemark } = gradingFunctions;
 
   // students state
-  const [students, setStudents] = useState(transformedData.students); // students data from db
+  const [students, setStudents] = useState(user.academicTerms[0].students); // students data from db
   const [selectedStudent, setSelectedStudent] = useState(students[0] || null); // default selected studemt as the first student
   const [currentStudentIndex, setCurrentStudentIndex] = useState(0); // current student index to track the current student
 
   // editing states: school, student, scores(default = 0), subjects
   const [isEditingSchool, setIsEditingSchool] = useState(false);
   const [isEditingStudent, setIsEditingStudent] = useState(false);
-  const [editingStudentData, setEditingStudentData] = useState({})
   const [isEditingScores, setIsEditingScores] = useState(false);
   const [editingSubjects, setEditingSubjects] = useState([]);
 
   // school state
-  const [schoolData, setSchoolData] = useState(transformedData.schoolData);
-  const [editingSchoolData, setEditingSchoolData] = useState(null);
+  const [schoolData, setSchoolData] = useState(user.school);
+  const [editingSchoolData, setEditingSchoolData] = useState(null);  // default is no edit
 
-  // Update selected student when students change
+  // ensure default selected student is the first student
   useEffect(() => {
     if (students.length > 0 && !selectedStudent) {
       setSelectedStudent(students[0]); // default selected student as the first student
@@ -50,21 +47,12 @@ const ResultsPage = ({ user, academicTerm }) => {
     }
   }, [students, selectedStudent]);
 
-  // Update states when transformed data changes
-  useEffect(() => {
-    setStudents(transformedData.students);
-    setSchoolData(transformedData.schoolData);
-    if (transformedData.students.length > 0) {
-      setSelectedStudent(transformedData.students[0]);
-      setCurrentStudentIndex(0);
-    }
-  }, [transformedData]);
 
   // -------------------------------------------------------------------
 
   // Helper function wrapper to get scores for each subject - passes assessment structure from academicTerm
   const getSubjectScoresWrapper = (subject) => {
-    return getSubjectScores(subject, academicTerm?.assessmentStructure || []);
+    return getSubjectScores(subject, user.academicTerms[0]?.assessmentStructure || []);
   };
 
   // Memoise the derived student stats to avoid re-calculating it unless the selected student changes
@@ -74,12 +62,12 @@ const ResultsPage = ({ user, academicTerm }) => {
         ? calculateStudentStats(
             selectedStudent,
             students,
-            academicTerm?.assessmentStructure || [],
+            user.academicTerms[0]?.assessmentStructure || [],
             getOverallGrade,
             getOverallRemark
           )
         : null,
-    [selectedStudent, students, academicTerm?.assessmentStructure, getOverallGrade, getOverallRemark]
+    [selectedStudent, students, user.academicTerms[0]?.assessmentStructure, getOverallGrade, getOverallRemark]
   );
 
   // --------------------------------Prev/Next Student Functions-----------------------------
@@ -104,26 +92,29 @@ const ResultsPage = ({ user, academicTerm }) => {
 
   // --------------------------------Edit/Save Student Functions (Student name)-----------------------------
 
-  // Edit functions - start editing student data
+  // Edit functions - start editing student data (copy the selected student's data into the editing student data state) and update isEditingStudent to true to render input fields (spans when not editing, input when editing)
   const startEditingStudent = () => {
-    setEditingStudentData({ ...selectedStudent });
     setIsEditingStudent(true);
   };
 
   // Edit functions - cancel editing student data
   const cancelEditingStudent = () => {
-    setEditingStudentData({});
     setIsEditingStudent(false);
   };
 
-  // Edit functions - save editing student data
-  const saveStudentChanges = () => {
-    setStudents((prev) =>
-      prev.map((student) =>
-        student.name === selectedStudent.name ? editingStudentData : student
-      )
-    );
-    setSelectedStudent(editingStudentData);
+  // Edit functions - replace the selected student's data with the editing student data and update isEditingStudent to false to render spans again
+  const saveStudentChanges = (updatedStudent) => {
+    if (updatedStudent && (updatedStudent.id || selectedStudent?.id)) {
+      const targetId = updatedStudent.id || selectedStudent.id;
+      setStudents((prev) =>
+        prev.map((student) =>
+          student.id === targetId ? { ...student, ...updatedStudent } : student
+        )
+      );
+      setSelectedStudent((prev) =>
+        prev?.id === targetId ? { ...prev, ...updatedStudent } : prev
+      );
+    }
     setIsEditingStudent(false);
   };
 
@@ -143,21 +134,60 @@ const ResultsPage = ({ user, academicTerm }) => {
     setIsEditingScores(false);
   };
 
-  // Edit functions - save editing scores
-  const saveScoreChanges = () => {
-    setStudents((prev) =>
-      // get the previous student data and update the subjects  (containing the scores)with the editing subjects
-      prev.map((student) =>
-        student.name === selectedStudent.name
-          ? { ...student, subjects: editingSubjects }
-          : student
-      )
-    );
-    setSelectedStudent({ ...selectedStudent, subjects: editingSubjects });
-    setIsEditingScores(false);
+  // Edit functions - save editing scores (persist to DB)
+  const handleSaveScores = () => {
+    if (!selectedStudent?.id) {
+      toast.error("Missing student");
+      return;
+    }
+
+    const payload = {
+      studentId: selectedStudent.id,
+      subjects: editingSubjects.map((subj) => ({
+        subjectId: subj.subjectId || subj.subject?.id,
+        scores: (subj.scores || []).map((s) => ({
+          type: s.type,
+          score: Number(s.score ?? 0),
+        })),
+      })),
+    };
+
+    updateStudentScores(payload).then((result) => {
+      if (result?.error) {
+        toast.error("Failed to save scores", { description: result.error });
+        return;
+      }
+
+      const updatedSubjects =
+        result.assessments?.map((a) => ({
+          subjectId: a.subjectId,
+          subject: a.subject,
+          assessmentId: a.id,
+          scores:
+            a.scores?.map((sc) => ({
+              type: sc.assessmentStructure?.type || "",
+              score: sc.score ?? 0,
+            })) || [],
+        })) || [];
+
+      setStudents((prev) =>
+        prev.map((student) =>
+          student.id === selectedStudent.id
+            ? { ...student, subjects: updatedSubjects }
+            : student
+        )
+      );
+      setSelectedStudent((prev) =>
+        prev?.id === selectedStudent.id
+          ? { ...prev, subjects: updatedSubjects }
+          : prev
+      );
+      setIsEditingScores(false);
+      toast.success("Scores updated");
+    });
   };
 
-  // Edit functions - handle score change
+  // Edit functions - handle score change ********************
   const handleScoreChange = (subjectIndex, scoreType, value) => {
     const numValue = parseInt(value) || 0;
     setEditingSubjects((prev) => {
@@ -185,30 +215,32 @@ const ResultsPage = ({ user, academicTerm }) => {
   };
   // --------------------------------Edit/Save School Information Functions-----------------------------
 
-  // Edit functions - start editing school data
+  // Edit functions - start editing school data (copy the school data into the editing school data state) and update isEditingSchool to true to render input fields (spans when not editing, input when editing)
   const startEditingSchool = () => {
     setEditingSchoolData({ ...schoolData });
     setIsEditingSchool(true);
   };
 
-  // Edit functions - cancel editing school data
+  // Edit functions - cancel editing school data (clear the editing school data state and update isEditingSchool to false to render spans again)
   const cancelEditingSchool = () => {
     setEditingSchoolData({});
     setIsEditingSchool(false);
   };
 
-  // Edit functions - save editing school data
-  const saveSchoolChanges = () => {
-    setSchoolData(editingSchoolData);
+  // Edit functions - save editing school data (replace the school data with the editing school data and update isEditingSchool to false to render spans again)
+  const saveSchoolChanges = (updatedSchool) => {
+    if (updatedSchool && Object.keys(updatedSchool).length > 0) {
+      setSchoolData({ ...updatedSchool });
+    }
     setIsEditingSchool(false);
   };
 
-  // Todo: Handle Print functionality
+  // Todo: Handle Print functionality (Todo: Send academic term data to a server to generate the result sheet)
   const handlePrint = () => {
     window.print();
   };
 
-  // Todo: Handle Export functionality
+  // Todo: Handle Export functionality (Send user info to their email address)
   const handleExport = () => {
     toast.info("Export functionality not available yet!");
   };
@@ -253,6 +285,7 @@ const ResultsPage = ({ user, academicTerm }) => {
               editingSchoolData={editingSchoolData}
               setEditingSchoolData={setEditingSchoolData}
               school={schoolData}  // to render the students names in the select dropdown
+              academicTerm={user.academicTerms[0]}
             />
 
             {/* Student Information, class and Total Days Present */}
@@ -261,17 +294,15 @@ const ResultsPage = ({ user, academicTerm }) => {
               startEditingStudent={startEditingStudent}
               saveStudentChanges={saveStudentChanges}
               cancelEditingStudent={cancelEditingStudent}
-              editingStudentData={editingStudentData}
-              setEditingStudentData={setEditingStudentData}
-              selectedStudent={selectedStudent} // for student name and daysPresent. Included in the transformed datais the total days variable from academic term.
-              classData={transformedData.classData} // for the class name (from academic term)
+              selectedStudent={selectedStudent} // for student name and daysPresent. 
+              academicTerm={user.academicTerms[0]} // for the class name  and total days present
             />
 
             {/* Academic Performance: Main section */}
             <ResultTable
               isEditingScores={isEditingScores}
               startEditingScores={startEditingScores}
-              saveScoreChanges={saveScoreChanges}
+              handleSaveScores={handleSaveScores}
               cancelEditingScores={cancelEditingScores}
               editingSubjects={editingSubjects}
               selectedStudent={selectedStudent}
@@ -279,7 +310,7 @@ const ResultsPage = ({ user, academicTerm }) => {
               getSubjectScores={getSubjectScoresWrapper}
               getGrade={getGrade} // for the grade calculation
               getRemark={getRemark} // for the remark calculation
-              assessmentStructure={academicTerm?.assessmentStructure || []}
+              assessmentStructure={user.academicTerms[0]?.assessmentStructure || []}
             />
 
             {/* Summary Statistics */}

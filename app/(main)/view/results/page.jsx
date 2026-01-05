@@ -43,10 +43,8 @@ const ResultsPage = async () => {
     redirect("/sign-in");
   }
 
-  // Get the most recent academic term (or first one if available)
-  const academicTerm = user.academicTerms?.[0] || null;
-
-  if (!academicTerm) {
+  // Check if there are any academic terms
+  if (user?.academicTerms.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
         <p className="text-gray-500">
@@ -56,7 +54,8 @@ const ResultsPage = async () => {
     );
   }
 
-  return <ResultsComponent user={user} academicTerm={academicTerm} />;
+  // Otherwise, pass the user data to the ResultsComponent
+  return <ResultsComponent user={user} />;
 };
 
 export default ResultsPage;

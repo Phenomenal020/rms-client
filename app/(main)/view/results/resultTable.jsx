@@ -1,11 +1,11 @@
 import { Button } from "@/shadcn/ui/button";
 import { Input } from "@/shadcn/ui/input";
 import { Edit3, Save, X } from "lucide-react";
-
+// 
 export const ResultTable = ({
     isEditingScores,
     startEditingScores,
-    saveScoreChanges,
+    handleSaveScores,
     cancelEditingScores,
     editingSubjects = [],
     selectedStudent = {},
@@ -17,6 +17,7 @@ export const ResultTable = ({
 }) => {
     // Use editing subjects if editing, otherwise use selected student's subjects
     const subjects = isEditingScores ? editingSubjects : (selectedStudent?.subjects || []);
+    console.log('subjects', subjects);
 
     // Use assessment structure in the order it was added (preserve database order)
     const sortedAssessments = assessmentStructure || [];
@@ -47,7 +48,7 @@ export const ResultTable = ({
                     <div className="flex gap-2">
                         {/* Save Scores Button */}
                         <Button
-                            onClick={saveScoreChanges}
+                            onClick={handleSaveScores}
                             size="sm"
                             className="bg-gray-800 hover:bg-gray-900 text-white"
                         >
@@ -118,7 +119,7 @@ export const ResultTable = ({
                                     <tr key={index} className="hover:bg-gray-50">
                                         {/* Subject Name */}
                                         <td className="border border-gray-300 p-3 font-medium text-gray-900">
-                                            {subject.name}
+                                            {subject.subject.name}
                                         </td>
 
                                         {/* Dynamically render assessment type columns (assessment headers) */}
@@ -134,9 +135,6 @@ export const ResultTable = ({
                                                 >
                                                     {isEditingScores ? (
                                                         <Input
-                                                            type="number"
-                                                            min="0"
-                                                            max="100"
                                                             value={scoreValue}
                                                             onChange={(e) =>
                                                                 handleScoreChange(

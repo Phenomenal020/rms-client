@@ -1,247 +1,299 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { Button } from "@/shadcn/ui/button";
+import { useEffect, useMemo, useState } from "react";
+
 import { Card, CardContent } from "@/shadcn/ui/card";
-import { Download, Printer } from "lucide-react";
 import { toast } from "sonner";
 
 // components
-import { SubjectStats } from "./subjectStats";
-import { SubjectInfo } from "./subjectInfo";
-import { SchoolHeader } from "@/app/(main)/view/results/schoolHeader";
-import { SubjectResultTable } from "./subjectResultTable";
+import { PrintExportHeader } from "./printExportHeader";
 import { SubjectSelection } from "./subjectSelection";
+import { SchoolHeader } from "@/app/(main)/view/results/schoolHeader";
+import { SubjectInfo } from "./subjectInfo";
+import { SubjectResultTable } from "./subjectResultTable";
+import { SubjectStats } from "./subjectStats";
 
-// helpers
-import {
-  calculateSubjectStats,
-  getStudentScores,
-  getEnrolledStudents,
-} from "./helpers";
-
-// utils
+// helpers and utils
+import { calculateSubjectStats, getStudentScores, getEnrolledStudents } from "./helpers";
 import createGradingFunctions from "./utils/gradingFns";
-import transformData from "./utils/transformDataFn";
 
 const SubjectsPage = ({ user, academicTerm }) => {
-  // Transform the data to format required by the component. This function does a lot of nested mapping. So, it is memoised to avoid re-calculating it unless the academic term changes.
-  const transformedData = useMemo(() => transformData(user, academicTerm), [academicTerm]);
-  // Likewise
-  const gradingFunctions = useMemo(() => createGradingFunctions(academicTerm?.gradingSystem), [academicTerm?.gradingSystem]);
 
-  // Extract grading functions
-  const { getGrade, getRemark } = gradingFunctions;
 
-  // students state
-  const [students, setStudents] = useState(transformedData.students); // students data from db
+  // --------------------------------------------------------------------------------
+  // State Management. Prefer the provided academic term. Fall back to the user's academic term.
+  const termData = academicTerm || user?.academicTerms?.[0];
 
-  // subjects state
-  const [subjects] = useState(transformedData.subjects);
-  const [selectedSubject, setSelectedSubject] = useState(subjects[0] || null); // default selected subject as the first subject
+  // Pre-compute subject names (minimal shaping to avoid heavy transforms).
+  const subjectNames = useMemo(
+    () => (termData?.subjects || []).map((subject) => subject.name),
+    [termData?.subjects]
+  );  // Only recompute these if the subjects change
+
+  // Memoise the grading functions 
+  const { getGrade, getRemark } = useMemo(
+    () => createGradingFunctions(termData?.gradingSystem),
+    [termData?.gradingSystem]
+  );  // Only recompute these if the grading system changes
+
+  // students state - all students from db
+  const [students, setStudents] = useState(termData?.students || []);
+
+  // subjects state: gets enrolled students for the selected subject
+  const [selectedSubjectName, setSelectedSubjectName] = useState(subjectNames[0] || null);  // default as first subject
   const [currentSubjectIndex, setCurrentSubjectIndex] = useState(0); // current subject index to track the current subject
-
-  // Memoise this operation to get enrolled students for the selected subject
   const enrolledStudents = useMemo(
     () =>
-      selectedSubject ? getEnrolledStudents(selectedSubject, students) : [],
-    [selectedSubject, students]
-  );
+      selectedSubjectName ? getEnrolledStudents(selectedSubjectName, students) : [],
+    [selectedSubjectName, students]
+  );  // Memoise this operation to get enrolled students for the selected subject
 
-  // editing states: school, subject, scores
+  // editing states: school, subject flag + data,  editing scores flag + data
   const [isEditingSchool, setIsEditingSchool] = useState(false);
   const [isEditingSubject, setIsEditingSubject] = useState(false);
   const [editingSubjectData, setEditingSubjectData] = useState({});
   const [isEditingScores, setIsEditingScores] = useState(false);
   const [editingStudents, setEditingStudents] = useState([]);
 
-  // school state
-  const [schoolData, setSchoolData] = useState(transformedData.schoolData);
+  // global editing state - to disable other component action buttons when editing in one component
+  const [isGlobalEditing, setIsGlobalEditing] = useState(false);
+
+  // school state: data + flag
+  const [schoolData, setSchoolData] = useState(termData?.school || user?.school);
   const [editingSchoolData, setEditingSchoolData] = useState(null);
 
-  // Update selected subject when subjects change
+  // Sync local state when term data changes
   useEffect(() => {
-    if (subjects.length > 0 && !selectedSubject) {
-      setSelectedSubject(subjects[0]); // default selected subject as the first subject
-      setCurrentSubjectIndex(0); // default current subject index as 0
-    }
-  }, [subjects, selectedSubject]);
+    setStudents(termData?.students || []);
+    setSchoolData(termData?.school || user?.school);
+    setSelectedSubjectName(subjectNames[0] || null);
 
-  // Update states when transformed data changes
-  useEffect(() => {
-    setStudents(transformedData.students);
-    setSchoolData(transformedData.schoolData);
-    if (transformedData.subjects.length > 0) {
-      setSelectedSubject(transformedData.subjects[0]);
+    if (subjectNames.length > 0) {
+      setSelectedSubjectName(subjectNames[0]);
+      setCurrentSubjectIndex(0);
+    } else {
+      setSelectedSubjectName(null);
       setCurrentSubjectIndex(0);
     }
-  }, [transformedData]);
+  }, [termData?.id, termData?.students, termData?.school, subjectNames, user?.school]);
 
-  // -------------------------------------------------------------------
+  // -------------------------------------------------------------------------------------
 
-  // Memoise the derived subject stats
-  const subjectStats = useMemo(
-    () =>
-      selectedSubject
-        ? calculateSubjectStats(selectedSubject, enrolledStudents, academicTerm?.assessmentStructure || [])
-        : null,
-    [selectedSubject, enrolledStudents, academicTerm?.assessmentStructure]
-  );
 
-  // -------------------------------------------------------------------
 
-  // --------------------------------Prev/Next Subject Functions-----------------------------
+  // --------------------------------------------------------------------------------
+  // Navigation Functions - Previous and Next Subject Buttons
 
+  // These would trigger a re-evaluation of the enrolled students for the selected subject
   // Previous subject - decrease the current subject index by 1 and set the selected subject to the new index
   const goToPreviousSubject = () => {
-    if (currentSubjectIndex > 0 && subjects.length > 0) {
+    if (currentSubjectIndex > 0 && subjectNames.length > 0) {
       const newIndex = currentSubjectIndex - 1;
       setCurrentSubjectIndex(newIndex);
-      setSelectedSubject(subjects[newIndex]);
+      setSelectedSubjectName(subjectNames[newIndex]);
     }
   };
 
   // Next subject - increase the current subject index by 1 and set the selected subject to the new index
   const goToNextSubject = () => {
-    if (currentSubjectIndex < subjects.length - 1 && subjects.length > 0) {
+    if (currentSubjectIndex < subjectNames.length - 1 && subjectNames.length > 0) {
       const newIndex = currentSubjectIndex + 1;
       setCurrentSubjectIndex(newIndex);
-      setSelectedSubject(subjects[newIndex]);
+      setSelectedSubjectName(subjectNames[newIndex]);
     }
   };
 
-  // --------------------------------Edit/Save Subject Functions (Subject name)-----------------------------
+  // --------------------------------------------------------------------------------
 
-  // Edit functions - start editing subject data
-  const startEditingSubject = () => {
-    setEditingSubjectData({ name: selectedSubject });
-    setIsEditingSubject(true);
-  };
 
-  // Edit functions - cancel editing subject data
-  const cancelEditingSubject = () => {
-    setEditingSubjectData({});
-    setIsEditingSubject(false);
-  };
 
-  // Edit functions - save editing subject data
-  const saveSubjectChanges = () => {
-    // Update subject name in all students' subjects
-    if (editingSubjectData.name !== selectedSubject) {
-      setStudents((prev) =>
-        prev.map((student) => {
-          if (student.subjects) {
-            return {
-              ...student,
-              subjects: student.subjects.map((s) =>
-                s.name === selectedSubject
-                  ? { ...s, name: editingSubjectData.name }
-                  : s
-              ),
-            };
-          }
-          return student;
-        })
-      );
-    }
-    // Update selected subject to the new subject name
-    setSelectedSubject(editingSubjectData.name);
-    setIsEditingSubject(false);
-  };
 
-  // --------------------------------Edit/Save Scores Functions-----------------------------
+  // --------------------------------------------------------------------------------
+  // Subject Stats Functions - Calculate the subject stats
+
+  // Calculate the subject stats for the selected subject. Do this anytime 1) selected subject 2) enrolled students or 3) assessment structure changes
+  // Memoise the derived subject stats
+  const subjectStats = useMemo(
+    () =>
+      selectedSubjectName
+        ? calculateSubjectStats(selectedSubjectName, enrolledStudents, termData?.assessmentStructure || [])
+        : null,
+    [selectedSubjectName, enrolledStudents, termData?.assessmentStructure]
+  );
+
+  // --------------------------------------------------------------------------------
+
+
+
+
+
+  // --------------------------------------------------------------------------------
+  // Edit/Save Scores Functions
 
   // Edit functions - start editing scores (copy the enrolled students into the editing students state) and update isEditingScores to true to render input fields (spans when not editing, input when editing)
   const startEditingScores = () => {
-    setEditingStudents(enrolledStudents.map((student) => ({ ...student })));
     setIsEditingScores(true);
+    setEditingStudents(enrolledStudents || []);
+    setIsGlobalEditing(true);
   };
 
   // Edit functions - cancel editing scores
   const cancelEditingScores = () => {
-    setEditingStudents([]);
     setIsEditingScores(false);
+    setEditingStudents([]);
+    setIsGlobalEditing(false);
   };
 
-  // Edit functions - save editing scores
-  const saveScoreChanges = () => {
-    setStudents((prev) =>
-      // get the previous student data and update with the editing students
-      prev.map((student) => {
-        const editedStudent = editingStudents.find(
-          (es) => es.studentId === student.studentId
+  // Edit functions - Updates the local state of the enrolled students for the selected subject
+  const saveScoreChanges = (updatedStudentsFromForm = []) => {
+  
+    // The payload here should not be empty as this function is only called after a form submission with the new student data
+    const hasFormPayload = Array.isArray(updatedStudentsFromForm) && updatedStudentsFromForm.length > 0;
+    if (!hasFormPayload) {
+      return;
+    }   // if it is empty, do nothing
+
+    // Update the local state of the students (enrolled students derives from this)
+    setStudents(prevStudents =>
+      prevStudents.map((student) => {
+        // find students with data to be updated
+        const match = updatedStudentsFromForm.find(
+          (s) =>
+            s.studentId === student.id ||
+            s.studentId === student.studentId ||
+            s.studentId === String(student.id)
         );
-        if (editedStudent) {
-          return editedStudent;
-        }
-        return student;
+        if (!match) return student;
+
+        // Update only the selected subject's assessments 
+        const updatedSubjects = (student.subjects || []).map((subject) => {
+          const isSelected =
+            subject.subject?.name === selectedSubjectName ||
+            subject.name === selectedSubjectName
+          if (!isSelected) return subject;  // skip unaffected subjects
+
+          const assessments = Array.isArray(subject.assessments)
+            ? [...subject.assessments]
+            : [];
+
+          const firstAssessment = assessments[0]  // where the scores actully are
+            ? { ...assessments[0] }
+            : { scores: [] };
+
+          // Build the new scores array from the form payload
+          firstAssessment.scores = match.scores.map((score) => ({
+            ...score,
+          }));
+
+          assessments[0] = firstAssessment;
+
+          return {
+            ...subject,
+            assessments,
+          };
+        });
+
+        // if we actually make changes, then update the student's subjects with the updated subjects (containing the new scores)
+        return {
+          ...student,
+          subjects: updatedSubjects,
+        };
       })
     );
     setIsEditingScores(false);
+    setIsGlobalEditing(false);
   };
 
-  // Edit functions - handle score change
-  const handleScoreChange = (studentIndex, scoreType, value) => {
-    const numValue = parseInt(value) || 0;
-    setEditingStudents((prev) => {
-      // get the previous students and update the student at the given index with the new score
-      const newStudents = [...prev];
-      const student = { ...newStudents[studentIndex] };
+  // // Edit functions - handle score change
+  // const handleScoreChange = (studentIndex, assessmentStructureId, value) => {
+  //   const numValue = Number(value) || 0;
+  //   setEditingStudents((prev) => {
+  //     if (!prev || prev.length === 0) return prev;
 
-      // Find the subject in the student's subjects array
-      const subjectIndex = student.subjects.findIndex(
-        (s) => s.name === selectedSubject
-      );
+  //     const newStudents = [...prev];
+  //     const student = { ...newStudents[studentIndex] };
 
-      if (subjectIndex >= 0) {
-        const subject = { ...student.subjects[subjectIndex] };
+  //     const subjectIndex = student.subjects?.findIndex(
+  //       (s) => s.subject?.name === selectedSubject || s.name === selectedSubject
+  //     );
 
-        // Update or create scores array if not already present
-        if (!subject.scores) {
-          subject.scores = [];
-        }
+  //     if (subjectIndex === undefined || subjectIndex < 0) {
+  //       newStudents[studentIndex] = student;
+  //       return newStudents;
+  //     }
 
-        // Find existing score of this type or create new one if not found
-        const scoreIndex = subject.scores.findIndex(
-          (s) => s.type === scoreType
-        );
-        if (scoreIndex >= 0) {
-          subject.scores[scoreIndex] = { type: scoreType, score: numValue };
-        } else {
-          subject.scores.push({ type: scoreType, score: numValue });
-        }
+  //     const subject = { ...student.subjects[subjectIndex] };
+  //     const assessments = Array.isArray(subject.assessments)
+  //       ? [...subject.assessments]
+  //       : [];
+  //     const existingAssessment = assessments[0]
+  //       ? { ...assessments[0] }
+  //       : { scores: [] };
+  //     const scores = Array.isArray(existingAssessment.scores)
+  //       ? [...existingAssessment.scores]
+  //       : [];
 
-        // update the subject at the given index with the new subject
-        student.subjects[subjectIndex] = subject;
-      }
+  //     const scoreIndex = scores.findIndex(
+  //       (s) => s.assessmentStructureId === assessmentStructureId
+  //     );
 
-      // update the student at the given index with the new student
-      newStudents[studentIndex] = student;
-      return newStudents;
-    });
-  };
+  //     if (scoreIndex >= 0) {
+  //       scores[scoreIndex] = { ...scores[scoreIndex], score: numValue };
+  //     } else {
+  //       scores.push({ assessmentStructureId, score: numValue });
+  //     }
 
-  // --------------------------------Edit/Save School Information Functions-----------------------------
+  //     existingAssessment.scores = scores;
+  //     assessments[0] = existingAssessment;
+  //     subject.assessments = assessments;
+
+  //     const updatedSubjects = [...student.subjects];
+  //     updatedSubjects[subjectIndex] = subject;
+  //     student.subjects = updatedSubjects;
+
+  //     newStudents[studentIndex] = student;
+  //     return newStudents;
+  //   });
+  // };
+  // --------------------------------------------------------------------------------
+
+
+
+
+
+
+
+  // --------------------------------------------------------------------------------
+  // Edit/Save School Information Functions
 
   // Edit functions - start editing school data
   const startEditingSchool = () => {
     setEditingSchoolData({ ...schoolData });
     setIsEditingSchool(true);
+    setIsGlobalEditing(true);
   };
 
   // Edit functions - cancel editing school data
   const cancelEditingSchool = () => {
     setEditingSchoolData({});
     setIsEditingSchool(false);
+    setIsGlobalEditing(false);
   };
 
   // Edit functions - save editing school data
   const saveSchoolChanges = () => {
     setSchoolData(editingSchoolData);
     setIsEditingSchool(false);
+    setIsGlobalEditing(false);
   };
 
   // -------------------------------------------------------------------
+
+
+
+
+  // --------------------------------------------------------------------------------
+  // Print and Export Functions
 
   // Todo: Handle Print functionality
   const handlePrint = () => {
@@ -253,9 +305,13 @@ const SubjectsPage = ({ user, academicTerm }) => {
     toast.success("Subject sheet exported successfully!");
   };
 
-  // -------------------------------------------------------------------
+  // --------------------------------------------------------------------------------
 
-  if (!selectedSubject) {
+
+
+
+  // if there are no subjects, show a message
+  if (!selectedSubjectName) {
     return (
       <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
         <p className="text-gray-500">No subjects available</p>
@@ -263,21 +319,26 @@ const SubjectsPage = ({ user, academicTerm }) => {
     );
   }
 
+
+
+  // if there are subjects, show the subjects page
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto">
+
         {/* Header - contains print and export buttons */}
-        <Header handlePrint={handlePrint} handleExport={handleExport} />
+        <PrintExportHeader handlePrint={handlePrint} handleExport={handleExport} isGlobalEditing={isGlobalEditing} />
 
         {/* Subject Selection - name and <- -> buttons to navigate through the subjects */}
         <SubjectSelection
           goToPreviousSubject={goToPreviousSubject}
           goToNextSubject={goToNextSubject}
           currentSubjectIndex={currentSubjectIndex}
-          setCurrentSubjectIndex={setCurrentSubjectIndex}
-          subjects={subjects}
-          setSelectedSubject={setSelectedSubject}
-          selectedSubject={selectedSubject}
+          setCurrentSubjectIndex={setCurrentSubjectIndex} // update the current subject index based on the select dropdown
+          subjectNames={subjectNames}
+          setSelectedSubjectName={setSelectedSubjectName}
+          selectedSubjectName={selectedSubjectName}
+          isGlobalEditing={isGlobalEditing}
         />
 
         {/* Subject Sheet */}
@@ -292,20 +353,16 @@ const SubjectsPage = ({ user, academicTerm }) => {
               editingSchoolData={editingSchoolData}
               setEditingSchoolData={setEditingSchoolData}
               school={schoolData}
+              academicTerm={termData}
+              isGlobalEditing={isGlobalEditing}
             />
 
-            {/* Subject Information */}
+            {/* Subject Information (no editing required) */}
             <SubjectInfo
-              isEditingSubject={isEditingSubject}
-              startEditingSubject={startEditingSubject}
-              saveSubjectChanges={saveSubjectChanges}
-              cancelEditingSubject={cancelEditingSubject}
-              editingSubjectData={editingSubjectData}
-              setEditingSubjectData={setEditingSubjectData}
-              selectedSubject={selectedSubject}
+              selectedSubject={termData?.subjects?.find(subject => subject.name === selectedSubjectName)?.name || ""}
               enrolledStudentsCount={enrolledStudents.length}
-              term={schoolData?.term}
-              academicYear={schoolData?.academicYear}
+              term={termData?.term}
+              academicYear={termData?.academicYear}
             />
 
             {/* Academic Performance */}
@@ -316,12 +373,14 @@ const SubjectsPage = ({ user, academicTerm }) => {
               cancelEditingScores={cancelEditingScores}
               editingStudents={editingStudents}
               enrolledStudents={enrolledStudents}
-              selectedSubject={selectedSubject}
-              handleScoreChange={handleScoreChange}
-              getStudentScores={(subjectName, student) => getStudentScores(subjectName, student, academicTerm?.assessmentStructure || [])}
+              selectedSubjectName={selectedSubjectName}
+              // handleScoreChange={handleScoreChange}
+              getStudentScores={getStudentScores}
               getGrade={getGrade}
               getRemark={getRemark}
-              assessmentStructure={academicTerm?.assessmentStructure || []}
+              assessmentStructure={termData?.assessmentStructure || []}
+              isGlobalEditing={isGlobalEditing}
+              academicTermId={termData?.id}
             />
 
             {/* Summary Statistics */}
@@ -334,33 +393,3 @@ const SubjectsPage = ({ user, academicTerm }) => {
 };
 
 export default SubjectsPage;
-
-const Header = ({ handlePrint, handleExport }) => {
-  return (
-    <div className="mb-6">
-      <div className="flex items-center justify-between">
-        {/* Subject Sheet Header Text */}
-        <h1 className="text-2xl font-bold text-gray-900">
-          Subject Sheet
-        </h1>
-        {/* Print and Export Buttons */}
-        <div className="flex gap-2">
-          {/* Print Button */}
-          <Button onClick={handlePrint} variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
-            <Printer className="w-4 h-4 mr-2" />
-            Print
-          </Button>
-          {/* Export Button */}
-          <Button
-            onClick={handleExport}
-            className="bg-gray-800 hover:bg-gray-900 text-white"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export PDF
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-};
-

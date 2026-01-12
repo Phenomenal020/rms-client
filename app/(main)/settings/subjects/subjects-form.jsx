@@ -363,7 +363,7 @@ export function SubjectsForm({ subjects }) {
                                 <LoadingButton
                                     type="submit"
                                     loading={loading}
-                                    disabled={loading || editingSubjectIndex !== null}
+                                    disabled={loading || editingSubjectIndex !== null || !form.formState.isDirty}
                                     className="w-full sm:w-auto min-w-[160px] h-10 font-medium shadow-sm hover:shadow transition-shadow"
                                 >
                                     {loading ? "Saving..." : "Save Changes"}

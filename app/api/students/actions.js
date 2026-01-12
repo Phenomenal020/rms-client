@@ -158,12 +158,18 @@ export async function updateStudents(studentsData) {
           }
         }
 
-        // Check if student exists (by ID if provided, or create new)
+        // Check if student exists in the database (by ID if provided, or create new)
         let student;
         const studentId = typeof studentData.id === "string" ? studentData.id : String(studentData.id);
 
-        // TODO: Fix this later. Check if this is an existing student (has valid UUID)
-        const isExistingStudent = studentId && studentId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+        // Check if student actually exists in the database for this academic term
+        const existingStudent = await tx.student.findUnique({
+          where: { id: studentId },
+          select: { id: true, academicTermId: true },
+        });
+
+        // Only treat as existing if the student exists AND belongs to this academic term
+        const isExistingStudent = existingStudent && existingStudent.academicTermId === termWithData.id;
 
         if (isExistingStudent) {
           // Update existing student

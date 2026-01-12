@@ -17,14 +17,15 @@ import {
 } from "@/shadcn/ui/form";
 import { updateSelectedStudent } from "@/app/api/views/edit-student-action";
 
-export const EditingStudents = ({
+export function EditingStudents({
     isEditingStudent,
     startEditingStudent,
     saveStudentChanges,
     cancelEditingStudent,
     selectedStudent = {},
     academicTerm = {},
-}) => {
+    isGlobalEditing,
+}) {
 
     // refresh the page after the student information is updated
     const router = useRouter();
@@ -145,6 +146,7 @@ export const EditingStudents = ({
                                 size="sm"
                                 className="border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer"
                                 type="button"
+                                disabled={isGlobalEditing}
                             >
                                 <Edit3 className="w-4 h-4 mr-2" />
                                 Edit
@@ -155,7 +157,7 @@ export const EditingStudents = ({
                                     type="submit"
                                     size="sm"
                                     className="bg-gray-800 hover:bg-gray-900 text-white cursor-pointer"
-                                    disabled={isPending}
+                                    disabled={isPending || !form.formState.isDirty}
                                 >
                                     {isPending ? (
                                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />

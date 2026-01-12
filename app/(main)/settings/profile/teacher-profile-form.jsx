@@ -300,6 +300,7 @@ export function TeacherProfileForm({ user }) {
               <div className="flex justify-center">
                 <LoadingButton
                   type="submit"
+                  disabled={!form.formState.isDirty}
                   loading={loading}
                   className="w-full sm:w-auto min-w-[160px] h-10 font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
                 >

@@ -46,7 +46,11 @@ export async function updateSelectedStudent(studentData) {
     }
     // Convert days present to a number if it is a valid number
     let daysPresent;
-    if (rawDaysPresent !== undefined && rawDaysPresent !== null && rawDaysPresent !== "") {
+    if (
+      rawDaysPresent !== undefined &&
+      rawDaysPresent !== null &&
+      rawDaysPresent !== ""
+    ) {
       const parsed = Number(rawDaysPresent);
       if (Number.isNaN(parsed) || parsed < 0 || !Number.isInteger(parsed)) {
         return { error: "Days present must be a non-negative integer" };
@@ -54,7 +58,7 @@ export async function updateSelectedStudent(studentData) {
       daysPresent = parsed;
     }
 
-    // Build the update data 
+    // Build the update data
     const updateData = {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
@@ -69,7 +73,7 @@ export async function updateSelectedStudent(studentData) {
       updateData.daysPresent = daysPresent;
     }
 
-    console.log('update data', updateData);
+    console.log("update data", updateData);
 
     // fetch the student from the database and update the data
     const student = await prisma.student.update({
@@ -84,154 +88,78 @@ export async function updateSelectedStudent(studentData) {
   }
 }
 
-/**
- * Update assessment scores for a student across subjects.
- * Expects payload:
- * {
- *   studentId: string,
- *   subjects: [
- *     {
- *       subjectId: string,
- *       scores: [{ type: string, score: number }]
- *     }
- *   ]
- * }
- */
-export async function updateStudentScores({ studentId, subjects }) {
+export async function saveStudentScores(
+  studentId,
+  academicTermId,
+  selectedStudentSubjects
+) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    return await prisma.$transaction(async (tx) => {
 
-    if (!session?.user) {
-      return { error: "Unauthorised user" };
-    }
+      // for each subject in the payload (must be a subject that the student is enrolled in)
+      for (const studentSubject of selectedStudentSubjects) {
 
-    if (!studentId || typeof studentId !== "string") {
-      return { error: "studentId is required" };
-    }
-
-    if (!Array.isArray(subjects) || subjects.length === 0) {
-      return { error: "subjects array is required" };
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: {
-        academicTerms: {
-          include: { assessmentStructure: true, subjects: true },
-          take: 1,
-          orderBy: { createdAt: "desc" },
-        },
-      },
-    });
-
-    const term = user?.academicTerms?.[0];
-    if (!term) {
-      return { error: "Academic term not found" };
-    }
-
-    const structureByType =
-      term.assessmentStructure?.reduce((acc, item) => {
-        if (item?.type) acc[item.type] = item;
-        return acc;
-      }, {}) || {};
-
-    // Validate and normalise payload
-    const normalisedSubjects = subjects.map((subj, idx) => {
-      if (!subj?.subjectId || typeof subj.subjectId !== "string") {
-        throw new Error(`Subject ${idx + 1}: subjectId is required`);
-      }
-      const scores = Array.isArray(subj.scores) ? subj.scores : [];
-      const parsedScores = scores.map((s, sIdx) => {
-        const type = s?.type;
-        if (!type || !structureByType[type]) {
-          throw new Error(`Subject ${idx + 1}, Score ${sIdx + 1}: invalid type`);
+        // get the subject id and scores
+        const { subjectId, scores } = studentSubject;
+        if (!subjectId) {
+          throw new Error("Subject information is missing");
         }
-        const num = Number(s.score ?? 0);
-        if (!Number.isFinite(num) || num < 0) {
-          throw new Error(
-            `Subject ${idx + 1}, Score ${sIdx + 1}: score must be a non-negative number`
-          );
-        }
-        return { type, score: Math.round(num) };
-      });
-      return { subjectId: subj.subjectId, scores: parsedScores };
-    });
 
-    const assessments = await prisma.$transaction(async (tx) => {
-      const updated = [];
-
-      for (const subj of normalisedSubjects) {
-        // Ensure student-subject link exists
-        let studentSubject = await tx.studentSubject.findFirst({
-          where: { studentId, subjectId: subj.subjectId },
+        // Ensure student is enrolled in the subject (in the database) by finding an entry in the studentSubject table where the student-subject combination exists
+        let dbStudentSubject = await tx.studentSubject.findUnique({
+          where: {
+            studentId_subjectId: {
+              studentId,
+              subjectId,
+            },
+          },
         });
-
-        if (!studentSubject) {
-          studentSubject = await tx.studentSubject.create({
-            data: { studentId, subjectId: subj.subjectId },
-          });
-        }
-
-        // Upsert assessment per student/subject/term
+        if (!dbStudentSubject) {
+          throw new Error(`Student is not enrolled in one or more subjects`);
+        } 
+        
+        // Find or create the Assessment (1 per student–subject–term) for the enrolled student-subject combination
         const assessment = await tx.assessment.upsert({
           where: {
             studentId_subjectId_academicTermId: {
               studentId,
-              subjectId: subj.subjectId,
-              academicTermId: term.id,
+              subjectId: dbStudentSubject.subjectId,
+              academicTermId,
             },
           },
           update: {},
           create: {
             studentId,
-            subjectId: subj.subjectId,
-            academicTermId: term.id,
-            studentSubjectId: studentSubject.id,
+            subjectId: dbStudentSubject.subjectId,
+            academicTermId,
+            studentSubjectId: dbStudentSubject.id,
           },
         });
 
-        // Upsert scores against assessmentStructure
-        for (const sc of subj.scores) {
-          const structure = structureByType[sc.type];
+        // Upsert each AssessmentScore (1 score per assessment structure)
+        for (const { assessmentStructureId, score } of scores) {
           await tx.assessmentScore.upsert({
             where: {
               assessmentId_assessmentStructureId: {
                 assessmentId: assessment.id,
-                assessmentStructureId: structure.id,
+                assessmentStructureId,
               },
             },
-            update: { score: sc.score },
+            update: {
+              score,
+            },
             create: {
               assessmentId: assessment.id,
-              assessmentStructureId: structure.id,
-              score: sc.score,
+              assessmentStructureId,
+              score,
             },
           });
         }
-
-        const refreshed = await tx.assessment.findUnique({
-          where: { id: assessment.id },
-          include: {
-            scores: {
-              include: { assessmentStructure: true },
-              orderBy: { assessmentStructure: { order: "asc" } },
-            },
-            subject: true,
-          },
-        });
-
-        updated.push(refreshed);
       }
 
-      return updated;
+      return { success: "Scores successfully saved" };
     });
-
-    return { success: "Scores updated", assessments };
   } catch (error) {
-    console.error("Error updating scores:", error);
-    return { error: error.message || "Failed to update scores" };
+    return { error: error.message || "Failed to save student scores" };
   }
 }
-

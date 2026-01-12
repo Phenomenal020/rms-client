@@ -57,6 +57,7 @@ export const SchoolHeader = ({
     setEditingSchoolData: _setEditingSchoolData,
     school = {}, // school data from the database
     academicTerm = {}, // academic term data from the database
+    isGlobalEditing,
 }) => {
 
     // Use the router to refresh the page after a successful update
@@ -96,6 +97,7 @@ export const SchoolHeader = ({
         school?.schoolEmail,
         academicTerm?.academicYear,
         academicTerm?.term,  // TODO: Fix this
+        isGlobalEditing,
     ]);
 
     // Build payload: always include required fields; optional fields are sent only if dirty.
@@ -192,19 +194,20 @@ export const SchoolHeader = ({
                             <Button
                                 onClick={startEditingSchool}
                                 variant="outline"
+                                disabled={isGlobalEditing}
                                 size="sm"
                                 className="border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer"
                                 type="button"
                             >
                                 <Edit3 className="w-4 h-4 mr-2" />
-                                Edit School Info
+                                Edit 
                             </Button>
                         ) : (
                             <div className="flex gap-2">
                                 <Button
                                     type="submit"
                                     size="sm"
-                                    disabled={isPending}
+                                    disabled={isPending || !form.formState.isDirty}
                                     className="bg-gray-800 hover:bg-gray-900 text-white cursor-pointer"
                                 >
                                     {isPending ? (

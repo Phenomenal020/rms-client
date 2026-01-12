@@ -140,6 +140,28 @@ export function StudentsForm({ user }) {
     }
   }, [academicTerm?.subjects]);
 
+  // Reset form when students data changes (e.g., after router.refresh())
+  useEffect(() => {
+    const formData = {
+      students: students.map((student) => ({
+        id: student.id,
+        firstName: student.firstName,
+        middleName: student.middleName || "",
+        lastName: student.lastName,
+        dateOfBirth: student.dateOfBirth
+          ? new Date(student.dateOfBirth).toISOString().split("T")[0]
+          : "",
+        gender: student.gender || "",
+        department: student.department || "",
+        daysPresent: student.daysPresent ? student.daysPresent : "",
+        subjects: student.subjects.map((studentSubject) => ({
+          name: studentSubject.subject.name,
+        })),
+      })),
+    };
+    form.reset(formData);
+  }, [students, form]);
+
   // Toggle student subject selection
   const toggleStudentSubject = (subjectToToggle) => {
     // check if the subject to toggle is already in the subjects list. If it is, remove it, otherwise add it.
@@ -824,7 +846,7 @@ export function StudentsForm({ user }) {
                 <LoadingButton
                   type="submit"
                   loading={loading}
-                  disabled={editingStudentIndex !== null}
+                  disabled={editingStudentIndex !== null || !form.formState.isDirty || loading}
                   className="w-full sm:w-auto min-w-[160px] h-10 font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
                 >
                   {loading ? "Saving..." : "Save Changes"}

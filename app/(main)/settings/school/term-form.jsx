@@ -561,6 +561,7 @@ export function TermForm({ academicTerm, schoolId }) {
                 <LoadingButton
                   type="submit"
                   loading={loading}
+                  disabled={!form.formState.isDirty || loading || editingIndex !== null}
                   className="w-full sm:w-auto min-w-[160px] h-10 font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
                 >
                   Save Changes

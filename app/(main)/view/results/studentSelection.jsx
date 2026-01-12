@@ -9,19 +9,20 @@ import {
 } from "@/shadcn/ui/select";
 import { User, ArrowLeft, ArrowRight } from "lucide-react";
 
-export const StudentSelection = ({
+export function StudentSelection({
     goToPreviousStudent,
     goToNextStudent,
     currentStudentIndex,
     setCurrentStudentIndex,
     students = [],  // default to an empty array
     setSelectedStudent,
-    selectedStudent
-}) => {
+    selectedStudent,
+    isGlobalEditing,
+}) {
 
     // Helper function to get the full name of a student
     const getName = (student) => {
-        return student?.firstName + student?.middleName ? `${student?.firstName} ${student?.middleName} ${student?.lastName}` : `${student?.firstName} ${student?.lastName}`;
+        return (student?.firstName ? student.firstName : "") + " " + (student?.middleName ? " " + student.middleName : "") +  " " + (student?.lastName ? " " + student.lastName : "");
     }
 
     return (
@@ -62,6 +63,7 @@ export const StudentSelection = ({
                                 {students && students.length > 0 ? (
                                     students.map((student, index) => (
                                         <SelectItem
+                                            disabled={isGlobalEditing}
                                             key={index}
                                             value={getName(student)}
                                         >
@@ -82,7 +84,7 @@ export const StudentSelection = ({
                         {/* Previous Student Button */}
                         <Button
                             onClick={goToPreviousStudent}
-                            disabled={currentStudentIndex === 0 || !students || students.length === 0}
+                            disabled={currentStudentIndex === 0 || !students || students.length === 0 || isGlobalEditing}
                             variant="outline"
                             size="sm"
                             className="border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -92,7 +94,7 @@ export const StudentSelection = ({
                         {/* Next Student Button */}
                         <Button
                             onClick={goToNextStudent}
-                            disabled={!students || currentStudentIndex === students.length - 1}
+                            disabled={!students || currentStudentIndex === students.length - 1 || isGlobalEditing}
                             variant="outline"
                             size="sm"
                             className="border-gray-300 text-gray-700 hover:bg-gray-50"

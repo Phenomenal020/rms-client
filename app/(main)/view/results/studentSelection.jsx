@@ -9,15 +9,22 @@ import {
 } from "@/shadcn/ui/select";
 import { User, ArrowLeft, ArrowRight } from "lucide-react";
 
-export const StudentSelection = ({
+export function StudentSelection({
     goToPreviousStudent,
     goToNextStudent,
     currentStudentIndex,
     setCurrentStudentIndex,
-    students = [],
+    students = [],  // default to an empty array
     setSelectedStudent,
-    selectedStudent
-}) => {
+    selectedStudent,
+    isGlobalEditing,
+}) {
+
+    // Helper function to get the full name of a student
+    const getName = (student) => {
+        return (student?.firstName ? student.firstName : "") + " " + (student?.middleName ? " " + student.middleName : "") +  " " + (student?.lastName ? " " + student.lastName : "");
+    }
+
     return (
         <Card className="mb-6">
             <CardContent className="p-4">
@@ -25,22 +32,23 @@ export const StudentSelection = ({
 
                     {/* Student Selection Dropdown - updates the selected student and the current student index */}
                     <div className="flex items-center gap-4">
+
                         {/* Student Icon */}
                         <User className="w-5 h-5 text-gray-600" />
 
                         {/* Student Selection Dropdown - Show student names in a dropdown */}
                         <Select
-                            value={selectedStudent?.name}
+                            value={getName(selectedStudent)}
                             onValueChange={(value) => {
                                 // find the student with the given name
                                 const student = students.find(
-                                    (s) => s.name === value
+                                    (s) => getName(s) === value
                                 );
                                 // if the student is found, update the selected student and the current student index
                                 if (student) {
                                     setSelectedStudent(student);
                                     setCurrentStudentIndex(
-                                        students.findIndex((s) => s.name === student.name)
+                                        students.findIndex((s) => getName(s) === value)
                                     );
                                 }
                             }}
@@ -49,17 +57,18 @@ export const StudentSelection = ({
                             <SelectTrigger className="w-64">
                                 <SelectValue placeholder="Select student" />
                             </SelectTrigger>
-                            
+
                             {/* Select Dropdown Content */}
                             <SelectContent>
                                 {students && students.length > 0 ? (
                                     students.map((student, index) => (
                                         <SelectItem
+                                            disabled={isGlobalEditing}
                                             key={index}
-                                            value={student.name}
+                                            value={getName(student)}
                                         >
                                             {/* Render the student name  */}
-                                            {student.name}
+                                            {getName(student)}
                                         </SelectItem>
                                     ))
                                 ) : (
@@ -75,7 +84,7 @@ export const StudentSelection = ({
                         {/* Previous Student Button */}
                         <Button
                             onClick={goToPreviousStudent}
-                            disabled={currentStudentIndex === 0 || !students || students.length === 0}
+                            disabled={currentStudentIndex === 0 || !students || students.length === 0 || isGlobalEditing}
                             variant="outline"
                             size="sm"
                             className="border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -85,7 +94,7 @@ export const StudentSelection = ({
                         {/* Next Student Button */}
                         <Button
                             onClick={goToNextStudent}
-                            disabled={!students || currentStudentIndex === students.length - 1}
+                            disabled={!students || currentStudentIndex === students.length - 1 || isGlobalEditing}
                             variant="outline"
                             size="sm"
                             className="border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -98,4 +107,3 @@ export const StudentSelection = ({
         </Card>
     )
 }
-// 

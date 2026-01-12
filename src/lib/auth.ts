@@ -6,6 +6,7 @@ import { passwordSchema } from "./validation";
 import { sendPasswordResetEmail } from "./emails/send-password-reset-email";
 import { sendEmailVerificationEmail } from "./emails/send-email-verification-email";
 import { sendDeleteAccountVerificationEmail } from "./emails/delete-account-verification-email";
+import { sendEmailChange } from "./emails/send-change-email";
 import { nextCookies } from "better-auth/next-js";
 
 // create a new better auth instance with the prisma adapter
@@ -61,7 +62,7 @@ export const auth = betterAuth({
       enabled: true,
       // Email change token expires in 24 hours (86400 seconds)
       sendChangeEmailVerification: async ({ user, url, newEmail }) => {
-        await sendEmailVerificationEmail({
+        await sendEmailChange({
           user: { ...user, email: newEmail },
           url,
         });

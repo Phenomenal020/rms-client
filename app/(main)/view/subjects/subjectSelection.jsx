@@ -1,22 +1,23 @@
 import { Button } from "@/shadcn/ui/button";
 import { Card, CardContent } from "@/shadcn/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/shadcn/ui/select";
 import { BookOpen, ArrowLeft, ArrowRight } from "lucide-react";
 
-export const SubjectSelection = ({ 
-    goToPreviousSubject, 
-    goToNextSubject, 
-    currentSubjectIndex, 
-    setCurrentSubjectIndex, 
-    subjects = [], 
-    setSelectedSubject, 
-    selectedSubject 
+export const SubjectSelection = ({
+    goToPreviousSubject,
+    goToNextSubject,
+    currentSubjectIndex,
+    setCurrentSubjectIndex,
+    subjectNames = [],
+    setSelectedSubjectName,
+    selectedSubjectName,
+    isGlobalEditing
 }) => {
     return (
         <Card className="mb-6">
@@ -29,31 +30,33 @@ export const SubjectSelection = ({
                         <BookOpen className="w-5 h-5 text-gray-600" />
                         {/* Subject Selection Dropdown */}
                         <Select
-                            value={selectedSubject || ""}
+                            value={selectedSubjectName || ""}
                             onValueChange={(value) => {
                                 // if the subject is found, update the selected subject and the current subject index
                                 if (value) {
-                                    setSelectedSubject(value);
+                                    setSelectedSubjectName(value);
                                     setCurrentSubjectIndex(
-                                        subjects.findIndex((s) => s === value)
+                                        subjectNames.findIndex((subjectName) => subjectName === value)
                                     );
                                 }
                             }}
+                            disabled={isGlobalEditing}
                         >
                             {/* Select Dropdown Trigger */}
                             <SelectTrigger className="w-64">
                                 <SelectValue placeholder="Select subject" />
                             </SelectTrigger>
+
                             {/* Select Dropdown Content */}
                             <SelectContent>
-                                {subjects && subjects.length > 0 ? (
-                                    subjects.map((subject) => (
+                                {subjectNames && subjectNames.length > 0 ? (
+                                    subjectNames.map((subjectName) => (
                                         <SelectItem
-                                            key={subject}
-                                            value={subject}
+                                            key={subjectName}
+                                            value={subjectName}
                                         >
                                             {/* Render the subject name  */}
-                                            {subject}
+                                            {subjectName}
                                         </SelectItem>
                                     ))
                                 ) : (
@@ -62,14 +65,14 @@ export const SubjectSelection = ({
                             </SelectContent>
                         </Select>
                     </div>
-                    
+
 
                     {/* Previous and Next Subject Buttons - navigate through the subjects */}
                     <div className="flex gap-2">
                         {/* Previous Subject Button */}
                         <Button
                             onClick={goToPreviousSubject}
-                            disabled={currentSubjectIndex === 0 || !subjects || subjects.length === 0}
+                            disabled={currentSubjectIndex === 0 || !subjectNames || subjectNames.length === 0 || isGlobalEditing}
                             variant="outline"
                             size="sm"
                             className="border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -79,7 +82,7 @@ export const SubjectSelection = ({
                         {/* Next Subject Button */}
                         <Button
                             onClick={goToNextSubject}
-                            disabled={!subjects || currentSubjectIndex === subjects.length - 1}
+                            disabled={!subjectNames || currentSubjectIndex === subjectNames.length - 1 || isGlobalEditing}
                             variant="outline"
                             size="sm"
                             className="border-gray-300 text-gray-700 hover:bg-gray-50"

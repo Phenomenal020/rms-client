@@ -1,53 +1,72 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Button } from "@/shadcn/ui/button";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/shadcn/ui/card";
-import { Download, Printer } from "lucide-react";
 import { toast } from "sonner";
 
 // components
+import { PrintExportHeader } from "./printExportHeader";
 import { Signatures } from "./signatures";
-import { Comments } from "./comments";
 import { StudentStats } from "./studentStats";
 import { EditingStudents } from "./editingStudents";
 import { SchoolHeader } from "./schoolHeader";
 import { ResultTable } from "./resultTable";
 import { StudentSelection } from "./studentSelection";
+
+import { calculateStudentStats } from "./utils/scoreFns";
 import createGradingFunctions from "./utils/gradingFns";
-import transformData from "./utils/transformDataFn";
-import { getSubjectScores, calculateStudentStats } from "./utils/scoreFns";
+import { saveStudentScores } from "@/app/api/views/edit-student-action";
 
-const ResultsPage = ({ user, academicTerm }) => {
-  // Transform the data to format required by the component. This function does a lot of nested mapping. So, it is memoised to avoid re-calculating it unless the academic term changes.
-  const transformedData = useMemo(() => transformData(user, academicTerm), [academicTerm]);
-  // Likewise
-  const gradingFunctions = useMemo(() => createGradingFunctions(academicTerm?.gradingSystem), [academicTerm?.gradingSystem]);
+const ResultsPage = ({ user }) => {
 
-  // Extract grading functions - grade, remark, overall grade, overall remark
-  const { getGrade, getRemark, getOverallGrade, getOverallRemark } = gradingFunctions;
 
-  // students state
-  const [students, setStudents] = useState(transformedData.students); // students data from db
+  // -------------------------------------------------------------------------------------------------
+  // Print and Export Header Component functionality (printExportHeader component)
+
+  // Todo: Handle Print functionality (Todo: Send academic term data to a server to generate the result sheet)
+  const handlePrint = () => {
+    window.print();
+  };
+
+  // Todo: Handle Export functionality (Send user info to their email address)
+  const handleExport = () => {
+    toast.info("Export functionality not available yet!");
+  };
+  // -------------------------------------------------------------------------------------------------
+
+
+  // -------------------------------------------------------------------------------------------------
+  // Helpers and State Management functionality (helpers and state management)
+
+  // router to refresh the page
+  const router = useRouter();
+
+  // Grading helper functions - recompute the grading functions iff the grading system changes
+  const { getGrade, getRemark, getOverallGrade, getOverallRemark } = useMemo(() => createGradingFunctions(user.academicTerms[0]?.gradingSystem), [user.academicTerms[0]?.gradingSystem]);
+
+  // students state: students list, selected student, current student index
+  const [students, setStudents] = useState(user.academicTerms[0].students); // students data from db
   const [selectedStudent, setSelectedStudent] = useState(students[0] || null); // default selected studemt as the first student
   const [currentStudentIndex, setCurrentStudentIndex] = useState(0); // current student index to track the current student
 
-  // editing states: school, student, scores(default = 0), subjects
+  // editing states: school, student, scores
   const [isEditingSchool, setIsEditingSchool] = useState(false);
   const [isEditingStudent, setIsEditingStudent] = useState(false);
-  const [editingStudentData, setEditingStudentData] = useState({})
   const [isEditingScores, setIsEditingScores] = useState(false);
-  const [editingSubjects, setEditingSubjects] = useState([]);
 
-  // TODO: Comments not in schema yet
-  // const [editingComment, setEditingComment] = useState("");
-  // const [isEditingComments, setIsEditingComments] = useState(false);
+  // editing subjects state: subjects to edit
+  const [editingSubjects, setEditingSubjects] = useState([]);
+  const [editingStudentData, setEditingStudentData] = useState(null);
 
   // school state
-  const [schoolData, setSchoolData] = useState(transformedData.schoolData);
-  const [editingSchoolData, setEditingSchoolData] = useState(null);
+  const [schoolData, setSchoolData] = useState(user.school);
+  const [editingSchoolData, setEditingSchoolData] = useState(null);  // default is no edit
 
-  // Update selected student when students change
+  // global edit state - to disable other component action buttons when editing in one component
+  const [isGlobalEditing, setIsGlobalEditing] = useState(false);
+
+  // ensure default selected student is the first student: TODO: Use a cookie to save the selected student index across sessions
   useEffect(() => {
     if (students.length > 0 && !selectedStudent) {
       setSelectedStudent(students[0]); // default selected student as the first student
@@ -55,39 +74,14 @@ const ResultsPage = ({ user, academicTerm }) => {
     }
   }, [students, selectedStudent]);
 
-  // Update states when transformed data changes
-  useEffect(() => {
-    setStudents(transformedData.students);
-    setSchoolData(transformedData.schoolData);
-    if (transformedData.students.length > 0) {
-      setSelectedStudent(transformedData.students[0]);
-      setCurrentStudentIndex(0);
-    }
-  }, [transformedData]);
-
   // -------------------------------------------------------------------
 
-  // Helper function wrapper to get scores for each subject - passes assessment structure from academicTerm
-  const getSubjectScoresWrapper = (subject) => {
-    return getSubjectScores(subject, academicTerm?.assessmentStructure || []);
-  };
 
-  // Memoise the derived student stats to avoid re-calculating it unless the selected student changes
-  const studentStats = useMemo(
-    () =>
-      selectedStudent
-        ? calculateStudentStats(
-            selectedStudent,
-            students,
-            academicTerm?.assessmentStructure || [],
-            getOverallGrade,
-            getOverallRemark
-          )
-        : null,
-    [selectedStudent, students, academicTerm?.assessmentStructure, getOverallGrade, getOverallRemark]
-  );
 
-  // --------------------------------Prev/Next Student Functions-----------------------------
+
+
+  // -------------------------------------------------------------------------------------------------
+  // Student Selection Component functionality (studentSelection component)
 
   // Previous student - decrease the current student index by 1 and set the selected student to the new index
   const goToPreviousStudent = () => {
@@ -98,6 +92,7 @@ const ResultsPage = ({ user, academicTerm }) => {
     }
   };
 
+
   // Next student - increase the current student index by 1 and set the selected student to the new index
   const goToNextStudent = () => {
     if (currentStudentIndex < students.length - 1 && students.length > 0) {
@@ -107,30 +102,108 @@ const ResultsPage = ({ user, academicTerm }) => {
     }
   };
 
-  // --------------------------------Edit/Save Student Functions (Student name)-----------------------------
+  // -------------------------------------------------------------------------------------------------
 
-  // Edit functions - start editing student data
+
+
+
+
+  // -------------------------------------------------------------------------------------------------
+  // Edit/Save School Information Functions (schoolHeader component)
+
+  // Edit functions - start editing school data (copy the school data into the editing school data state) and update isEditingSchool to true to render input fields (spans when not editing, input when editing)
+  const startEditingSchool = () => {
+    setEditingSchoolData({ ...schoolData });
+    setIsEditingSchool(true);
+    setIsGlobalEditing(true);
+  };
+
+  // Edit functions - cancel editing school data (clear the editing school data state and update isEditingSchool to false to render spans again)
+  const cancelEditingSchool = () => {
+    setEditingSchoolData({});
+    setIsEditingSchool(false);
+    setIsGlobalEditing(false);
+  };
+
+  // Edit functions - save editing school data (replace the school data with the editing school data and update isEditingSchool to false to render spans again)
+  const saveSchoolChanges = (updatedSchool) => {
+    if (updatedSchool) {
+      setSchoolData({ ...updatedSchool });
+      setEditingSchoolData(null);
+    }
+    setIsEditingSchool(false);
+  };
+
+  // -------------------------------------------------------------------------------------------------
+
+
+
+
+
+  // -------------------------------------------------------------------------------------------------
+  // Edit/Save Student Information Functions (editingStudents component)
+
+  // Edit functions - start editing student data (copy the selected student's data into the editing student data state) and update isEditingStudent to true to render input fields (spans when not editing, input when editing)
   const startEditingStudent = () => {
-    setEditingStudentData({ ...selectedStudent });
     setIsEditingStudent(true);
+    setEditingStudentData({ ...selectedStudent });
+    setIsGlobalEditing(true);
   };
 
   // Edit functions - cancel editing student data
   const cancelEditingStudent = () => {
-    setEditingStudentData({});
+    setIsEditingStudent(false);
+    setEditingStudentData(null);
+    setIsGlobalEditing(false);
+  };
+
+  // Edit functions - replace the selected student's data with the editing student data and update isEditingStudent to false to render spans again
+  const saveStudentChanges = (updatedStudent) => {
+    if (updatedStudent && (updatedStudent.id || selectedStudent?.id)) {
+      const targetId = updatedStudent.id || selectedStudent.id;
+      setStudents((prev) =>
+        prev.map((student) =>
+          student.id === targetId ? { ...student, ...updatedStudent } : student
+        )
+      );
+      setSelectedStudent((prev) =>
+        prev?.id === targetId ? { ...prev, ...updatedStudent } : prev
+      );
+    }
     setIsEditingStudent(false);
   };
 
-  // Edit functions - save editing student data
-  const saveStudentChanges = () => {
-    setStudents((prev) =>
-      prev.map((student) =>
-        student.name === selectedStudent.name ? editingStudentData : student
-      )
-    );
-    setSelectedStudent(editingStudentData);
-    setIsEditingStudent(false);
-  };
+  // -------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+  // -------------------------------------------------------------------------------------------------
+  // Performance Calculation functionality (studentStats component)
+
+  // Memoise the derived student stats to avoid re-calculating it unless the selected student changes
+  const studentStats = useMemo(
+    () =>
+      selectedStudent
+        ? calculateStudentStats(
+          selectedStudent,
+          students,
+          user.academicTerms[0]?.assessmentStructure || [],
+          getOverallGrade,
+          getOverallRemark
+        )
+        : null,
+    [selectedStudent, students, user.academicTerms[0]?.assessmentStructure, getOverallGrade, getOverallRemark]
+  );
+
+  // -------------------------------------------------------------------------------------------------
+
+
+
+
+
 
   // --------------------------------Edit/Save Scores Functions-----------------------------
 
@@ -140,116 +213,62 @@ const ResultsPage = ({ user, academicTerm }) => {
       selectedStudent.subjects ? [...selectedStudent.subjects] : []
     );
     setIsEditingScores(true);
+    setIsGlobalEditing(true);
   };
 
   // Edit functions - cancel editing scores
   const cancelEditingScores = () => {
     setEditingSubjects([]);
     setIsEditingScores(false);
+    setIsGlobalEditing(false);
   };
 
-  // Edit functions - save editing scores
-  const saveScoreChanges = () => {
-    setStudents((prev) =>
-      // get the previous student data and update the subjects  (containing the scores)with the editing subjects
-      prev.map((student) =>
-        student.name === selectedStudent.name
-          ? { ...student, subjects: editingSubjects }
-          : student
-      )
-    );
-    setSelectedStudent({ ...selectedStudent, subjects: editingSubjects });
-    setIsEditingScores(false);
+  // Edit functions - save editing scores (persist to DB)
+  const handleSaveScores = async (studentSubjects) => {
+    const result = await saveStudentScores(selectedStudent.id, user.academicTerms[0].id, studentSubjects);
+    if (result.error) {
+      toast.error(result.error);
+    } else {
+      toast.success("Scores saved successfully");
+      // update local state so the UI reflects the new scores without a full reload
+      const updatedSubjects = (selectedStudent.subjects || []).map((subj) => {
+        const incoming = studentSubjects.find((s) => s.subjectId === subj.subjectId);
+        if (!incoming) return subj;
+        const existingAssessment = subj.assessments?.[0] || {};
+        return {
+          ...subj,
+          assessments: [
+            {
+              ...existingAssessment,
+              scores: incoming.scores,
+            },
+          ],
+        };
+      });
+      setStudents((prev) =>
+        prev.map((stu) =>
+          stu.id === selectedStudent.id ? { ...stu, subjects: updatedSubjects } : stu
+        )
+      );
+      setSelectedStudent((prev) =>
+        prev?.id === selectedStudent.id ? { ...prev, subjects: updatedSubjects } : prev
+      );
+      setIsGlobalEditing(false);
+      setIsEditingScores(false);
+      router.refresh();
+    }
   };
 
-  // Edit functions - handle score change
-  const handleScoreChange = (subjectIndex, scoreType, value) => {
-    const numValue = parseInt(value) || 0;
-    setEditingSubjects((prev) => {
-      // get the previous subjects and update the subject at the given index with the new score
-      const newSubjects = [...prev];
-      const subject = { ...newSubjects[subjectIndex] };
+  // -------------------------------------------------------------------------------------------------
 
-      // Update or create scores array if not already present
-      if (!subject.scores) {
-        subject.scores = [];
-      }
 
-      // Find existing score of this type or create new one if not found
-      const scoreIndex = subject.scores.findIndex((s) => s.type === scoreType);
-      if (scoreIndex >= 0) {
-        subject.scores[scoreIndex] = { type: scoreType, score: numValue };
-      } else {
-        subject.scores.push({ type: scoreType, score: numValue });
-      }
 
-      // update the subject at the given index with the new subject
-      newSubjects[subjectIndex] = subject;
-      return newSubjects;
-    });
-  };
-  // --------------------------------Edit/Save School Information Functions-----------------------------
 
-  // Edit functions - start editing school data
-  const startEditingSchool = () => {
-    setEditingSchoolData({ ...schoolData });
-    setIsEditingSchool(true);
-  };
 
-  // Edit functions - cancel editing school data
-  const cancelEditingSchool = () => {
-    setEditingSchoolData({});
-    setIsEditingSchool(false);
-  };
 
-  // Edit functions - save editing school data
-  const saveSchoolChanges = () => {
-    setSchoolData(editingSchoolData);
-    setIsEditingSchool(false);
-  };
+  // -------------------------------------------------------------------------------------------------
 
-  // -------------------------------------------------------------------
-
-  // TODO: Comments not in schema yet - Commented out until comments field is added to Student model
-  // Edit functions - start editing comments (copy the selected student's comments into the editing comment state) and update isEditingComments to true to render input fields (span when not editing, textarea when editing)
-  // const startEditingComments = () => {
-  //   setEditingComment(selectedStudent.comments || "");
-  //   setIsEditingComments(true);
-  // };
-
-  // Edit functions - cancel editing comments
-  // const cancelEditingComments = () => {
-  //   setEditingComment("");
-  //   setIsEditingComments(false);
-  // };
-
-  // Edit functions - save editing comments
-  // const saveCommentsChanges = () => {
-  //   setStudents((prev) =>
-  //     prev.map((student) =>
-  //       student._id === selectedStudent._id
-  //         ? { ...student, comments: editingComment }
-  //         : student
-  //     )
-  //   );
-  //   setSelectedStudent({ ...selectedStudent, comments: editingComment });
-  //   setIsEditingComments(false);
-  // };
-
-  // -------------------------------------------------------------------
-
-  // Todo: Handle Print functionality
-  const handlePrint = () => {
-    window.print();
-  };
-
-  // Todo: Handle Export functionality
-  const handleExport = () => {
-    toast.success("Result sheet exported successfully!");
-  };
-
-  // -------------------------------------------------------------------
-
+  // if no student is selected, show a 'No students available' message
   if (!selectedStudent) {
     return (
       <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
@@ -257,13 +276,19 @@ const ResultsPage = ({ user, academicTerm }) => {
       </div>
     );
   }
+  // ---------------------------------------------------------------------------------------------
+
+
+
+
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto">
 
         {/* Header - contains print and export buttons */}
-        <Header handlePrint={handlePrint} handleExport={handleExport} />
+        <PrintExportHeader handlePrint={handlePrint} handleExport={handleExport} isGlobalEditing={isGlobalEditing} />
 
         {/* Student Selection - name and <- -> buttons to navigate through the students */}
         <StudentSelection
@@ -274,11 +299,13 @@ const ResultsPage = ({ user, academicTerm }) => {
           students={students}
           setSelectedStudent={setSelectedStudent}
           selectedStudent={selectedStudent}
+          isGlobalEditing={isGlobalEditing}
         />
 
         {/* Result Sheet */}
         <Card className="print:shadow-none print:border-0">
           <CardContent className="p-8">
+
             {/* School Header Containing School info + save/edit functions */}
             <SchoolHeader
               isEditingSchool={isEditingSchool}
@@ -287,7 +314,9 @@ const ResultsPage = ({ user, academicTerm }) => {
               cancelEditingSchool={cancelEditingSchool}
               editingSchoolData={editingSchoolData}
               setEditingSchoolData={setEditingSchoolData}
-              school={schoolData}
+              school={schoolData}  // to render the students names in the select dropdown
+              academicTerm={user.academicTerms[0]}
+              isGlobalEditing={isGlobalEditing}
             />
 
             {/* Student Information, class and Total Days Present */}
@@ -296,41 +325,26 @@ const ResultsPage = ({ user, academicTerm }) => {
               startEditingStudent={startEditingStudent}
               saveStudentChanges={saveStudentChanges}
               cancelEditingStudent={cancelEditingStudent}
-              editingStudentData={editingStudentData}
-              setEditingStudentData={setEditingStudentData}
-              selectedStudent={selectedStudent}
-              classData={transformedData.classData}
+              selectedStudent={selectedStudent} // for student name and daysPresent. 
+              academicTerm={user.academicTerms[0]} // for the class name  and total days present
+              isGlobalEditing={isGlobalEditing}
             />
 
             {/* Academic Performance: Main section */}
             <ResultTable
               isEditingScores={isEditingScores}
               startEditingScores={startEditingScores}
-              saveScoreChanges={saveScoreChanges}
+              handleSaveScores={handleSaveScores}
               cancelEditingScores={cancelEditingScores}
-              editingSubjects={editingSubjects}
               selectedStudent={selectedStudent}
-              handleScoreChange={handleScoreChange}
-              getSubjectScores={getSubjectScoresWrapper}
-              getGrade={getGrade}
-              getRemark={getRemark}
-              assessmentStructure={academicTerm?.assessmentStructure || []}
+              getGrade={getGrade} // for the grade calculation
+              getRemark={getRemark} // for the remark calculation
+              assessmentStructure={user.academicTerms[0]?.assessmentStructure || []}
+              isGlobalEditing={isGlobalEditing}
             />
 
             {/* Summary Statistics */}
             {studentStats && <StudentStats studentStats={studentStats} />}
-
-            {/* Comments Section */}
-            {/* TODO: Comments not in schema yet - Commented out until comments field is added to Student model */}
-            {/* <Comments
-              isEditingComments={isEditingComments}
-              startEditingComments={startEditingComments}
-              saveCommentsChanges={saveCommentsChanges}
-              cancelEditingComments={cancelEditingComments}
-              selectedStudent={selectedStudent}
-              editingComment={editingComment}
-              setEditingComment={setEditingComment}
-            /> */}
 
             {/* Signatures */}
             <Signatures />
@@ -343,31 +357,3 @@ const ResultsPage = ({ user, academicTerm }) => {
 
 export default ResultsPage;
 
-const Header = ({ handlePrint, handleExport }) => {
-  return (
-    <div className="mb-6">
-      <div className="flex items-center justify-between">
-        {/* Student Result Sheet Header Text */}
-        <h1 className="text-2xl font-bold text-gray-900">
-          Student Result Sheet
-        </h1>
-        {/* Print and Export Buttons */}
-        <div className="flex gap-2">
-          {/* Print Button */}
-          <Button onClick={handlePrint} variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
-            <Printer className="w-4 h-4 mr-2" />
-            Print
-          </Button>
-          {/* Export Button */}
-          <Button
-            onClick={handleExport}
-            className="bg-gray-800 hover:bg-gray-900 text-white"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export PDF
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-};

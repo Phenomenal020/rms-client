@@ -13,22 +13,22 @@ import {
 import { Input } from "@/shadcn/ui/input";
 import { authClient } from "@/src/lib/auth-client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircle2, AlertCircle } from "lucide-react";
 import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import z from "zod";
 import { toast } from "sonner";
 
+// schema for the email change form: expects only the new email address
 export const updateEmailSchema = z.object({
   newEmail: z.email({ message: "Enter a valid email" }),
 });
-// 
 
 export function EmailForm({ currentEmail }) {
 
+  // state for the email change form: isEditing is false by default (so the email input is disabled)
   const [isEditing, setIsEditing] = useState(false);
-  const newEmailInputRef = useRef(null);
 
+  // useform hook for the email change form: uses the zod resolver and the default values for the new email address
   const form = useForm({
     resolver: zodResolver(updateEmailSchema),
     defaultValues: {
@@ -36,26 +36,18 @@ export function EmailForm({ currentEmail }) {
     },
   });
 
-  // useEffect(() => {
-  //   if (isEditing && newEmailInputRef.current) {
-  //     // Use setTimeout to ensure the input is enabled and rendered before focusing
-  //     const timer = setTimeout(() => {
-  //       newEmailInputRef.current?.focus();
-  //     }, 100);
-  //     return () => clearTimeout(timer);
-  //   }
-  // }, [isEditing]);
-
+  // on click the change email button, set isEditing to true (so the email input is enabled)
   function handleChangeEmailClick(e) {
     e.preventDefault();
     setIsEditing(true);
   }
 
+  // on submit the email change form, send a verification email to the new email address and reset the form
   async function onSubmit({ newEmail }) {
 
     const { error } = await authClient.changeEmail({
-      newEmail,
-      callbackURL: "/settings/profile",
+      newEmail: newEmail.trim(),
+      callbackURL: "/settings/profile", // redirect to the settings profile page after the email is verified
     });
 
     if (error) {
@@ -63,25 +55,31 @@ export function EmailForm({ currentEmail }) {
     } else {
       toast.success("Verification email sent to your new email address. Please check your inbox to confirm the change.");
       // Reset form after successful submission
-      // form.reset();
+      form.reset();
       setIsEditing(false);
     }
   }
 
+  // loading state for the email change form: is true when the form is submitting (disables the change email button and shows a loading spinner)
   const loading = form.formState.isSubmitting;
 
   return (
     <Card className="border shadow-md h-full">
+
+      {/* Card Header > Email Address */}
       <CardHeader>
         <CardTitle className="text-lg font-bold text-gray-900 uppercase tracking-wide">
-          Email Address
+          Email Address 
         </CardTitle>
       </CardHeader>
+
+      {/* Card Content > Email Change Form */}
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-4">
-              {/* Current Email Section */}
+
+              {/* Current Email Section: conditionally renders the 'change email' button or the 'request change' button */}
               <div>
                 <FormLabel className="text-gray-700 font-semibold">Current Email</FormLabel>
                 <div className="flex gap-3 mt-2">
@@ -120,16 +118,11 @@ export function EmailForm({ currentEmail }) {
                     <FormLabel className="text-gray-700 font-semibold">New Email</FormLabel>
                     <FormControl>
                       <Input
-                        ref={(e) => {
-                          field.ref(e);
-                          newEmailInputRef.current = e;
-                        }}
                         type="email"
                         placeholder="Enter new email address"
                         disabled={!isEditing}
-                        className={`transition-colors hover:border-gray-400 focus:border-primary ${
-                          !isEditing ? "bg-gray-50" : ""
-                        }`}
+                        className={`transition-colors hover:border-gray-400 focus:border-primary ${!isEditing ? "bg-gray-50" : ""
+                          }`}
                         {...field}
                       />
                     </FormControl>

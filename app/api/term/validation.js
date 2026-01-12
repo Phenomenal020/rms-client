@@ -1,12 +1,6 @@
-/**
- * Validation functions for term actions (User may turn off javascript on the frontend to bypass FE validation)
- */
+// SERVER SIDE VALIDATION FOR TERM UPDATES (required as client side validation is not reliable)
 
-/**
- * Helper to parse optional dates
- * @param {any} value - Value to parse
- * @returns {Date | null | undefined} Parsed date
- */
+// Parse optional dates. Returns undefined (so prisma can handle null values) if the value is not a date.
 function parseOptionalDate(value) {
   if (value === undefined || value === null) return undefined;
   const date = value instanceof Date ? value : new Date(value);
@@ -14,30 +8,16 @@ function parseOptionalDate(value) {
   return date;
 }
 
-/**
- * Helper to parse optional numbers
- * @param {any} value - Value to parse
- * @returns {number | undefined} Parsed number
- */
+// Parse optional numbers. Returns undefined (so prisma can handle null values) if the value is not a number.
 function parseOptionalNumber(value) {
   if (value === undefined || value === null || value === "") return undefined;
   const num = typeof value === "number" ? value : Number(value);
   return Number.isNaN(num) ? undefined : num;
 }
 
-/**
- * Validates term update data
- * @param {Object} termData - Term data to validate
- * @param {string} termData.academicYear - Academic year (required)
- * @param {string} termData.term - Term enum (required)
- * @param {string} termData.className - Class name (required)
- * @param {number} [termData.termDays] - Term days (optional)
- * @param {Date|string} [termData.termStart] - Term start date (optional)
- * @param {Date|string} [termData.termEnd] - Term end date (optional)
- * @param {Array} [termData.gradingSystem] - Grading system entries (optional)
- * @returns {{ isValid: boolean, error?: string, validated?: Object }}
- */
+// Validate term update data
 export function validateTermUpdate(termData) {
+  // Use an array to collect all the errors
   const errors = [];
 
   // Validate required fields
@@ -113,12 +93,12 @@ export function validateTermUpdate(termData) {
     }
   }
 
-  // If there are any errors, return the first error
+  // If there are any errors, return the first error. Also, set the isValid flag to false.
   if (errors.length > 0) {
     return { isValid: false, error: errors[0] };
   }
 
-  // Return validated data
+  // Otherwise, return the validated data
   return {
     isValid: true,
     validated: {

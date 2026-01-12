@@ -38,14 +38,13 @@ const SubjectsPage = async () => {
               subjects: {
                 include: {
                   subject: true,
-                },
-              },
-              assessments: {
-                include: {
-                  subject: true,
-                  scores: {
+                  assessments: {
                     include: {
-                      assessmentStructure: true,
+                      scores: {
+                        include: {
+                          assessmentStructure: true,
+                        },
+                      },
                     },
                   },
                 },

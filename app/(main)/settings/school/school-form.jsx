@@ -24,6 +24,7 @@ const emptyToUndefined = z
   .string()
   .transform((v) => (v.trim() === "" ? undefined : v));
 
+// Schema for optional email validation
 const emailSchema = z
   .preprocess((val) => {
     if (typeof val !== "string") return val;  // if not a string, return the value for email validation with z.email()
@@ -42,6 +43,8 @@ const schoolSchema = z.object({
 
 // School form component
 export function SchoolForm({ school }) {
+
+  // to refresh on successful update
   const router = useRouter();
 
   // useForm hook to handle the form state and validation
@@ -81,6 +84,7 @@ export function SchoolForm({ school }) {
     }
   }
 
+  // loading state for the submit button
   const loading = form.formState.isSubmitting;
 
   return (
@@ -205,6 +209,7 @@ export function SchoolForm({ school }) {
                 <LoadingButton
                   type="submit"
                   loading={loading}
+                  disabled={!form.formState.isDirty}
                   className="w-full sm:w-auto min-w-[160px] h-10 font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
                 >
                   Save Changes

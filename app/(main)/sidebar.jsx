@@ -1,6 +1,6 @@
 "use client";
 
-import { School, User, Users, Book, LayoutDashboard, FileText, BookOpen, FileSpreadsheet, FolderPlus, Calendar } from "lucide-react"
+import { School, User, Users, Book, LayoutDashboard, FileText, BookOpen, FileSpreadsheet, FolderPlus } from "lucide-react"
 import { usePathname } from "next/navigation";
 
 import {
@@ -29,11 +29,6 @@ const settingsItems = [
         title: "School",
         url: "/settings/school",
         icon: School,
-    },
-    {
-        title: "Term",
-        url: "/settings/term",
-        icon: Calendar,
     },
     {
         title: "Subjects",

@@ -6,47 +6,52 @@ import { Button } from "@/shadcn/ui/button";
 import { authClient } from "@/src/lib/auth-client";
 import { UAParser } from "ua-parser-js";
 import { useRouter } from "next/navigation";
-import { Monitor, Smartphone, Trash2 } from "lucide-react";
+import { Monitor, Smartphone, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
 export function SessionManagement({ sessions, currentSessionToken }) {
+
+    // refresh the page when the sessions are revoked
     const router = useRouter();
 
+    // filter the sessions to get the other sessions
     const otherSessions = sessions.filter((s) => s.token !== currentSessionToken);
+    // find the current session
     const currentSession = sessions.find((s) => s.token === currentSessionToken);
 
-    async function revokeOtherSessions() {
-        await authClient.revokeOtherSessions(undefined, {
-            onSuccess: () => {
-                toast.success("Successfully logged out of all other devices.");
-                router.refresh();
-            },
-            onError: () => {
-                toast.error("Failed to log out of all other devices. Please try again.");
-            },
-        });
+    // logout everywhere - revokes all sessions including current
+    async function logoutEverywhere() {
+        const { error } = await authClient.revokeSessions()
+        if (error) {
+            toast.error("Failed to log out of all devices. Please try again.");
+        } else {
+            toast.success("Successfully logged out of all devices.");
+            router.refresh();
+        }
     }
 
     return (
         <div className="space-y-6">
+
+            {/* Logout Everywhere Button */}
+            <div className="flex justify-end">
+                <Button
+                    variant="destructive"
+                    size="default"
+                    className="cursor-pointer gap-2"
+                    onClick={logoutEverywhere}
+                >
+                    <LogOut className="h-4 w-4" />
+                    Logout Everywhere
+                </Button>
+            </div>
+
             {/* Current Session */}
             {currentSession && <SessionCard session={currentSession} isCurrentSession />}
 
             {/* Other Active Sessions */}
             <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium">Other Active Sessions</h3>
-                    {otherSessions.length > 0 && (
-                        <Button
-                            variant="destructive"
-                            size="sm"
-                            className="cursor-pointer"
-                            onClick={revokeOtherSessions}
-                        >
-                            Revoke Other Sessions
-                        </Button>
-                    )}
-                </div>
+                <h3 className="text-lg font-medium">Other Active Sessions</h3>
 
                 {otherSessions.length === 0 ? (
                     <Card>
@@ -87,19 +92,6 @@ function SessionCard({ session, isCurrentSession = false }) {
         }).format(new Date(date));
     }
 
-    async function revokeSession() {
-        await authClient.revokeSession(
-            {
-                token: session.token,
-            },
-            {
-                onSuccess: () => {
-                    router.refresh();
-                },
-            }
-        );
-    }
-
     return (
         <Card>
             <CardHeader className="flex justify-between">
@@ -107,24 +99,12 @@ function SessionCard({ session, isCurrentSession = false }) {
                 {isCurrentSession && <Badge className="bg-primary text-primary-foreground">Current Session</Badge>}
             </CardHeader>
             <CardContent>
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        {userAgentInfo?.device.type === "mobile" ? <Smartphone /> : <Monitor />}
-                        <div>
-                            <p className="text-sm text-muted-foreground">Created: {formatDate(session.createdAt)}</p>
-                            <p className="text-sm text-muted-foreground">Expires: {formatDate(session.expiresAt)}</p>
-                        </div>
+                <div className="flex items-center gap-3">
+                    {userAgentInfo?.device.type === "mobile" ? <Smartphone /> : <Monitor />}
+                    <div>
+                        <p className="text-sm text-muted-foreground">Created: {formatDate(session.createdAt)}</p>
+                        <p className="text-sm text-muted-foreground">Expires: {formatDate(session.expiresAt)}</p>
                     </div>
-                    {!isCurrentSession && (
-                        <Button
-                            variant="destructive"
-                            size="sm"
-                            className="cursor-pointer"
-                            onClick={revokeSession}
-                        >
-                            <Trash2 />
-                        </Button>
-                    )}
                 </div>
             </CardContent>
         </Card>

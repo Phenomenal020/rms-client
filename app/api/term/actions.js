@@ -212,7 +212,7 @@ export async function updateTerm(termData) {
     });
 
     // Revalidate the page so UI updates
-    revalidatePath("/settings/term");
+    revalidatePath("/settings/school");
 
     return {
       success: "Term information updated successfully",

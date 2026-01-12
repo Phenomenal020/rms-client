@@ -1,17 +1,20 @@
 // Helper function to get scores for each subject for one student - the selected student
 // Uses assessment structure percentages from database to calculate weighted total
 export const getSubjectScores = (subject, assessmentStructure = []) => {
-  // Get all assessment types and their scores dynamically
+  // Scores live under the subject's single assessment entry
+  const assessment = subject?.assessments?.[0];
   const scores = { total: 0 };
-  
-  assessmentStructure.forEach((assessment) => {
-    const assessmentType = assessment.type;
-    // Find score from the subject's scores array (already transformed from AssessmentScore)
-    const scoreEntry = subject.scores?.find((s) => s.type === assessmentType);
-    const score = scoreEntry?.score || 0;
-    scores[assessmentType.toLowerCase()] = score;
+
+  // Loop through the assessment structure and get the scores for each assessment type
+  assessmentStructure.forEach((structure) => {
+    const scoreEntry = assessment?.scores?.find(
+      (s) => s.assessmentStructureId === structure.id
+    );
+    const score = Number(scoreEntry?.score ?? 0);
+    scores[structure.type.toLowerCase()] = score;
     scores.total += score;
-  });    
+  });
+
   return scores;
 };
 
@@ -40,3 +43,11 @@ export const calculateStudentStats = (student, students, assessmentStructure, ge
   };
 };
 
+// Helper function to get the total score percentage for a student
+export const getScorePercentage = (scores) => {
+  // Sum the numeric score values; defaults to 0 when scores are missing
+  return (scores || []).reduce(
+    (sum, { score = 0 }) => sum + Number(score || 0),
+    0
+  );
+};

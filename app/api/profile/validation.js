@@ -1,7 +1,7 @@
 /**
  * Validation functions for profile actions
  */
-
+// 
 /**
  * Validates profile update data
  * @param {Object} profileData - Profile data to validate

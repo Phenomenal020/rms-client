@@ -48,8 +48,7 @@ export async function updateSelectedStudent(studentData) {
     let daysPresent;
     if (
       rawDaysPresent !== undefined &&
-      rawDaysPresent !== null &&
-      rawDaysPresent !== ""
+      rawDaysPresent !== null 
     ) {
       const parsed = Number(rawDaysPresent);
       if (Number.isNaN(parsed) || parsed < 0 || !Number.isInteger(parsed)) {
@@ -72,8 +71,6 @@ export async function updateSelectedStudent(studentData) {
     if (daysPresent !== undefined) {
       updateData.daysPresent = daysPresent;
     }
-
-    console.log("update data", updateData);
 
     // fetch the student from the database and update the data
     const student = await prisma.student.update({
@@ -157,7 +154,24 @@ export async function saveStudentScores(
         }
       }
 
-      return { success: "Scores successfully saved" };
+      // Fetch and return the updated student with all relations (matching page.tsx query structure)
+      const updatedStudent = await tx.student.findUnique({
+        where: { id: studentId },
+        include: {
+          subjects: {
+            include: {
+              subject: true,
+              assessments: {
+                include: {
+                  scores: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return { success: "Scores successfully saved", student: updatedStudent };
     });
   } catch (error) {
     return { error: error.message || "Failed to save student scores" };

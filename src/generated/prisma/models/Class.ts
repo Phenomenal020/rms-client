@@ -182,8 +182,8 @@ export type ClassWhereInput = {
   schoolId?: Prisma.StringFilter<"Class"> | string
   createdAt?: Prisma.DateTimeFilter<"Class"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Class"> | Date | string
-  school?: Prisma.XOR<Prisma.SchoolScalarRelationFilter, Prisma.SchoolWhereInput>
   academicTerms?: Prisma.AcademicTermListRelationFilter
+  school?: Prisma.XOR<Prisma.SchoolScalarRelationFilter, Prisma.SchoolWhereInput>
 }
 
 export type ClassOrderByWithRelationInput = {
@@ -192,8 +192,8 @@ export type ClassOrderByWithRelationInput = {
   schoolId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
-  school?: Prisma.SchoolOrderByWithRelationInput
   academicTerms?: Prisma.AcademicTermOrderByRelationAggregateInput
+  school?: Prisma.SchoolOrderByWithRelationInput
 }
 
 export type ClassWhereUniqueInput = Prisma.AtLeast<{
@@ -206,8 +206,8 @@ export type ClassWhereUniqueInput = Prisma.AtLeast<{
   schoolId?: Prisma.StringFilter<"Class"> | string
   createdAt?: Prisma.DateTimeFilter<"Class"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Class"> | Date | string
-  school?: Prisma.XOR<Prisma.SchoolScalarRelationFilter, Prisma.SchoolWhereInput>
   academicTerms?: Prisma.AcademicTermListRelationFilter
+  school?: Prisma.XOR<Prisma.SchoolScalarRelationFilter, Prisma.SchoolWhereInput>
 }, "id" | "schoolId_name">
 
 export type ClassOrderByWithAggregationInput = {
@@ -237,8 +237,8 @@ export type ClassCreateInput = {
   name: string
   createdAt?: Date | string
   updatedAt?: Date | string
-  school: Prisma.SchoolCreateNestedOneWithoutClassesInput
   academicTerms?: Prisma.AcademicTermCreateNestedManyWithoutClassInput
+  school: Prisma.SchoolCreateNestedOneWithoutClassesInput
 }
 
 export type ClassUncheckedCreateInput = {
@@ -255,8 +255,8 @@ export type ClassUpdateInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  school?: Prisma.SchoolUpdateOneRequiredWithoutClassesNestedInput
   academicTerms?: Prisma.AcademicTermUpdateManyWithoutClassNestedInput
+  school?: Prisma.SchoolUpdateOneRequiredWithoutClassesNestedInput
 }
 
 export type ClassUncheckedUpdateInput = {
@@ -559,8 +559,8 @@ export type ClassSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   schoolId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
-  school?: boolean | Prisma.SchoolDefaultArgs<ExtArgs>
   academicTerms?: boolean | Prisma.Class$academicTermsArgs<ExtArgs>
+  school?: boolean | Prisma.SchoolDefaultArgs<ExtArgs>
   _count?: boolean | Prisma.ClassCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["class"]>
 
@@ -592,8 +592,8 @@ export type ClassSelectScalar = {
 
 export type ClassOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "schoolId" | "createdAt" | "updatedAt", ExtArgs["result"]["class"]>
 export type ClassInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  school?: boolean | Prisma.SchoolDefaultArgs<ExtArgs>
   academicTerms?: boolean | Prisma.Class$academicTermsArgs<ExtArgs>
+  school?: boolean | Prisma.SchoolDefaultArgs<ExtArgs>
   _count?: boolean | Prisma.ClassCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type ClassIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -606,8 +606,8 @@ export type ClassIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
 export type $ClassPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Class"
   objects: {
-    school: Prisma.$SchoolPayload<ExtArgs>
     academicTerms: Prisma.$AcademicTermPayload<ExtArgs>[]
+    school: Prisma.$SchoolPayload<ExtArgs>
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1009,8 +1009,8 @@ readonly fields: ClassFieldRefs;
  */
 export interface Prisma__ClassClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
-  school<T extends Prisma.SchoolDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SchoolDefaultArgs<ExtArgs>>): Prisma.Prisma__SchoolClient<runtime.Types.Result.GetResult<Prisma.$SchoolPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   academicTerms<T extends Prisma.Class$academicTermsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Class$academicTermsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AcademicTermPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  school<T extends Prisma.SchoolDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SchoolDefaultArgs<ExtArgs>>): Prisma.Prisma__SchoolClient<runtime.Types.Result.GetResult<Prisma.$SchoolPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.

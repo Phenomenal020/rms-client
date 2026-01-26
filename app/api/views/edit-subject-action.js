@@ -1,3 +1,9 @@
+'use server';
+
+import prisma from "@/src/lib/prisma";
+import { auth } from "@/src/lib/auth";
+import { headers } from "next/headers";
+
 // Save scores for all students in a subject (used by subject view)
 export async function saveSubjectScores(
   subjectId,
@@ -15,17 +21,20 @@ export async function saveSubjectScores(
       return { error: "Unauthorised" };
     }
 
-    // Validate inputs
+    // Otherwise, validate inputs: subject, academic term, and actual student data to be saved
     if (!subjectId) {
       return { error: "Subject is required" };
     }
+
     if (!academicTermId) {
       return { error: "Academic term is required" };
     }
+
     if (!Array.isArray(studentsData) || studentsData.length === 0) {
-      return { error: "Students data is required" };
+      return { error: "No student data provided" };
     }
 
+    // Perform a transaction to ensure atomicity of the operations
     return await prisma.$transaction(async (tx) => {
       // For each student in the payload
       for (const studentData of studentsData) {
@@ -83,6 +92,7 @@ export async function saveSubjectScores(
             throw new Error(`Invalid score value`);
           }
 
+          // now, perform the upsert
           await tx.assessmentScore.upsert({
             where: {
               assessmentId_assessmentStructureId: {

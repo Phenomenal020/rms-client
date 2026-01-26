@@ -137,8 +137,8 @@ export const auth = betterAuth({
   // social providers
   socialProviders: {
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
     },
   },
 
@@ -148,3 +148,5 @@ export const auth = betterAuth({
 // if using typescript
 export type Session = typeof auth.$Infer.Session;
 export type User = typeof auth.$Infer.Session.user;
+// Type for session list items (from listSessions API)
+export type SessionListItem = Awaited<ReturnType<typeof auth.api.listSessions>>[number];

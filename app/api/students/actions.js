@@ -197,7 +197,7 @@ export async function updateStudents(studentsData) {
             },
           });
 
-          // Normalize names for comparison (trim and lowercase)
+          // Normalise names for comparison (trim and lowercase)
           const normalisedFirstName = studentUpdateData.firstName.trim().toLowerCase();
           const normalisedLastName = studentUpdateData.lastName.trim().toLowerCase();
           const normalisedMiddleName = studentUpdateData.middleName?.trim().toLowerCase() || "";

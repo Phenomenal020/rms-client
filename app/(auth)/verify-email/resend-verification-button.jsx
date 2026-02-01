@@ -1,7 +1,7 @@
 "use client";
 
 import { LoadingButton } from "@/shared-components/loading-button";
-import { authClient } from "@/src/lib/auth-client";
+import { authClient } from "@/src/auth-client";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 

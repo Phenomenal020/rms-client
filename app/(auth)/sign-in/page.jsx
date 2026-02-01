@@ -1,6 +1,7 @@
 import { SignInForm } from "./sign-in-form";
-import { getServerSession } from "@/src/lib/get-session";
-import { redirect } from "next/navigation";
+import { authClient } from "@/src/auth-client";
+// import { getServerSession } from "@/src/lib/get-session";
+// import { redirect } from "next/navigation";
 
 export const metadata = {
   title: "Sign in",
@@ -8,13 +9,14 @@ export const metadata = {
 };
 
 export default async function SignIn() {
-  const session = await getServerSession();
-  const user = session?.user;
+  // const { data: session } = authClient.useSession();
+  // const user = session?.user;
 
-  if (user) {
-    if (user.emailVerified) redirect("/settings/profile");
-    else redirect("/verify-email");
-  }
+  // // TODO: Change this to use a middleware instead
+  // if (user) {
+  //   if (user.emailVerified) redirect("/settings/profile");
+  //   else redirect("/verify-email");
+  // }
 
   return (
     <main className="flex min-h-svh items-center justify-center px-4">
@@ -22,4 +24,3 @@ export default async function SignIn() {
     </main>
   );
 }
-

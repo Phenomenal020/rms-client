@@ -24,8 +24,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/shadcn/ui/select";
-import { updateSchoolAndTerm } from "@/app/api/views/edit-school-actions";
-import { School, AcademicTerm } from "./ResultsComponent";
+// import { updateSchoolAndTerm } from "@/app/api/views/edit-school-actions";
+import type { School, AcademicTerm } from "@/types/drizzle";
 
 interface SchoolHeaderProps {
     isEditingSchool: boolean;
@@ -181,20 +181,22 @@ export const SchoolHeader = ({
                 ...payload,
                 className,  // append the classname
             };
-            const result = await updateSchoolAndTerm(finalPayload);
+            // const result = await updateSchoolAndTerm(finalPayload);
 
-            if (result?.error) {
-                toast.error("Failed to save school and term", {
-                    description: "Please review the form and try again.",
-                });
-                return;
-            }
+            console.log("final payload from school header", finalPayload);
 
-            toast.success("School and term updated");
-            // update local state with the new data
-            saveSchoolChanges(school ? { ...school, ...payload } : null);
-            cancelEditingSchool();
-            router.refresh();
+            // if (result?.error) {
+            //     toast.error("Failed to save school and term", {
+            //         description: "Please review the form and try again.",
+            //     });
+            //     return;
+            // }
+
+            // toast.success("School and term updated");
+            // // update local state with the new data
+            // saveSchoolChanges(school ? { ...school, ...payload } : null);
+            // cancelEditingSchool();
+            // router.refresh();
         });
     };
 

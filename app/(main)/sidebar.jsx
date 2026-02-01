@@ -76,7 +76,7 @@ export default function AppSidebar() {
                     <div className="p-4 pb-2 flex justify-between items-center">
                         <div
                             className={`overflow-hidden transition-all ${
-                                expanded ? "w-32" : "w-0"
+                                expanded ? "w-16" : "w-0"
                             }`}
                         >
                             <span className="font-bold text-xl text-indigo-600">RMS</span>
@@ -148,7 +148,7 @@ export default function AppSidebar() {
                         <div
                             className={`
                                 flex justify-between items-center
-                                overflow-hidden transition-all ${expanded ? "w-52 ml-3" : "w-0"}
+                                overflow-hidden transition-all ${expanded ? "w-24 ml-3" : "w-0"}
                             `}
                         >
                             <div className="leading-4">
@@ -185,7 +185,7 @@ function SidebarItem({ icon, text, active, url }) {
                 {icon}
                 <span
                     className={`overflow-hidden transition-all ${
-                        expanded ? "w-52 ml-3" : "w-0"
+                        expanded ? "w-24 ml-3" : "w-0"
                     }`}
                 >
                     {text}

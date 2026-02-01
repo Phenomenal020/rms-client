@@ -9,6 +9,13 @@ module.exports = {
     './src/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
+    screens: {
+      'xs': '360px',
+      'sm': '577px',
+      'md': '776px',
+      'lg': '993px',
+      'xl': '1280px',
+    },
     extend: {
       colors: {
         border: "var(--color-border)",

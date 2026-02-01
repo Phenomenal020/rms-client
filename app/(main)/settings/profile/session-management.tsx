@@ -3,8 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/shadcn/ui/card";
 import { Badge } from "@/shadcn/ui/badge";
 import { Button } from "@/shadcn/ui/button";
-import { authClient } from "@/src/lib/auth-client";
-import { type SessionListItem } from "@/src/lib/auth";
+import { authClient, type SessionListItem } from "@/src/auth-client";
 import { UAParser } from "ua-parser-js";
 import { useRouter } from "next/navigation";
 import { Monitor, Smartphone, LogOut } from "lucide-react";
@@ -12,14 +11,14 @@ import { toast } from "sonner";
 
 // Props interface for SessionManagement
 interface SessionManagementProps {
-  sessions: SessionListItem[];
-  currentSessionToken: string;
+    sessions: SessionListItem[];
+    currentSessionToken: string;
 }
 
 // Props interface for SessionCard
 interface SessionCardProps {
-  session: SessionListItem;
-  isCurrentSession?: boolean;
+    session: SessionListItem;
+    isCurrentSession?: boolean;
 }
 
 export function SessionManagement({ sessions, currentSessionToken }: SessionManagementProps) {
@@ -34,24 +33,31 @@ export function SessionManagement({ sessions, currentSessionToken }: SessionMana
 
     // logout everywhere - revokes all sessions including current
     async function logoutEverywhere() {
+        // revoke token serverside
         const { error } = await authClient.revokeSessions()
         if (error) {
             toast.error("Failed to log out of all devices. Please try again.");
-        } else {
-            toast.success("Successfully logged out of all devices.");
-            router.refresh();
         }
+
+        // clear browser session cookie to actually log out
+        const {error: signOutError} = await authClient.signOut();
+        toast.success("Successfully logged out of all devices.");
+        router.push('/sign-in');
     }
 
     return (
         <div className="space-y-6">
 
-            {/* Logout Everywhere Button */}
-            <div className="flex justify-end">
+            {/* Logout Everywhere + intro */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-muted-foreground space-y-1">
+                    <CardTitle className="text-xl sm:text-2xl text-gray-700 uppercase tracking-wide">Session security</CardTitle>
+                    <p>Review where you&apos;re signed in and revoke access on other devices.</p>
+                </div>
                 <Button
                     variant="destructive"
                     size="default"
-                    className="cursor-pointer gap-2 font-medium"
+                    className="cursor-pointer gap-2 font-semibold rounded-full px-5 shadow-sm hover:shadow-md transition-all"
                     onClick={logoutEverywhere}
                 >
                     <LogOut className="h-4 w-4" />
@@ -59,26 +65,30 @@ export function SessionManagement({ sessions, currentSessionToken }: SessionMana
                 </Button>
             </div>
 
-            {/* Current Session */}
-            {currentSession && <SessionCard session={currentSession} isCurrentSession />}
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+                {/* Current Session */}
+                <div className="space-y-4">
+                    {currentSession && <SessionCard session={currentSession} isCurrentSession />}
+                </div>
 
-            {/* Other Active Sessions */}
-            <div className="space-y-4">
-                <h3 className="text-xl sm:text-2xl font-medium">Other Active Sessions</h3>
+                {/* Other Active Sessions */}
+                <div className="space-y-4">
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-800">Other active sessions</h3>
 
-                {otherSessions.length === 0 ? (
-                    <Card>
-                        <CardContent className="py-8 text-center text-muted-foreground">
-                            No other active sessions
-                        </CardContent>
-                    </Card>
-                ) : (
-                    <div className="space-y-3">
-                        {otherSessions.map((session) => (
-                            <SessionCard key={session.id} session={session} />
-                        ))}
-                    </div>
-                )}
+                    {otherSessions.length === 0 ? (
+                        <Card className="border-dashed">
+                            <CardContent className="py-8 text-center text-muted-foreground text-sm">
+                                No other active sessions
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className="space-y-3">
+                            {otherSessions.map((session) => (
+                                <SessionCard key={session.id} session={session} />
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -110,17 +120,32 @@ function SessionCard({ session, isCurrentSession = false }: SessionCardProps) {
     }
 
     return (
-        <Card>
-            <CardHeader className="flex justify-between items-center">
-                <CardTitle className="text-xl sm:text-2xl font-gray-700">{getBrowserInformation()}</CardTitle>
-                {isCurrentSession && <Badge variant="default" className="bg-primary text-primary-foreground p-2 font-semibold">Current Session</Badge>}
+        <Card className="border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow rounded-xl bg-gradient-to-br from-white to-slate-50">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3">
+                <CardTitle className="text-lg sm:text-xl font-semibold text-gray-900">
+                    {getBrowserInformation()}
+                </CardTitle>
+                {isCurrentSession && (
+                    <Badge
+                        variant="default"
+                        className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full text-xs font-semibold"
+                    >
+                        Current session
+                    </Badge>
+                )}
             </CardHeader>
-            <CardContent>
-                <div className="flex items-center gap-3">
-                    {userAgentInfo?.device.type === "mobile" ? <Smartphone /> : <Monitor />}
-                    <div>
-                        <p className="text-base text-muted-foreground">Created: {formatDate(session.createdAt)}</p>
-                        <p className="text-base text-muted-foreground">Expires: {formatDate(session.expiresAt)}</p>
+            <CardContent className="pt-4">
+                <div className="flex items-start gap-4">
+                    <div className="mt-1 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+                        {userAgentInfo?.device.type === "mobile" ? <Smartphone className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
+                    </div>
+                    <div className="space-y-1.5">
+                        <p className="text-sm text-muted-foreground">
+                            Created: <span className="font-medium text-gray-800">{formatDate(session.createdAt)}</span>
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                            Expires: <span className="font-medium text-gray-800">{formatDate(session.expiresAt)}</span>
+                        </p>
                     </div>
                 </div>
             </CardContent>

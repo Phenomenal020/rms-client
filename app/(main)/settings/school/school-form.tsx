@@ -13,89 +13,104 @@ import {
 import { Input } from "@/shadcn/ui/input";
 import { Textarea } from "@/shadcn/ui/textarea";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
 import { useForm, type ControllerRenderProps } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
-import { updateSchool } from "@/app/api/school/actions";
-import type { SchoolData } from "./types";
+import { useUpsertSchool } from "@/fetcher/mutations";
+import type { School as SchoolProps } from "@/types/school";  // for the props
 
-// Convert empty strings to undefined for schema validation === 'no db update'
-const emptyToUndefined = z
-  .string()
-  .transform((v) => (v.trim() === "" ? undefined : v));
-
+// Zod Schema
+// Convert empty strings to undefined and validate email if provided
+const emailWithTransform = z
+  .union([z.string(), z.undefined()])
+  .transform((v) => (v && typeof v === 'string' && v.trim() !== "" ? v.trim() : undefined))
+  .refine(
+    (val) => {
+      // If undefined or empty, it's valid (optional field)
+      if (!val) return true;
+      // Otherwise, validate it's a valid email
+      return z.string().email().safeParse(val).success;
+    },
+    { message: "Invalid email address" }
+  )
+  .optional();
 // Schema for school form (only school fields)
 const schoolSchema = z.object({
   schoolName: z.string().trim().min(1, { message: "School name is required" }),
-  schoolAddress: emptyToUndefined.optional(),
-  schoolMotto: emptyToUndefined.optional(),
-  schoolTelephone: emptyToUndefined.optional(),
-  schoolEmail: z
-    .string()
-    .optional()
-    .refine(
-      (val) => {
-        if (!val || val.trim() === "") return true;
-        return z.string().email().safeParse(val).success;
-      },
-      { message: "Invalid email address" }
-    ),
+  schoolAddress: z.string().optional(),
+  schoolMotto: z.string().optional(),
+  schoolTelephone: z.string().optional(),
+  schoolEmail: emailWithTransform,
 });
 
 // Type for form values
 type SchoolFormValues = z.infer<typeof schoolSchema>;
 
-// Props interface for SchoolForm
-interface SchoolFormProps {
-  school: SchoolData;
-}
-
 // School form component
-export function SchoolForm({ school }: SchoolFormProps) {
+export function SchoolForm({ school }: { school: SchoolProps }) {
 
-  // to refresh on successful update
-  const router = useRouter();
+  // mutation hook for upserting school
+  const { upsertSchool, isMutating, error } = useUpsertSchool();
 
   // useForm hook to handle the form state and validation
   const form = useForm<SchoolFormValues>({
     // form validation with zodResolver
     resolver: zodResolver(schoolSchema),
-    // default values for the form
+    // default values for the form. Use empty strings instead of undefined to keep inputs controlled
     defaultValues: {
-      schoolName: school?.schoolName || "",
-      schoolAddress: school?.schoolAddress || "",
-      schoolMotto: school?.schoolMotto || "",
-      schoolTelephone: school?.schoolTelephone || "",
-      schoolEmail: school?.schoolEmail || "",
+      schoolName: school?.schoolName || "",  // first render, school name doesnt exist yet
+      schoolAddress: school?.schoolAddress ?? "",
+      schoolMotto: school?.schoolMotto ?? "",
+      schoolTelephone: school?.schoolTelephone ?? "",
+      schoolEmail: school?.schoolEmail ?? "",
     },
   });
 
   async function onSubmit(data: SchoolFormValues) {
-    try {
-      // call the updateSchool server action to update the school information
-      const result = await updateSchool(data);
+    // detect which fields have been changed
+    const { dirtyFields } = form.formState
 
-      if (result.error) {
-        toast.error("Failed to update school information", {
-          description:  "Please review the form details and try again",
-        });
-        return;
+    try {
+      // build the payload for the upsertSchool mutation
+      let schoolUpdatePayload: any = {
+        schoolName: data.schoolName, // required
+      };
+      // optional fields are only sent if they are dirty. If they were cleared (empty string/undefined), send null to clear the field in the database. Otherwise, send the value.
+      // use || to also set falsey values like "" to null
+      if (dirtyFields.schoolAddress !== undefined) {
+        schoolUpdatePayload.schoolAddress = (data.schoolAddress?.trim() || null);
+      }
+      if (dirtyFields.schoolMotto !== undefined) {
+        schoolUpdatePayload.schoolMotto = (data.schoolMotto?.trim() || null);
+      }
+      if (dirtyFields.schoolTelephone !== undefined) {
+        schoolUpdatePayload.schoolTelephone = (data.schoolTelephone?.trim() || null);
+      }
+      if (dirtyFields.schoolEmail !== undefined) {
+        // schoolEmail is already transformed to undefined if empty by schema, so ?? null works
+        schoolUpdatePayload.schoolEmail = data.schoolEmail ?? null;
       }
 
-      toast.success("School information updated successfully", {
+      // call the upsertSchool mutation to create or update the school information
+      await upsertSchool(data);
+
+      // Success is handled by the mutation's onSuccess callback (cache invalidation)
+      // Show success toast
+      toast.success("School information saved successfully", {
         description: "Your school details have been saved",
       });
-      router.refresh();
-    } catch (err) {
-      toast.error("Failed to update school information", {
-        description: "An unexpected error occurred",
+    } catch (err: any) {
+      // Error handling - the mutation's onError already logs it
+      // Show user-friendly error message
+      const errorMessage = err?.response?.data?.message || err?.message || "An unexpected error occurred";
+      toast.error("Failed to save school information", {
+        description: errorMessage,
       });
     }
   }
 
-  // loading state for the submit button
-  const loading = form.formState.isSubmitting;
+  // loading state for the submit button - use mutation loading state
+  const loading = isMutating || form.formState.isSubmitting;
 
   return (
     <Card className="border shadow-md">
@@ -104,6 +119,7 @@ export function SchoolForm({ school }: SchoolFormProps) {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
             <div className="space-y-6">
+
               {/* School Information Section Header Text*/}
               <div className="pb-2 border-b border-gray-200">
                 <h3 className="text-xl sm:text-2xl font-bold text-gray-700 uppercase tracking-wide">

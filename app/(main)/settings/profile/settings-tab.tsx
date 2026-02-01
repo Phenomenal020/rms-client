@@ -19,6 +19,7 @@ import {
   FormMessage,
 } from "@/shadcn/ui/form";
 
+// schema for the delete account form
 const deleteAccountSchema = z.object({
   confirmation: z.string().refine(
     (val) => val === "Delete My Account",
@@ -32,9 +33,12 @@ export function SettingsTab() {
 
   // state for the notifications
   const [notifications, setNotifications] = useState({
-    progressUpdates: true,
-    achievementAlerts: false,
-    gameInvitations: true,
+    loginNotifications: true,
+    emailChangeNotifications: false,
+    passwordChangeNotifications: true,
+    profileUpdateNotifications: true,
+    printNotifications: true,
+    exportNotifications: true,
   });
 
   // useform hook for the delete account form
@@ -51,7 +55,7 @@ export function SettingsTab() {
     deleteAccountForm.reset();
   };
 
-  // TODO: Implement manage all notifications
+  // handle manage all notifications - toggles all notifications on/off
   const handleManageAllNotifications = () => {
     toast.info("to be implemented");
   };
@@ -73,7 +77,7 @@ export function SettingsTab() {
                 Email Notifications
               </p>
               <p className="text-sm sm:text-base mt-1 text-muted-foreground">
-                Control how and when you receive updates about your Scrabble journey
+                Manage your email notification preferences
               </p>
             </div>
           </CardTitle>
@@ -84,15 +88,15 @@ export function SettingsTab() {
           <div className="space-y-3">
             <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
               <div>
-                <h4 className="text-base font-semibold">Progress Updates</h4>
+                <h4 className="text-base font-semibold">Login Notifications</h4>
                 <p className="text-sm sm:text-base text-muted-foreground">
-                  Weekly summary of your learning progress
+                  Receive notifications when there is a new login activity
                 </p>
               </div>
               <Switch
-                checked={notifications.progressUpdates}
+                checked={notifications.loginNotifications}
                 onCheckedChange={(checked: boolean) =>
-                  setNotifications((prev) => ({ ...prev, progressUpdates: checked }))
+                  setNotifications((prev) => ({ ...prev, loginNotifications: checked }))
                 }
                 className="cursor-pointer"
               />
@@ -100,15 +104,15 @@ export function SettingsTab() {
 
             <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
               <div>
-                <h4 className="text-base font-semibold">Achievement Alerts</h4>
+                <h4 className="text-base font-semibold">Email Change Notifications</h4>
                 <p className="text-sm sm:text-base text-muted-foreground">
-                  Get notified when you unlock new achievements
-                </p>  
+                  Receive notifications when your email address is changed
+                </p>
               </div>
               <Switch
-                checked={notifications.achievementAlerts}
+                checked={notifications.emailChangeNotifications}
                 onCheckedChange={(checked: boolean) =>
-                  setNotifications((prev) => ({ ...prev, achievementAlerts: checked }))
+                  setNotifications((prev) => ({ ...prev, emailChangeNotifications: checked }))
                 }
                 className="cursor-pointer"
               />
@@ -116,15 +120,63 @@ export function SettingsTab() {
 
             <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
               <div>
-                <h4 className="text-base font-semibold">Game Invitations</h4>
+                <h4 className="text-base font-semibold">Password Change Notifications</h4>
                 <p className="text-sm sm:text-base text-muted-foreground">
-                  Notifications when friends challenge you
+                  Receive notifications when your password is changed
                 </p>
               </div>
               <Switch
-                checked={notifications.gameInvitations}
+                checked={notifications.passwordChangeNotifications}
                 onCheckedChange={(checked: boolean) =>
-                  setNotifications((prev) => ({ ...prev, gameInvitations: checked }))
+                  setNotifications((prev) => ({ ...prev, passwordChangeNotifications: checked }))
+                }
+                className="cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
+              <div>
+                <h4 className="text-base font-semibold">Profile Update Notifications</h4>
+                <p className="text-sm sm:text-base text-muted-foreground">
+                  Receive notifications when your profile information is updated
+                </p>
+              </div>
+              <Switch
+                checked={notifications.profileUpdateNotifications}
+                onCheckedChange={(checked: boolean) =>
+                  setNotifications((prev) => ({ ...prev, profileUpdateNotifications: checked }))
+                }
+                className="cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
+              <div>
+                <h4 className="text-base font-semibold">Print Notifications</h4>
+                <p className="text-sm sm:text-base text-muted-foreground">
+                  Receive notifications when the results are printed
+                </p>
+              </div>
+              <Switch
+                checked={notifications.printNotifications}
+                onCheckedChange={(checked: boolean) =>
+                  setNotifications((prev) => ({ ...prev, printNotifications: checked }))
+                }
+                className="cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
+              <div>
+                <h4 className="text-base font-semibold">Export Notifications</h4>
+                <p className="text-sm sm:text-base text-muted-foreground">
+                  Receive notifications when the results are exported
+                </p>
+              </div>
+              <Switch
+                checked={notifications.exportNotifications}
+                onCheckedChange={(checked: boolean) =>
+                  setNotifications((prev) => ({ ...prev, exportNotifications: checked }))
                 }
                 className="cursor-pointer"
               />
@@ -206,4 +258,3 @@ export function SettingsTab() {
     </div>
   );
 }
-

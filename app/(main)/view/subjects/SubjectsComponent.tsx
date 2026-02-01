@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/shadcn/ui/card";
 import { toast } from "sonner";
 
@@ -16,77 +15,34 @@ import { SubjectStats } from "./subjectStats";
 // helpers and utils
 import { calculateSubjectStats, getStudentScores, getEnrolledStudents } from "./helpers";
 import createGradingFunctions from "./utils/gradingFns";
-import type { Prisma } from '@/src/generated/prisma/client';
+import { useUser } from "@/contexts/user-context";
+import type { Student, AssessmentStructure, AcademicTerm, School, GradingEntry } from "@/types/drizzle";
 
-// Type for user prop (from Prisma query in page.tsx)
-type UserWithRelations = Prisma.UserGetPayload<{
-  include: {
-    school: true;
-    academicTerms: {
-      include: {
-        class: true;
-        subjects: true;
-        assessmentStructure: true;
-        gradingSystem: true;
-        students: {
-          include: {
-            subjects: {
-              include: {
-                subject: true;
-                assessments: {
-                  include: {
-                    scores: {
-                      include: {
-                        assessmentStructure: true;
-                      };
-                    };
-                  };
-                };
-              };
-            };
-          };
-        };
-        school: true;
-      };
-    };
-  };
-}>;
-
-// Extract types from UserWithRelations
-export type School = NonNullable<UserWithRelations['school']>;
-export type AcademicTerm = UserWithRelations['academicTerms'][number];
-export type Student = AcademicTerm['students'][number];
-export type AssessmentStructure = AcademicTerm['assessmentStructure'][number];
+// Type for assessment score used in forms
 export type AssessmentScore = {
   assessmentStructureId: string;
   score: number;
-}
+};
 
-// Component Props
-interface SubjectsPageProps {
-  user: UserWithRelations;
-  academicTerm: AcademicTerm;
-}
-
-const SubjectsPage = ({ user, academicTerm }: SubjectsPageProps) => {
+const SubjectsPage = () => {
   // --------------------------------------------------------------------------------
-  // State Management. Prefer the provided academic term. Fall back to the user's academic term.
-  const termData = academicTerm || user?.academicTerms?.[0];
+  // Get user information from context
+  const { academicTerm: termData, assessmentStructure, gradingEntry, students: userStudents, subjects, school } = useUser();
 
   // Pre-compute subject names (minimal shaping to avoid heavy transforms).
   const subjectNames = useMemo(
-    () => (termData?.subjects || []).map((subject) => subject.name),
-    [termData?.subjects]
+    () => (subjects || []).map((subject) => subject.name),
+    [subjects]
   );  // Only recompute these if the subjects change
 
   // Memoise the grading functions 
   const { getGrade, getRemark } = useMemo(
-    () => createGradingFunctions(termData?.gradingSystem),
-    [termData?.gradingSystem]
-  );  // Only recompute these if the grading system changes
+    () => createGradingFunctions(gradingEntry),
+    [gradingEntry]
+  );  // Only recompute these if the grading entry changes
 
   // students state - all students from db
-  const [students, setStudents] = useState<Student[]>(termData?.students || []);
+  const [students, setStudents] = useState<Student[]>(userStudents || []);
 
   // subjects state: gets enrolled students for the selected subject
   const [selectedSubjectName, setSelectedSubjectName] = useState(subjectNames[0] || null);  // default as first subject
@@ -108,15 +64,19 @@ const SubjectsPage = ({ user, academicTerm }: SubjectsPageProps) => {
   const [isGlobalEditing, setIsGlobalEditing] = useState(false);
 
   // school state: data + flag
-  const [schoolData, setSchoolData] = useState<School | null>(termData?.school || user?.school || null);
+  const [schoolData, setSchoolData] = useState<School | null>(school || null);
   const [editingSchoolData, setEditingSchoolData] = useState<School | null>(null);
 
-  // Sync local state when term data changes
+  // Sync local state when data changes
   useEffect(() => {
-    setStudents(termData?.students || []);
-    setSchoolData(termData?.school || user?.school);
+    if (userStudents) {
+      setStudents(userStudents);
+    }
+    if (school) {
+      setSchoolData(school);
+    }
     
-    // Reset subject selection when term changes or subjects list changes
+    // Reset subject selection when subjects list changes
     if (subjectNames.length > 0) {
       setSelectedSubjectName(subjectNames[0]);
       setCurrentSubjectIndex(0);
@@ -124,7 +84,7 @@ const SubjectsPage = ({ user, academicTerm }: SubjectsPageProps) => {
       setSelectedSubjectName(null);
       setCurrentSubjectIndex(0);
     }
-  }, [termData?.students, termData?.school, subjectNames, user?.school]);
+  }, [userStudents, school, subjectNames]);
   // -------------------------------------------------------------------------------------
 
 
@@ -165,9 +125,9 @@ const SubjectsPage = ({ user, academicTerm }: SubjectsPageProps) => {
   const subjectStats = useMemo(
     () =>
       selectedSubjectName
-        ? calculateSubjectStats(selectedSubjectName, enrolledStudents, termData?.assessmentStructure || [])
+        ? calculateSubjectStats(selectedSubjectName, enrolledStudents, assessmentStructure || [])
         : null,
-    [selectedSubjectName, enrolledStudents, termData?.assessmentStructure]
+    [selectedSubjectName, enrolledStudents, assessmentStructure]
   );
 
   // --------------------------------------------------------------------------------
@@ -214,7 +174,7 @@ const SubjectsPage = ({ user, academicTerm }: SubjectsPageProps) => {
         if (!match) return student;
 
         // Update only the selected subject's assessments 
-        const updatedSubjects = (student.subjects || []).map((subject) => {
+        const updatedSubjects = (student.subjects || []).map((subject: any) => {
           const isSelected = subject.subject?.name === selectedSubjectName;
           if (!isSelected) return subject;  // skip unaffected subjects
 
@@ -237,7 +197,7 @@ const SubjectsPage = ({ user, academicTerm }: SubjectsPageProps) => {
           const updatedScores = match.scores.map((formScore) => {
             // Try to find existing score with same assessmentStructureId
             const existingScore = existingScores.find(
-              (s) => s.assessmentStructureId === formScore.assessmentStructureId
+              (s: any) => s.assessmentStructureId === formScore.assessmentStructureId
             );
             // If exists, update score value; otherwise keep the form score (will be handled by server)
             if (existingScore) {
@@ -378,7 +338,7 @@ const SubjectsPage = ({ user, academicTerm }: SubjectsPageProps) => {
 
             {/* Subject Information (no editing required) */}
             <SubjectInfo
-              selectedSubject={termData?.subjects?.find(subject => subject.name === selectedSubjectName)?.name || ""}
+              selectedSubject={subjects?.find(subject => subject.name === selectedSubjectName)?.name || ""}
               enrolledStudentsCount={enrolledStudents.length}
               term={termData?.term}
               academicYear={termData?.academicYear}
@@ -396,7 +356,7 @@ const SubjectsPage = ({ user, academicTerm }: SubjectsPageProps) => {
               getStudentScores={getStudentScores}
               getGrade={getGrade}
               getRemark={getRemark}
-              assessmentStructure={termData?.assessmentStructure || []}
+              assessmentStructure={assessmentStructure || []}
               isGlobalEditing={isGlobalEditing}
               academicTermId={termData?.id}
             />

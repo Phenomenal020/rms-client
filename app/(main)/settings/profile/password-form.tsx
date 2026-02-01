@@ -11,8 +11,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/shadcn/ui/form";
-import { authClient } from "@/src/lib/auth-client";
-import { passwordSchema } from "@/src/lib/validation";
+import { authClient } from "@/src/auth-client";
+import { passwordSchema } from "@/src/passwordSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, type ControllerRenderProps, type Control } from "react-hook-form";
 import { z } from "zod";
@@ -39,7 +39,7 @@ export function PasswordForm({ hasPasswordAccount }: PasswordFormProps) {
       })  // schema for a user that logged in with a password
     : z.object({
         newPassword: passwordSchema,
-      }); // schema for a user that logged in with OAuth
+      }); // new password schema for a user that logged in with OAuth
 
   // Type for form values - union type to handle both schemas
   type PasswordFormValues = z.infer<typeof updatePasswordSchema>;
@@ -97,6 +97,8 @@ export function PasswordForm({ hasPasswordAccount }: PasswordFormProps) {
         const { currentPassword, newPassword } = data as { currentPassword: string; newPassword: string };
         if (!currentPassword) {
           toast.error("Current password is required");
+          form.reset()
+          form.clearErrors();
           return;
         }
         await authClient.changePassword(
@@ -126,6 +128,11 @@ export function PasswordForm({ hasPasswordAccount }: PasswordFormProps) {
   // handle change password button click - toggles allowPasswordChange
   function handleChangePasswordClick(e: React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
+    // When cancelling, reset form values and clear any validation errors
+    if (allowPasswordChange) {
+      form.reset();
+      form.clearErrors();
+    }
     setAllowPasswordChange(!allowPasswordChange);
   }
 
@@ -154,15 +161,17 @@ export function PasswordForm({ hasPasswordAccount }: PasswordFormProps) {
                   // current password field
                   <FormItem>
                     <FormLabel className="text-base text-gray-700 font-semibold">Current Password</FormLabel>
-                    <div className="flex gap-3 mt-2">
-                      <FormControl>
-                        <PasswordInput
-                          {...field}
-                          placeholder="Enter current password"
-                          className="flex-1 h-14 text-base transition-colors hover:border-gray-400 focus:border-primary bg-gray-50"
-                          disabled={!allowPasswordChange}
-                        />
-                      </FormControl>
+                    <div className="flex gap-3 mt-2 w-full">
+                      <div className="flex-1">
+                        <FormControl>
+                          <PasswordInput
+                            {...field}
+                            placeholder="Enter current password"
+                            className="w-full h-14 text-base transition-colors hover:border-gray-400 focus:border-primary bg-gray-50"
+                            disabled={!allowPasswordChange}
+                          />
+                        </FormControl>
+                      </div>
 
                       {/* if the user is not allowed to change the password, show the change password button */}
                       {!allowPasswordChange ? (
@@ -204,7 +213,7 @@ export function PasswordForm({ hasPasswordAccount }: PasswordFormProps) {
                     onClick={handleChangePasswordClick}
                     loading={false}
                     disabled={false}
-                    className="h-14 text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                    className="w-full h-14 text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
                   >
                     Set Password
                   </LoadingButton>
@@ -227,11 +236,11 @@ export function PasswordForm({ hasPasswordAccount }: PasswordFormProps) {
                       <PasswordInput
                         {...field}
                         placeholder={hasPasswordAccount ? "Enter new password" : "Enter password"}
-                        className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
+                        className="w-full h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
                       />
                     </FormControl>
                     <FormMessage />
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-sm font-bold mt-1 text-gray-600">
                       {hasPasswordAccount 
                         ? "Changing your password will log you out from all other devices for security."
                         : "Setting a password will log you out from all other devices for security."}

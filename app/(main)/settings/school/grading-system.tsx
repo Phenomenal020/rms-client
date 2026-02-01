@@ -5,25 +5,26 @@ import { Button } from "@/shadcn/ui/button";
 import { Plus, X, Pencil, Check } from "lucide-react";
 import { FormField, FormItem, FormMessage } from "@/shadcn/ui/form";
 import { type UseFormReturn } from "react-hook-form";
+import { useEffect } from "react";
 import type { TermFormValues } from "./term-form";
-import type { GradingEntry } from "./types";
+import type { GradingEntry } from "@/types/term";
 
 // Type for grading entry state
 // Props interface for GradingSystem
 interface GradingSystemProps {
-  form: UseFormReturn<TermFormValues>;
-  currentGradingEntry: GradingEntry;
-  setCurrentGradingEntry: (entry: GradingEntry) => void;
-  addGradingEntry: () => void;
-  editGradingEntry: (index: number) => void;
-  removeGradingEntry: (index: number) => void;
-  editingIndex: number | null;
-  cancelEdit: () => void;
+    form: UseFormReturn<TermFormValues>;
+    currentGradingEntry: GradingEntry;
+    setCurrentGradingEntry: (entry: GradingEntry) => void;
+    addGradingEntry: () => void;
+    editGradingEntry: (index: number) => void;
+    removeGradingEntry: (index: number) => void;
+    editingIndex: number | null;
+    cancelEdit: () => void;
 }
 
 export function GradingSystem({ form, currentGradingEntry, setCurrentGradingEntry, addGradingEntry, editGradingEntry, removeGradingEntry, editingIndex, cancelEdit }: GradingSystemProps) {
-    const gradingSystem = form.watch("gradingSystem") || [];
-
+    const gradingEntry = form.watch("gradingEntry") || [];
+    
     return (
         <div className="space-y-5 mt-8 pt-8 border-t border-gray-200">
             {/* Grading System Section Header */}
@@ -94,9 +95,9 @@ export function GradingSystem({ form, currentGradingEntry, setCurrentGradingEntr
             </div>
 
             {/* Display Grading Entries if there are any */}
-            {gradingSystem.length > 0 && (
+            {gradingEntry.length > 0 && (
                 <div className="space-y-2">
-                    {gradingSystem
+                    {gradingEntry
                         .map((entry: { grade: string; minScore: number; maxScore: number; }, originalIndex: number) => ({ entry, originalIndex }))
                         .sort((a: { entry: { grade: string; minScore: number; maxScore: number; }; originalIndex: number; }, b: { entry: { grade: string; minScore: number; maxScore: number; }; originalIndex: number; }) => {
                             // Sort by maxScore in descending order
@@ -105,50 +106,50 @@ export function GradingSystem({ form, currentGradingEntry, setCurrentGradingEntr
                             return maxB - maxA;
                         })
                         .map(({ entry, originalIndex }: { entry: { grade: string; minScore: number; maxScore: number; }; originalIndex: number; }) => (
-                        <div
-                            key={originalIndex}
-                            className={`flex items-center justify-between p-4 rounded-md border text-base ${editingIndex === originalIndex
+                            <div
+                                key={originalIndex}
+                                className={`flex items-center justify-between p-4 rounded-md border text-base ${editingIndex === originalIndex
                                     ? "bg-blue-50 border-blue-300"
                                     : "bg-gray-50 border-gray-200"
-                                }`}
-                        >
-                            <span className="text-gray-700 font-medium">
-                                {entry.grade}: {entry.minScore}-{entry.maxScore}
-                            </span>
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="default"
-                                    onClick={() => editGradingEntry(originalIndex)}
-                                    className="h-10 text-base text-blue-500 hover:text-blue-700"
-                                    disabled={editingIndex !== null && editingIndex !== originalIndex}
-                                >
-                                    <Pencil className="w-5 h-5" />
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="default"
-                                    onClick={() => removeGradingEntry(originalIndex)}
-                                    className="h-10 text-base text-red-500 hover:text-red-700"
-                                    disabled={editingIndex !== null}
-                                >
-                                    <X className="w-5 h-5" />
-                                </Button>
+                                    }`}
+                            >
+                                <span className="text-gray-700 font-medium">
+                                    {entry.grade}: {entry.minScore} - {entry.maxScore}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="default"
+                                        onClick={() => editGradingEntry(originalIndex)}
+                                        className="h-10 text-base text-blue-500 hover:text-blue-700"
+                                        disabled={editingIndex !== null && editingIndex !== originalIndex}
+                                    >
+                                        <Pencil className="w-5 h-5" />
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="default"
+                                        onClick={() => removeGradingEntry(originalIndex)}
+                                        className="h-10 text-base text-red-500 hover:text-red-700"
+                                        disabled={editingIndex !== null}
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </Button>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        ))}
                 </div>
             )}
 
-            {/* Grading System Error */}
+            {/* Grading Entry Error */}
             <FormField
                 control={form.control}
-                name="gradingSystem"
-                render={() => (
-                    <FormItem className="">
-                        <FormMessage className="" />
+                name="gradingEntry"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormMessage />
                     </FormItem>
                 )}
             />

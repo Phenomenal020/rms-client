@@ -1,10 +1,8 @@
-import { getServerSession } from "@/src/lib/get-session";
 import { unauthorized } from "next/navigation";
-import prisma from "@/src/lib/prisma";
 import VerifyEmailButton from "../shared/verify-email-button";
 import SchoolTabs from "./school-tabs";
 import type { Metadata } from "next";
-import type { Prisma } from "@/src/generated/prisma/client";
+import { getUserWithRelations } from "@/fetcher/queries";
 
 // metadata for the school settings page
 export const metadata: Metadata = {
@@ -12,55 +10,12 @@ export const metadata: Metadata = {
   description: "Manage school information",
 };
 
-// Type for user with school and academic term
-type UserWithSchoolAndTerm = Prisma.UserGetPayload<{
-  include: {
-    school: true;
-    academicTerms: {
-      include: {
-        gradingSystem: true;
-        class: true;
-      };
-      take: 1;
-    };
-  };
-}>;
-
 export default async function SchoolSettingsPage(): Promise<React.ReactElement> {
-  
-  // get the server session
-  const session = await getServerSession();
-
-  // get the session user
-  const sessionUser = session?.user;
-
-  // if there is no session user, then return the unauthorised page
-  if (!sessionUser) unauthorized();
-
-  // get the user from the database with school and academic term information
-  const user: UserWithSchoolAndTerm | null = await prisma.user.findUnique({
-    where: {
-      id: sessionUser.id,
-    },
-    include: {
-      school: true,
-      academicTerms: {
-        include: {
-          gradingSystem: true,
-          class: true,
-        },
-        take: 1, // Get the first term for now
-      },
-    },
-  });
-
-  // if there is no user, then return the unauthorised page
-  if (!user) unauthorized();
 
   return (
     <main className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50/40 to-indigo-50/30 relative overflow-hidden">
       <div className="relative mx-auto w-full max-w-5xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-        
+
         {/* Verify Email Button */}
         <VerifyEmailButton />
 
@@ -79,13 +34,10 @@ export default async function SchoolSettingsPage(): Promise<React.ReactElement> 
 
         {/* School and Term Forms in Tabs */}
         <div className="w-full mx-auto">
-          <SchoolTabs 
-            school={user.school} 
-            academicTerm={user.academicTerms?.[0]}
-            schoolId={user.schoolId}
+          <SchoolTabs
           />
         </div>
       </div>
     </main>
-  );
+  )
 }

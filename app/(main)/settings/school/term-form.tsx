@@ -18,16 +18,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { useForm, type ControllerRenderProps, type UseFormReturn, type Control } from "react-hook-form";
+import { useState, useMemo } from "react";
+import { useForm, type Control } from "react-hook-form";
 import { z } from "zod";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { GradingSystem } from "./grading-system";
-import { updateTerm } from "@/app/api/term/actions";
-import type { AcademicTermData, GradingEntry } from "./types";
+import { useUpsertTerm } from "@/fetcher/mutations";
+// import type { AcademicTermData } from "./types";   // TODO: Fix this to be derived from the payload type
+import type { GradingEntry } from "@/types/term";
 
-// Schema for term form
+// Schema for term form 
 const termSchema = z.object({
   academicYear: z.string().trim().min(1, { message: "Academic year is required" }),
   term: z.enum(["FIRST", "SECOND", "THIRD"], { message: "Please select a valid term" }),
@@ -35,7 +36,7 @@ const termSchema = z.object({
   termDays: z.number().int().nonnegative().optional(),
   termStart: z.date().optional(),
   termEnd: z.date().optional(),
-  gradingSystem: z
+  gradingEntry: z
     .array(z.object({
       grade: z.string().min(1),
       minScore: z.number().min(0).max(100),
@@ -43,8 +44,8 @@ const termSchema = z.object({
     }))
     .min(1, { message: "At least one grading entry is required" })
     // Validate score range and type (numbers between 0-100)
-    .refine((gradingSystem) => {
-      return gradingSystem.every((entry) => {
+    .refine((gradingEntry) => {
+      return gradingEntry.every((entry) => {
         const minScore = typeof entry.minScore === 'number' ? entry.minScore : Number(entry.minScore);
         const maxScore = typeof entry.maxScore === 'number' ? entry.maxScore : Number(entry.maxScore);
         return !isNaN(minScore) && !isNaN(maxScore) &&
@@ -53,11 +54,11 @@ const termSchema = z.object({
       });
     }, {
       message: "Scores must be valid numbers between 0-100, and min score must be less than or equal to max score",
-      path: ["gradingSystem"],
+      path: ["gradingEntry"],
     })
     // validate overlapping entries (no overlapping ranges)
-    .refine((gradingSystem) => {
-      const ranges = gradingSystem
+    .refine((gradingEntry) => {
+      const ranges = gradingEntry
         .map((entry) => ({
           min: typeof entry.minScore === 'number' ? entry.minScore : Number(entry.minScore),
           max: typeof entry.maxScore === 'number' ? entry.maxScore : Number(entry.maxScore),
@@ -75,11 +76,11 @@ const termSchema = z.object({
       return true;
     }, {
       message: "Grade ranges cannot overlap",
-      path: ["gradingSystem"],
+      path: ["gradingEntry"],
     })
     // validate total score range (100 with no gaps)
-    .refine((gradingSystem) => {
-      const ranges = gradingSystem
+    .refine((gradingEntry) => {
+      const ranges = gradingEntry
         .map((entry) => ({
           min: typeof entry.minScore === 'number' ? entry.minScore : Number(entry.minScore),
           max: typeof entry.maxScore === 'number' ? entry.maxScore : Number(entry.maxScore),
@@ -99,7 +100,7 @@ const termSchema = z.object({
       return currentPos === 100;
     }, {
       message: "Grade ranges must total exactly 100% (0-100) with no gaps",
-      path: ["gradingSystem"],
+      path: ["gradingEntry"],
     }),
   resultTemplate: z.instanceof(File).optional(),
 }).refine((data) => {
@@ -118,24 +119,25 @@ export type TermFormValues = z.infer<typeof termSchema>;
 
 // Props interface for TermForm
 interface TermFormProps {
-  academicTerm: AcademicTermData;
+  academicTerm: any;
 }
 
 // Term form component
 export function TermForm({ academicTerm }: TermFormProps) {
 
   // state for the term start date popover
-  const [termStartOpen, setTermStartOpen] = useState<boolean>(false);
+  const [termStartOpen, setTermStartOpen] = useState(false);
 
   // state for the term end date popover
-  const [termEndOpen, setTermEndOpen] = useState<boolean>(false);
+  const [termEndOpen, setTermEndOpen] = useState(false);
 
   // state for the current grading entry
-  const [currentGradingEntry, setCurrentGradingEntry] = useState<GradingEntry>({
+  const initialGradingEntry: GradingEntry = {
     grade: "",
     minScore: "",
     maxScore: "",
-  });
+  };
+  const [currentGradingEntry, setCurrentGradingEntry] = useState<GradingEntry>(initialGradingEntry);
 
   // state for the editing index
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -143,26 +145,31 @@ export function TermForm({ academicTerm }: TermFormProps) {
   // router for navigation
   const router = useRouter();
 
-  // grading system for the academic term
-  const gradingSystem = academicTerm?.gradingSystem || [];
+  // grading entries for the academic term
+  const gradingEntry = academicTerm?.gradingEntry || [];
 
+  // mutation hook for upserting term
+  const { upsertTerm, isMutating, error } = useUpsertTerm();
+
+  // form resolver and default values
+  const originalValues = useMemo(() => ({
+    academicYear: academicTerm?.academicYear || "",
+    term: (academicTerm?.term as "FIRST" | "SECOND" | "THIRD") || "FIRST",
+    className: academicTerm?.class?.name || "",
+    termDays: academicTerm?.termDays ?? undefined,
+    termStart: academicTerm?.termStart ? new Date(academicTerm.termStart) : undefined,
+    termEnd: academicTerm?.termEnd ? new Date(academicTerm.termEnd) : undefined,
+    gradingEntry: gradingEntry.map((g: GradingEntry) => ({
+      grade: g.grade,
+      minScore: g.minScore,
+      maxScore: g.maxScore,
+    })),
+  }), [academicTerm, gradingEntry]);
   const form = useForm<TermFormValues>({
     // form validation with zodResolver
     resolver: zodResolver(termSchema),
     // default values for the form
-    defaultValues: {
-      academicYear: academicTerm?.academicYear || "",
-      term: (academicTerm?.term as "FIRST" | "SECOND" | "THIRD") || "FIRST",
-      className: academicTerm?.class?.name || "",
-      termDays: academicTerm?.termDays ?? undefined,
-      termStart: academicTerm?.termStart ? new Date(academicTerm.termStart) : undefined,
-      termEnd: academicTerm?.termEnd ? new Date(academicTerm.termEnd) : undefined,
-      gradingSystem: gradingSystem.map(g => ({
-        grade: g.grade,
-        minScore: g.minScore,
-        maxScore: g.maxScore,
-      })),
-    },
+    defaultValues: originalValues,
   });
 
   // Add grading entry
@@ -172,8 +179,8 @@ export function TermForm({ academicTerm }: TermFormProps) {
 
     if (grade.trim() && minScore && maxScore) {
       // convert the min and max scores to numbers
-      const minScoreNum = typeof minScore === 'number' ? minScore : parseInt(minScore as string);
-      const maxScoreNum = typeof maxScore === 'number' ? maxScore : parseInt(maxScore as string);
+      const minScoreNum = typeof minScore === 'number' ? minScore : parseInt(minScore);
+      const maxScoreNum = typeof maxScore === 'number' ? maxScore : parseInt(maxScore);
 
       // validate the min score is greater than or equal to 0
       if (minScoreNum < 0) {
@@ -193,10 +200,10 @@ export function TermForm({ academicTerm }: TermFormProps) {
         return;
       }
 
-      // get the current grading system
-      const currentGrading = form.getValues("gradingSystem") || [];
+      // get the current grading entries
+      const currentGrading = form.getValues("gradingEntry") || [];
 
-      // validate the grading system for overlapping entries
+      // validate the grading entries for overlapping entries
       const hasOverlap = currentGrading.some((entry, idx) => {
         if (editingIndex !== null && idx === editingIndex) return false;
         const existingMin = typeof entry.minScore === 'number' ? entry.minScore : Number(entry.minScore);
@@ -217,16 +224,16 @@ export function TermForm({ academicTerm }: TermFormProps) {
           minScore: Number(minScore),
           maxScore: Number(maxScore)
         };
-        form.setValue("gradingSystem", updatedGrading);
-        form.trigger("gradingSystem");
+        form.setValue("gradingEntry", updatedGrading);
+        form.trigger("gradingEntry");
         setEditingIndex(null);
       } else {
         // if not in editing mode, simply append the new grading entry
-        form.setValue("gradingSystem", [
+        form.setValue("gradingEntry", [
           ...currentGrading,
           { grade: grade.trim(), minScore: Number(minScore), maxScore: Number(maxScore) },
         ]);
-        form.trigger("gradingSystem");
+        form.trigger("gradingEntry");
       }
       setCurrentGradingEntry({ grade: "", minScore: "", maxScore: "" });
     }
@@ -234,7 +241,7 @@ export function TermForm({ academicTerm }: TermFormProps) {
 
   // Edit grading entry - simply set the current grading entry and editing index to not null
   const editGradingEntry = (index: number) => {
-    const allGrades = form.getValues("gradingSystem") || [];
+    const allGrades: GradingEntry[] = form.getValues("gradingEntry") || [];
     const entryToEdit = allGrades[index];
 
     if (entryToEdit) {
@@ -255,66 +262,80 @@ export function TermForm({ academicTerm }: TermFormProps) {
 
   // Remove grading entry - simply filter out the grading entry at the index
   const removeGradingEntry = (index: number) => {
-    // get the current grading system
-    const currentGrading = form.getValues("gradingSystem") || [];
+    // get the current grading entries
+    const currentGrading = form.getValues("gradingEntry") || [];
     // filter out the grading entry at the index
     form.setValue(
-      "gradingSystem",
+      "gradingEntry",
       currentGrading.filter((_, i) => i !== index)
     );
-    // trigger the grading system validation
-    form.trigger("gradingSystem");
+    // trigger the grading entry validation
+    form.trigger("gradingEntry");
     // if in editing mode, cancel the edit
     if (editingIndex === index) {
       cancelEdit();
     }
   };
 
+  // On submit function
   async function onSubmit(data: TermFormValues) {
     try {
-      const termData = {
-        academicYear: data.academicYear, // must have been validated by zod schema before getting here
+      const { dirtyFields } = form.formState;
+
+      // Required fields always sent for upsert
+      const termData: any = {
+        academicYear: data.academicYear,
         term: data.term,
         className: data.className,
-        termDays: data.termDays ?? undefined,
-        termStart: data.termStart?.toISOString(),
-        termEnd: data.termEnd?.toISOString(),
-        gradingSystem: data.gradingSystem
-          ? data.gradingSystem.map((entry) => ({
-            grade: entry.grade,
-            minScore: Number(entry.minScore),
-            maxScore: Number(entry.maxScore),
-            remark: null,
-          }))
-          : undefined,
-        resultTemplateUrl: undefined, // TODO: Handle file upload
       };
 
-      // call the updateTerm server action to update the term information
-      const result = await updateTerm(termData);
-
-      // if there is an error, show the error toast
-      if (result.error) {
-        toast.error("Failed to update term information", {
-          description: "Please review the form details and try again",
-        });
-        return;
+      // Only add optional fields if they've changed
+      // If field is in dirtyFields, it was changed:
+      // - If value is undefined/null, user cleared it → send null to clear DB
+      // - If value exists, send the value
+      if (dirtyFields.termDays !== undefined) {
+        // If termDays was cleared (undefined), send null; otherwise send the number
+        termData.termDays = data.termDays ?? null;
       }
 
-      // if there is no error, show the success toast and refresh the page
-      toast.success("Term information updated successfully", {
+      if (dirtyFields.termStart !== undefined) {
+        // If termStart was cleared (undefined), send null; otherwise send ISO string
+        termData.termStart = data.termStart?.toISOString() ?? null;
+      }
+
+      if (dirtyFields.termEnd !== undefined) {
+        // If termEnd was cleared (undefined), send null; otherwise send ISO string
+        termData.termEnd = data.termEnd?.toISOString() ?? null;
+      }
+
+      // Always send gradingEntry (required field)
+      termData.gradingEntry = data.gradingEntry.map((entry) => ({
+        grade: entry.grade,
+        minScore: Number(entry.minScore),
+        maxScore: Number(entry.maxScore),
+        remark: null,  // adds remark to match the backend dto
+      }))
+
+      // call the upsertTerm mutation to create or update the term information
+      await upsertTerm(termData);
+
+      // Success is handled by the mutation's onSuccess callback (cache invalidation)
+      // Show success toast
+      toast.success("Term information saved successfully", {
         description: "Your term details have been saved",
       });
-      router.refresh();
-    } catch (err) {
-      // if there is an unexpected error, show the error toast
-      toast.error("Failed to update term information", {
-        description: "An unexpected error occurred",
+    }
+    catch (err: any) {
+      // Error handling - the mutation's onError already logs it
+      // Show user-friendly error message
+      const errorMessage = err?.response?.data?.message || err?.message || "An unexpected error occurred";
+      toast.error("Failed to save term information", {
+        description: errorMessage,
       });
     }
   }
 
-  const loading = form.formState.isSubmitting;
+  const loading = form.formState.isSubmitting || isMutating;
 
   return (
     <Card className="border shadow-md">
@@ -323,21 +344,41 @@ export function TermForm({ academicTerm }: TermFormProps) {
           <form
             onSubmit={form.handleSubmit(
               async (data) => {
-                await onSubmit(data as unknown as TermFormValues);
+                await onSubmit(data as TermFormValues);
               },
               (errors: any) => {
-                if (errors.gradingSystem) {
-                  const gradingError = errors?.gradingSystem?.message;
+                // Check for grading entry errors first (most common)
+                if (errors.gradingEntry?.gradingEntry) {
+                  const gradingError = errors?.gradingEntry?.gradingEntry?.message;
                   if (gradingError) {
-                    toast.error("Grading system error", {
+                    toast.error("Grading entry error", {
                       description: gradingError,
                     });
+                    return; // Stop here, don't show other errors
                   }
+                }
+
+                // Check for other field errors
+                const errorFields = Object.keys(errors);
+                if (errorFields.length > 0) {
+                  const firstErrorField = errorFields[0];
+                  const firstError = errors[firstErrorField];
+                  const errorMessage = firstError?.message || `Please fix the ${firstErrorField} field`;
+
+                  toast.error("Validation error", {
+                    description: errorMessage,
+                  });
+                } else {
+                  // Fallback if no specific error message
+                  toast.error("Please fix the form errors", {
+                    description: "One or more fields have validation errors",
+                  });
                 }
               }
             )}
             className="space-y-6"
           >
+
             {/* Term Information Section */}
             <div className="space-y-6">
               <div className="pb-2 border-b border-gray-200">
@@ -348,7 +389,7 @@ export function TermForm({ academicTerm }: TermFormProps) {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                 {/* Academic Year Field */}
                 <FormField
-                  control={form.control as unknown as Control<TermFormValues>}
+                  control={form.control}
                   name="academicYear"
                   render={({ field }) => (
                     <FormItem>
@@ -526,42 +567,6 @@ export function TermForm({ academicTerm }: TermFormProps) {
               editingIndex={editingIndex}
               cancelEdit={cancelEdit}
             />
-
-            {/* Result Template Section */}
-            <div className="space-y-4 mt-8 pt-8 border-t border-gray-200">
-              <div className="pb-2 border-b border-gray-200">
-                <h3 className="text-xl sm:text-2xl font-bold text-gray-700 uppercase tracking-wide">Result Template (Optional)</h3>
-              </div>
-
-              <FormField
-                control={form.control}
-                name="resultTemplate"
-                render={({ field: { value, onChange, ...field } }) => (
-                  <FormItem>
-                    <FormLabel className="text-base text-gray-700 font-semibold">Upload Template</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="file"
-                        accept=".pdf,.doc,.docx,.xlsx,.xls"
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                          const file = e.target.files?.[0];
-                          onChange(file);
-                        }}
-                        className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
-                      />
-                    </FormControl>
-                    <p className="text-base text-gray-600">
-                      Upload a template for student results (PDF, Word, or Excel)
-                    </p>
-                    {value && (
-                      <p className="text-base text-green-600 font-medium">✓ {value.name}</p>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
 
             {/* Submit Button */}
             <div className="pt-6 border-t border-gray-200 mt-6">

@@ -16,7 +16,13 @@ import {
 } from "@/shadcn/ui/form";
 import { Edit3, Loader2, Save, X } from "lucide-react";
 import { saveSubjectScores } from "@/app/api/views/edit-subject-action";
-import type { Student, AssessmentStructure, AssessmentScore } from "./SubjectsComponent";
+import type { Student, AssessmentStructure, Subject, AssessmentScore } from "@/types/drizzle";
+
+// // Type for assessment score used in forms
+// type AssessmentScore = {
+//   assessmentStructureId: string;
+//   score: number;
+// };
 
 // Component Props
 interface SubjectResultTableProps {
@@ -85,7 +91,7 @@ export const SubjectResultTable = ({
         students: (students || []).map((student) => {
             // Find the subject entry for the selected subject
             const studentSubject = student.subjects?.find(
-                (s) =>
+                (s: Subject) =>
                     s.subject?.name === selectedSubjectName ||
                     s.subject?.name === selectedSubjectName 
             );
@@ -96,7 +102,7 @@ export const SubjectResultTable = ({
                 studentId: String(student.id ?? ""),
                 scores: (sortedAssessments || []).map((as) => {
                     const scoreEntry = assessment?.scores?.find(  // find the score for the assessment structure
-                        (s) => s.assessmentStructureId === as.id || s.assessmentStructure?.type === as.type  // by id or type
+                        (s: AssessmentScore) => s.assessmentStructureId === as.id || s.assessmentStructure?.type === as.type  // by id or type
                     );
 
                     return {
@@ -120,7 +126,7 @@ export const SubjectResultTable = ({
     }, [selectedSubjectName, isEditingScores, enrolledStudents, editingStudents]);
 
     // On submit, save the scores to the database
-    const onSubmit = (data: { students: Array<{ studentId: string; scores: AssessmentScore[] }> }): void => {
+    const onSubmit = (data: z.infer<typeof tableSchema>): void => {
         startTransition(async () => {
             try {
                 // Get subjectId from the first enrolled student's subject data
@@ -132,7 +138,7 @@ export const SubjectResultTable = ({
 
                 // Get the student subject from the first enrolled student
                 const studentSubject = firstStudent.subjects?.find(
-                    (s) =>
+                    (s: Subject) =>
                         s.subject?.name === selectedSubjectName
                 );
 
@@ -157,22 +163,29 @@ export const SubjectResultTable = ({
                     })),
                 }));
 
-                // Call server action to save scores
-                const result = await saveSubjectScores(
+                // TODO: Commented out for debugging - restore when ready
+                console.log("saveSubjectScores payload:", JSON.stringify({
                     subjectId,
                     academicTermId,
                     studentsData
-                );
+                }, null, 2));
+
+                // // Call server action to save scores
+                // const result = await saveSubjectScores(
+                //     subjectId,
+                //     academicTermId,
+                //     studentsData
+                // );
                 
-                if ('error' in result && result.error) {
-                    toast.error("Failed to save scores. Please try again.");
-                    return;
-                }
+                // if ('error' in result && result.error) {
+                //     toast.error("Failed to save scores. Please try again.");
+                //     return;
+                // }
 
-                // Update local state via parent component
-                saveScoreChanges(data.students);
+                // // Update local state via parent component
+                // saveScoreChanges(data.students);
 
-                toast.success("Scores saved successfully");
+                // toast.success("Scores saved successfully");
             } catch (error) {
                 toast.error("Failed to save scores. Please try again.");
             }
@@ -288,10 +301,10 @@ export const SubjectResultTable = ({
                                         const percentage = isEditingScores
                                             ? totalFromForm
                                             : (student.subjects?.find(
-                                                (s) =>
+                                                (s: Subject) =>
                                                     s.subject?.name === selectedSubjectName
                                             )?.assessments?.[0]?.scores || []).reduce(
-                                                (sum, s) => sum + (s.score || 0),
+                                                (sum: number, s: AssessmentScore) => sum + (s.score || 0),
                                                 0
                                             );
 
@@ -315,10 +328,10 @@ export const SubjectResultTable = ({
                                                         ? formRow?.scores?.[scoreIndex]?.score ?? 0
                                                         : (
                                                             student.subjects?.find(
-                                                                (s) =>
+                                                                (s: Subject) =>
                                                                     s.subject?.name === selectedSubjectName
                                                             )?.assessments?.[0]?.scores?.find(
-                                                                (s) => s.assessmentStructureId === assessment.id
+                                                                (s: AssessmentScore) => s.assessmentStructureId === assessment.id
                                                             )?.score || 0
                                                         );
 

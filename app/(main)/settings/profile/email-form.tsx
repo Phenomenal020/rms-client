@@ -11,7 +11,7 @@ import {
   FormMessage,
 } from "@/shadcn/ui/form";
 import { Input } from "@/shadcn/ui/input";
-import { authClient } from "@/src/lib/auth-client";
+import { authClient } from "@/src/auth-client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm, type ControllerRenderProps } from "react-hook-form";
@@ -55,7 +55,7 @@ export function EmailForm({ currentEmail }: EmailFormProps) {
 
     const { error } = await authClient.changeEmail({
       newEmail: newEmail.trim(),
-      callbackURL: "/settings/profile", // redirect to the settings profile page after the email is verified
+      callbackURL: `${process.env.NEXT_PUBLIC_CLIENT_URL}/settings/profile`, // redirect to the settings profile page after the email is verified
     });
 
     if (error) {

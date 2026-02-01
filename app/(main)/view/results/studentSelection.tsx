@@ -8,7 +8,7 @@ import {
     SelectValue,
 } from "@/shadcn/ui/select";
 import { User, ArrowLeft, ArrowRight } from "lucide-react";
-import { Student } from "./ResultsComponent";
+import type { Student } from "@/types/drizzle";
 
 // Interface for the StudentSelection component props
 interface StudentSelectionProps {
@@ -36,7 +36,13 @@ export function StudentSelection({
 
     // Helper function to get the full name of a student
     const getName = (student: Student | null): string => {
-        return (student?.firstName ? student.firstName : "") + " " + (student?.middleName ? " " + student.middleName : "") +  " " + (student?.lastName ? " " + student.lastName : "");
+        if (!student) return "";
+        const parts = [
+            student.firstName,
+            student.middleName,
+            student.lastName
+        ].filter(Boolean);
+        return parts.join(" ");
     }
 
     return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { authClient } from '@/src/lib/auth-client';  // use the auth client to interact with the auth server
+import { authClient } from '@/src/auth-client';  // use the auth client to interact with the auth server
 
 import { LoadingButton } from "@/shared-components/loading-button";
 import { PasswordInput } from "@/shared-components/password-input";

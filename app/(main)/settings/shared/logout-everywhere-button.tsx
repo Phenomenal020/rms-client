@@ -2,7 +2,7 @@
 
 import { LoadingButton } from "@/shared-components/loading-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shadcn/ui/card";
-import { authClient } from "@/src/lib/auth-client";
+import { authClient } from "@/src/auth-client";
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";

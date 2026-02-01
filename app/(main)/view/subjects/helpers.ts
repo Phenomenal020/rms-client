@@ -1,4 +1,4 @@
-import type { Student, AssessmentStructure } from "./SubjectsComponent";
+import type { Student, AssessmentStructure, Subject, AssessmentScore } from "@/types/drizzle";
 
 // Get students enrolled in the selected subject
 export const getEnrolledStudents = (subjectName: string | null, students: Student[]): Student[] => {
@@ -6,7 +6,7 @@ export const getEnrolledStudents = (subjectName: string | null, students: Studen
 
   return (students || []).filter((student) =>
     student.subjects?.some(
-      (s) =>
+      (s: Subject) =>
         s.subject?.name === subjectName
     )
   );
@@ -32,7 +32,7 @@ export const getStudentScores = (subjectName: string | null, student: Student | 
 
   // Otherwise, find the student's subject with the selected subject name
   const studentSubject = student.subjects.find(
-    (s) => s.subject?.name === subjectName
+    (s: Subject) => s.subject?.name === subjectName
   );
 
   // Then find the first assessment for the student's subject
@@ -46,7 +46,7 @@ export const getStudentScores = (subjectName: string | null, student: Student | 
   (assessmentStructure || []).forEach((structure) => {
     const key = structure.type.toLowerCase();  // the key is the type of the assessment
     const entry = assessment.scores?.find(  // find the score for the assessment structure
-      (score) =>
+      (score: AssessmentScore) =>
         score.assessmentStructureId === structure.id ||
         score.assessmentStructure?.type === structure.type  // by id or type
     );

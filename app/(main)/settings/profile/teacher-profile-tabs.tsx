@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shadcn/ui/tabs";
 import { TeacherProfileForm } from "./teacher-profile-form";
@@ -6,91 +6,95 @@ import { EmailForm } from "./email-form";
 import { PasswordForm } from "./password-form";
 import { SessionManagement } from "./session-management";
 import { SettingsTab } from "./settings-tab";
-import type { SessionListItem } from "@/src/lib/auth";
-import type { UserData } from "./types";
+import { getUserAccounts, getUserSessions, getCurrentSessionToken } from "@/fetcher/queries";
+import Loading from "./loading";
+import { useUser } from "@/contexts/user-context";
 
-// Props interface for TeacherProfileTabs
-interface TeacherProfileTabsProps {
-  user: UserData;
-  hasPasswordAccount: boolean;
-  sessions: SessionListItem[];
-  currentSessionToken: string;
-}
+export default function TeacherProfileTabs() {
 
-export default function TeacherProfileTabs({ user, hasPasswordAccount, sessions, currentSessionToken }: TeacherProfileTabsProps) {
-    return (
-        <Tabs defaultValue="account" className="w-full">
-            {/* Tabs List */}
-            <TabsList className="flex justify-center w-full mx-auto bg-white/60 backdrop-blur-sm rounded-lg p-1 gap-1 mb-8 shadow-sm border border-blue-100/50">
+    // Fetch user data using SWR hook
+    const { user, isLoading, error } = useUser();
+    const { accounts, hasPasswordAccount, error: accountsError, isLoading: accountsLoading } = getUserAccounts(!!user);
+    const { sessions, error: sessionsError, isLoading: sessionsLoading } = getUserSessions(!!user);
+    const { token: currentSessionToken, error: currentSessionTokenError, isLoading: currentSessionTokenLoading } = getCurrentSessionToken(!!user);
 
-                {/* Account Tab */}
-                <TabsTrigger 
-                    value="account" 
-                    className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50"
-                >
-                    Account
-                </TabsTrigger>
+    if (!user) {
+        return <Loading />;
+    } else {
+        return (
+            <Tabs defaultValue="account" className="w-full">
+                {/* Tabs List */}
+                <TabsList className="flex justify-center w-full mx-auto bg-white/60 backdrop-blur-sm rounded-lg p-1 gap-1 mb-8 shadow-sm border border-blue-100/50">
 
-                {/* Email Tab */}
-                <TabsTrigger 
-                    value="email" 
-                    className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50"
-                >
-                    Email
-                </TabsTrigger>
+                    {/* Account Tab */}
+                    <TabsTrigger
+                        value="account"
+                        className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50"
+                    >
+                        Account
+                    </TabsTrigger>
 
-                {/* Password Tab */}
-                <TabsTrigger 
-                    value="password" 
-                    className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50"
-                >
-                    Password
-                </TabsTrigger>
+                    {/* Email Tab */}
+                    <TabsTrigger
+                        value="email"
+                        className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50"
+                    >
+                        Email
+                    </TabsTrigger>
 
-                {/* Sessions Tab */}
-                <TabsTrigger 
-                    value="sessions" 
-                    className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50"
-                >
-                    Sessions
-                </TabsTrigger>
+                    {/* Password Tab */}
+                    <TabsTrigger
+                        value="password"
+                        className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50"
+                    >
+                        Password
+                    </TabsTrigger>
 
-                {/* Settings Tab */}
-                <TabsTrigger 
-                    value="settings" 
-                    className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50"
-                >
-                    Settings
-                </TabsTrigger>
-            </TabsList>
+                    {/* Sessions Tab */}
+                    <TabsTrigger
+                        value="sessions"
+                        className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50"
+                    >
+                        Sessions
+                    </TabsTrigger>
 
-            {/* Tabs Content */}
-            <div className="w-full">
-                {/* Teacher Profile Tab Content - Renders basic user information */}
-                <TabsContent value="account" className="mt-0 space-y-6">
-                    <TeacherProfileForm user={user} />
-                </TabsContent>
+                    {/* Settings Tab */}
+                    <TabsTrigger
+                        value="settings"
+                        className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50"
+                    >
+                        Settings
+                    </TabsTrigger>
+                </TabsList>
 
-                {/* Email Tab Content - Renders email change form */}
-                <TabsContent value="email" className="mt-0">
-                    <EmailForm currentEmail={user.email} />
-                </TabsContent>
+                {/* Tabs Content */}
+                <div className="w-full">
+                    {/* Teacher Profile Tab Content - Renders basic user information */}
+                    <TabsContent value="account" className="mt-0 space-y-6">
+                        <TeacherProfileForm user={user} />
+                    </TabsContent>
 
-                {/* Password Tab Content - Renders password change form */}
-                <TabsContent value="password" className="mt-0">
-                    <PasswordForm hasPasswordAccount={hasPasswordAccount} />
-                </TabsContent>
+                    {/* Email Tab Content - Renders email change form */}
+                    <TabsContent value="email" className="mt-0">
+                        <EmailForm currentEmail={user?.email || ''} />
+                    </TabsContent>
 
-                {/* Sessions Tab Content - Renders user sessions */}
-                <TabsContent value="sessions" className="mt-0">
-                    <SessionManagement sessions={sessions} currentSessionToken={currentSessionToken} />
-                </TabsContent>
+                    {/* Password Tab Content - Renders password change form */}
+                    <TabsContent value="password" className="mt-0">
+                        <PasswordForm hasPasswordAccount={hasPasswordAccount} />
+                    </TabsContent>
 
-                {/* Settings Tab Content - Renders settings form */}
-                <TabsContent value="settings" className="mt-0">
-                    <SettingsTab />
-                </TabsContent>
-            </div>
-        </Tabs>
-    )
+                    {/* Sessions Tab Content - Renders user sessions */}
+                    <TabsContent value="sessions" className="mt-0">
+                        <SessionManagement sessions={sessions} currentSessionToken={currentSessionToken} />
+                    </TabsContent>
+
+                    {/* Settings Tab Content - Renders settings form */}
+                    <TabsContent value="settings" className="mt-0">
+                        <SettingsTab />
+                    </TabsContent>
+                </div>
+            </Tabs>
+        )
+    }
 }

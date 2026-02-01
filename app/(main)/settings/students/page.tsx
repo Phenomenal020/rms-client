@@ -1,7 +1,4 @@
-import { getServerSession } from "@/src/lib/get-session";
-import { unauthorized } from "next/navigation";
 import { StudentsForm } from "./students-form";
-import prisma from "@/src/lib/prisma";
 import VerifyEmailButton from "../shared/verify-email-button";
 
 export const metadata = {
@@ -10,48 +7,6 @@ export const metadata = {
 };
 
 export default async function StudentsSettingsPage() {
-  // get the server session
-  const session = await getServerSession();
-  // get the session user
-  const sessionUser = session?.user;
-
-  // if there is no session user, then return the unauthorised page
-  if (!sessionUser) unauthorized();
-
-  // get the user from the database using the id from the session user
-  const user = await prisma.user.findUnique({
-    where: {
-      id: sessionUser.id,
-    },
-    include: {
-      school: true,
-      academicTerms: {
-        orderBy: {
-          createdAt: 'desc', // Get the most recent academic term
-        },
-        take: 1,
-        include: {
-          subjects: {
-            orderBy: {
-              createdAt: 'asc',
-            },
-          },
-          students: {
-            include: {
-              subjects: {
-                include: {
-                  subject: true,
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-
-  // if there is no user, then return the unauthorised page
-  if (!user) unauthorized();
 
   return (
     <main className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50/40 to-indigo-50/30 relative overflow-hidden">
@@ -77,7 +32,7 @@ export default async function StudentsSettingsPage() {
 
         {/* Students Form */}
         <div className="w-full mx-auto">
-          <StudentsForm user={user} />
+          <StudentsForm />
         </div>
       </div>
     </main>

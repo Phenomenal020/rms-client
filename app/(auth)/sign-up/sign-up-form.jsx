@@ -19,7 +19,7 @@ import {
   FormMessage,
 } from "@/shadcn/ui/form";
 import { Input } from "@/shadcn/ui/input";
-import { authClient } from "@/src/lib/auth-client";
+import { authClient } from "@/src/auth-client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

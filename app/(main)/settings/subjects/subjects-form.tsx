@@ -12,11 +12,12 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { updateSubjects } from "@/app/api/subjects/subject-actions";
+import { useUpsertSubjects } from "@/fetcher/mutations";
+import type { UpsertSubjectsPayload } from "@/types/subjects";
 
 // Schema for a subject entry
 const subjectSchema = z.object({
-    id: z.string().optional(),  // on creation, prisma will generate a uuid for the subject. Subsequently, it will be used to render/update the subject.
+    id: z.string().optional(),
     name: z.string().trim().min(1, { message: "Subject name is required" }),
 });
 
@@ -30,7 +31,7 @@ type SubjectsFormValues = z.infer<typeof subjectsFormSchema>;
 
 // Props interface for SubjectsForm
 interface SubjectsFormProps {
-    subjects: Array<{ id?: string; name: string }> | null | undefined;
+    subjects: Array<{ id: string | undefined; name: string }> | null | undefined;  // first time, subjects will be null
 }
 
 // Subjects form component - handles subjects section only
@@ -42,9 +43,12 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
     // new subject name
     const [newSubjectName, setNewSubjectName] = useState("");
 
+    const { upsertSubjects, isMutating, error, data, errorMessage } = useUpsertSubjects();
+
+
     // current subject entry (for editing a subject)
-    const [currentSubjectEntry, setCurrentSubjectEntry] = useState<{ id: string | null; name: string }>({
-        id: null,
+    const [currentSubjectEntry, setCurrentSubjectEntry] = useState<{ id: string | undefined; name: string }>({
+        id: undefined,
         name: "",
     });
 
@@ -56,8 +60,8 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
         resolver: zodResolver(subjectsFormSchema),
         defaultValues: {
             subjects: subjects ? subjects.map((subject) => ({
-                id: subject?.id || undefined,  // use the id from the db or use undefined for the first time when no subjects exist yet in the db
-                name: subject?.name || "",  // likewise for the name
+                id: subject?.id || undefined, // use the id from the db or use undefined for the first time when no subjects exist yet in the db
+                name: subject?.name,  // likewise for the name
             })) : [],
         },
     });
@@ -95,6 +99,7 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
 
         // Otherwise, add the subject to the subjects form (no id at this point)
         _appendSubject({
+            id: undefined,    // backend uses this to identify if the payload is create or update
             name: newSubjectName.trim(),
         });
 
@@ -117,7 +122,7 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
         // if the subject to edit exists, set the current subject to the subject to edit
         if (subjectToEdit) {
             setCurrentSubjectEntry({
-                id: subjectToEdit.id || null,
+                id: subjectToEdit?.id,  // May be undefined when editing a subject that has not been saved to the db
                 name: subjectToEdit.name,
             });
             // set the editing subject index to the index of the subject entry to edit
@@ -153,17 +158,17 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
                 return;
             }
 
-            // at this point, the updated subject name doesn't exist in the form, so update the subject the existing one marked for update with the new name
-            const subjectId = form.getValues(`subjects.${editingSubjectIndex}.id`) || undefined; // DB id if present, else undefined 
+            // at this point, the updated subject name doesn't exist in the form, so update the existing subject with the new name
+            const subjectId = form.getValues(`subjects.${editingSubjectIndex}.id`);
             _updateSubject(editingSubjectIndex, {
-                id: subjectId,
+                id: subjectId || undefined,  // May be undefined when editing a subject that has not been saved to the db
                 name: name.trim(),
             });
             form.trigger("subjects"); // Trigger re-validation
             setEditingSubjectIndex(null);
 
             // Clear the current entry
-            setCurrentSubjectEntry({ id: null, name: "" });
+            setCurrentSubjectEntry({ id: undefined, name: "" });
         } else {
             toast.error("Subject name is required");
         }
@@ -172,7 +177,7 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
     // Cancel edit mode for subjects
     const cancelEditSubject = () => {
         // clear the current subject entry
-        setCurrentSubjectEntry({ id: null, name: "" });
+        setCurrentSubjectEntry({ id: undefined, name: "" });
         // clear the editing subject index
         setEditingSubjectIndex(null);
     };
@@ -189,27 +194,21 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
         toast.success(`Subject "${subjectFields[index]?.name}" removed successfully!`);
     };
 
+    // Strategy: Always send the entire subjects array to the server. The server will then handle the creation, update, and deletion of subjects.
     // on submit function - update subjects
     async function onSubmit(data: SubjectsFormValues) {
+        const { subjects } = data;
         try {
             // Call server action to update subjects
-            const result = await updateSubjects(data.subjects);
-            console.log(result.error);
-
-            // Check if the request was successful
-            if (result.error) {
-                toast.error("Failed to update subjects", {
-                    description: "Please review the form details and try again",
-                });
-                return;
-            }
+            await upsertSubjects(subjects as UpsertSubjectsPayload);
 
             // Success!
             toast.success("Subjects updated successfully");
             router.refresh();
-        } catch (err) {
+        }
+        catch (err) {
             toast.error("Failed to update subjects", {
-                description: "An unexpected error occurred. Please try again.",
+                description: errorMessage || "An unexpected error occurred. Please try again.",
             });
         }
     }
@@ -217,171 +216,173 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
     // loading state for the submit button
     const loading = form.formState.isSubmitting;
 
-    return (
-        <Card className="border shadow-md">
-            <CardContent className="pt-4">
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                        {/* Subject Section */}
-                        <div className="space-y-4 mt-8">
+    if (subjects) {
+        return (
+            <Card className="border shadow-md">
+                <CardContent className="pt-4">
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                            {/* Subject Section */}
+                            <div className="space-y-4 mt-8">
 
-                            {/* New Subject Section Header */}
-                            <div className="pb-2 border-b border-gray-200">
-                                <h3 className="text-xl sm:text-2xl font-bold text-gray-700 uppercase tracking-wide">Add New Subject</h3>
-                            </div>
-
-                            {/* Add Custom Subject Form */}
-                            <div className="flex gap-4 items-end">
-                                <div className="space-y-2 flex-1">
-                                    <FormLabel className="text-gray-700 font-semibold">Subject Name</FormLabel>
-                                    <Input
-                                        placeholder="e.g., Advanced Mathematics, Creative Writing"
-                                        value={newSubjectName}
-                                        onChange={(e) => setNewSubjectName(e.target.value)}
-                                        className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
-                                    />
-                                </div>
-                                <div>
-                                    <Button type="button" onClick={addSubject} className="fit-content h-14 cursor-pointer">
-                                        <Plus className="w-4 h-4 mr-2" />
-                                        Add Subject
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Subjects List Section - shown only if there are subjects */}
-                        {subjectFields.length > 0 && (
-                            <div className="space-y-6 mt-8 pt-8 border-t border-gray-200">
-
-                                {/* Subjects List Section Header */}
+                                {/* New Subject Section Header */}
                                 <div className="pb-2 border-b border-gray-200">
-                                    <h3 className="text-xl sm:text-2xl font-bold text-gray-700 uppercase tracking-wide">Subjects</h3>
+                                    <h3 className="text-xl sm:text-2xl font-bold text-gray-700 uppercase tracking-wide">Add New Subject</h3>
                                 </div>
 
-                                {/* For each subject */}
-                                <div className="space-y-2">
-                                    {subjectFields.map((subjectField, subjectIndex) => {
-                                        const subject = form.getValues(`subjects.${subjectIndex}`);
+                                {/* Add Custom Subject Form */}
+                                <div className="flex gap-4 items-end">
+                                    <div className="space-y-2 flex-1">
+                                        <FormLabel className="text-gray-700 font-semibold">Subject Name</FormLabel>
+                                        <Input
+                                            placeholder="e.g., Advanced Mathematics, Creative Writing"
+                                            value={newSubjectName}
+                                            onChange={(e) => setNewSubjectName(e.target.value)}
+                                            className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Button type="button" onClick={addSubject} className="fit-content h-14 cursor-pointer">
+                                            <Plus className="w-4 h-4 mr-2" />
+                                            Add Subject
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
 
-                                        // return  Name, Edit icon, Remove icon 
-                                        return (
-                                            <div
-                                                key={subjectField.tempId}
-                                                className={`flex items-center justify-between p-3 rounded-md border ${editingSubjectIndex === subjectIndex
-                                                    ? "bg-blue-50 border-blue-300"
-                                                    : "bg-gray-50 border-gray-200"
-                                                    }`}
-                                            >
+                            {/* Subjects List Section - shown only if there are subjects */}
+                            {subjectFields.length > 0 && (
+                                <div className="space-y-6 mt-8 pt-8 border-t border-gray-200">
 
-                                                {/* Subject Name */}
-                                                {/* If editing, show the input field */}
-                                                {editingSubjectIndex === subjectIndex ? (
-                                                    <Input
-                                                        type="text"
-                                                        value={currentSubjectEntry.name}
-                                                        onChange={(e) => setCurrentSubjectEntry({ ...currentSubjectEntry, name: e.target.value })}
-                                                        className="flex-1 mr-2 h-14 text-base"
-                                                        placeholder="Subject name"
-                                                    />
-                                                ) : (
-                                                    // Otherwise, show the subject name
-                                                    <span className="text-gray-700 font-medium">
-                                                        {subject?.name || "Unnamed Subject"}
-                                                    </span>
-                                                )}
+                                    {/* Subjects List Section Header */}
+                                    <div className="pb-2 border-b border-gray-200">
+                                        <h3 className="text-xl sm:text-2xl font-bold text-gray-700 uppercase tracking-wide">Subjects</h3>
+                                    </div>
 
-                                                {/* Edit and Remove icons */}
-                                                <div className="flex items-center gap-2">
-                                                    {/* if editing, show a ✓ and X icon */}
+                                    {/* For each subject */}
+                                    <div className="space-y-2">
+                                        {subjectFields.map((subjectField, subjectIndex) => {
+                                            const subject = form.getValues(`subjects.${subjectIndex}`);
+
+                                            // return  Name, Edit icon, Remove icon 
+                                            return (
+                                                <div
+                                                    key={subjectField.tempId}
+                                                    className={`flex items-center justify-between p-3 rounded-md border ${editingSubjectIndex === subjectIndex
+                                                        ? "bg-blue-50 border-blue-300"
+                                                        : "bg-gray-50 border-gray-200"
+                                                        }`}
+                                                >
+
+                                                    {/* Subject Name */}
+                                                    {/* If editing, show the input field */}
                                                     {editingSubjectIndex === subjectIndex ? (
-                                                        <>
-                                                            {/* Save Subject Button when field === editing field*/}
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={updateSubject}
-                                                                className="text-green-500 hover:text-green-700"
-                                                            >
-                                                                <Check className="w-4 h-4" />
-                                                            </Button>
-                                                            {/* Cancel Edit Subject Button when field === editing field*/}
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={cancelEditSubject}
-                                                                className="text-gray-500 hover:text-gray-700"
-                                                            >
-                                                                <X className="w-4 h-4" />
-                                                            </Button>
-                                                        </>
+                                                        <Input
+                                                            type="text"
+                                                            value={currentSubjectEntry.name}
+                                                            onChange={(e) => setCurrentSubjectEntry({ ...currentSubjectEntry, name: e.target.value })}
+                                                            className="flex-1 mr-2 h-14 text-base bg-white"
+                                                            placeholder="Subject name"
+                                                        />
                                                     ) : (
-                                                        <>
-                                                            {/* Else, show the edit(pencil) and remove(trash) icons when field !== editing field*/}
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() => editSubject(subjectIndex)}
-                                                                className="text-blue-500 hover:text-blue-700"
-                                                                // Disable if any subject is being edited
-                                                                disabled={editingSubjectIndex !== null}
-                                                            >
-                                                                <Pencil className="w-4 h-4" />
-                                                            </Button>
-                                                            {/* Remove Subject Button */}
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() => removeSubjectEntry(subjectIndex)}
-                                                                className="text-red-500 hover:text-red-700"
-                                                                // Disable if any subject is being edited
-                                                                disabled={editingSubjectIndex !== null}
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </Button>
-                                                        </>
+                                                        // Otherwise, show the subject name
+                                                        <span className="text-gray-700 font-medium">
+                                                            {subject?.name || "Unnamed Subject"}
+                                                        </span>
                                                     )}
+
+                                                    {/* Edit and Remove icons */}
+                                                    <div className="flex items-center gap-2">
+                                                        {/* if editing, show a ✓ and X icon */}
+                                                        {editingSubjectIndex === subjectIndex ? (
+                                                            <>
+                                                                {/* Save Subject Button when field === editing field*/}
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={updateSubject}
+                                                                    className="text-green-500 hover:text-green-700"
+                                                                >
+                                                                    <Check className="w-4 h-4" />
+                                                                </Button>
+                                                                {/* Cancel Edit Subject Button when field === editing field*/}
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={cancelEditSubject}
+                                                                    className="text-gray-500 hover:text-gray-700"
+                                                                >
+                                                                    <X className="w-4 h-4" />
+                                                                </Button>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                {/* Else, show the edit(pencil) and remove(trash) icons when field !== editing field*/}
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => editSubject(subjectIndex)}
+                                                                    className="text-blue-500 hover:text-blue-700"
+                                                                    // Disable if any subject is being edited
+                                                                    disabled={editingSubjectIndex !== null}
+                                                                >
+                                                                    <Pencil className="w-4 h-4" />
+                                                                </Button>
+                                                                {/* Remove Subject Button */}
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => removeSubjectEntry(subjectIndex)}
+                                                                    className="text-red-500 hover:text-red-700"
+                                                                    // Disable if any subject is being edited
+                                                                    disabled={editingSubjectIndex !== null}
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Form-level validation */}
+                            <FormField
+                                control={form.control}
+                                name="subjects"
+                                render={() => (
+                                    <FormItem>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            {/* Submit Button */}
+                            <div className="pt-6 border-t border-gray-200 mt-6">
+                                {/* Submit Button Container */}
+                                <div className="flex justify-center">
+                                    <LoadingButton
+                                        type="submit"
+                                        loading={loading}
+                                        disabled={loading || editingSubjectIndex !== null || !form.formState.isDirty}
+                                        className="w-full sm:w-auto min-w-[160px] h-12 text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                                    >
+                                        {loading ? "Saving..." : "Save Changes"}
+                                    </LoadingButton>
                                 </div>
                             </div>
-                        )}
 
-                        {/* Form-level validation */}
-                        <FormField
-                            control={form.control}
-                            name="subjects"
-                            render={() => (
-                                <FormItem>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        {/* Submit Button */}
-                        <div className="pt-6 border-t border-gray-200 mt-6">
-                            {/* Submit Button Container */}
-                            <div className="flex justify-center">
-                                <LoadingButton
-                                    type="submit"
-                                    loading={loading}
-                                    disabled={loading || editingSubjectIndex !== null || !form.formState.isDirty}
-                                    className="w-full sm:w-auto min-w-[160px] h-12 text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
-                                >
-                                    {loading ? "Saving..." : "Save Changes"}
-                                </LoadingButton>
-                            </div>
-                        </div>
-
-                    </form>
-                </Form>
-            </CardContent>
-        </Card>
-    );
+                        </form>
+                    </Form>
+                </CardContent>
+            </Card>
+        );
+    }
 }

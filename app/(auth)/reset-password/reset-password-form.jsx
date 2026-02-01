@@ -11,7 +11,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/shadcn/ui/form";
-import { authClient } from "@/src/lib/auth-client";
+import { authClient } from "@/src/auth-client";
 import { passwordSchema } from "@/src/lib/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter, useSearchParams } from "next/navigation";

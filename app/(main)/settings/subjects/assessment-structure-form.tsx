@@ -12,18 +12,19 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { updateAssessmentStructure } from "@/app/api/subjects/assessment-actions";
+import type { AssessmentStructure, UpsertAssessmentStructurePayload } from "@/types/school";
+import { useUpsertAssessmentStructures } from "@/fetcher/mutations";
 
 // Assessment Structure Schema: id(string or number), type(string), percentage(number string), order(number)
 const assessmentStructureSchema = z.object({
-    id: z.string().optional(), // on creation, prisma will generate a uuid for the assessment structure. Subsequently, it will be used to render/update the assessment structure.
+    id: z.string().optional(), // on creation, drizzle will generate a uuid for the assessment structure. Subsequently, it will be used to render/update the assessment structure.
     type: z.string().trim().min(1, { message: "Assessment type is required" }),
     percentage: z
         .string()
         .refine((val) => {
             const num = parseFloat(val);  // Attempt to convert to a number
             return !isNaN(num) && num >= 0 && num <= 100;  // validate it's a number and is between 0 and 100
-        }, { message: "Percentage must be between 0 and 100" }),
+        }, { message: "Percentage must be a number between 0 and 100" }),
     order: z.number().int().min(1, { message: "Order must be a positive integer" }),  // to sort how these assessments appear in the result page (eg, CA-1, Project-2, Exam-3, etc.)
 });
 
@@ -49,14 +50,16 @@ type AssessmentStructureFormValues = z.infer<typeof assessmentStructureFormSchem
 
 // Props interface for AssessmentStructureForm
 interface AssessmentStructureFormProps {
-    assessmentStructure: Array<{ id?: string; type: string; percentage: number | string; order: number }> | null | undefined;
+    assessmentStructure: AssessmentStructure[] | null | undefined;
 }
 
 // Assessment structure form component - handles assessment structure section only
 export function AssessmentStructureForm({ assessmentStructure }: AssessmentStructureFormProps) {
 
-    // router
+    // router - to refresh the page after updating assessment structures
     const router = useRouter();
+
+    const { upsertAssessmentStructures, isMutating, error, errorMessage } = useUpsertAssessmentStructures();
 
     // form instance
     const form = useForm<AssessmentStructureFormValues>({
@@ -76,16 +79,16 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
     });
 
     // current assessment entry (only for editing entries)
-    const [currentAssessmentEntry, setCurrentAssessmentEntry] = useState<{ id: string | null; type: string; percentage: string; order: string }>({
-        id: null,
+    const [currentAssessmentEntry, setCurrentAssessmentEntry] = useState<{ id: string | undefined; type: string; percentage: string; order: string }>({
+        id: undefined,
         type: "",
         percentage: "",
         order: "",  // order is a number, so it should be a string initially
     });
 
     // new assessment entry (only for adding new entries)
-    const [newAssessmentEntry, setNewAssessmentEntry] = useState<{ id: string | null; type: string; percentage: string; order: string }>({
-        id: null,
+    const [newAssessmentEntry, setNewAssessmentEntry] = useState<{ id: string | undefined; type: string; percentage: string; order: string }>({
+        id: undefined,
         type: "",
         percentage: "",
         order: "",  // order is a number, so it should be a string initially
@@ -190,7 +193,7 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
         // Clear the editing assessment index
         setEditingAssessmentIndex(null);
         // Clear the current entry
-        setCurrentAssessmentEntry({ id: null, type: "", percentage: "", order: "" });
+        setCurrentAssessmentEntry({ id: undefined, type: "", percentage: "", order: "" });
     };
 
     // Add assessment entry to assessment structure (only for new entries): It is equal to the _appendAssessment function + validation checks.
@@ -266,7 +269,7 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
         form.trigger("assessmentStructure"); // Trigger re-validation
 
         // Clear the current entry
-        setNewAssessmentEntry({ id: null, type: "", percentage: "", order: "" });
+        setNewAssessmentEntry({ id: undefined, type: "", percentage: "", order: "" });
     };
 
     // Edit mode for assessments: on click of the edit icon (pencil). This would render the assessment in edit mode allowing the user to update the assessment type, percentage, and order. 
@@ -284,7 +287,7 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
         if (entryToEdit) {
             setEditingAssessmentIndex(index);
             setCurrentAssessmentEntry({
-                id: entryToEdit.id || null,
+                id: entryToEdit.id || undefined,
                 type: entryToEdit.type,
                 percentage: entryToEdit.percentage,
                 order: String(entryToEdit.order),
@@ -299,7 +302,7 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
         // clear the editing assessment index
         setEditingAssessmentIndex(null);
         // clear the current entry
-        setCurrentAssessmentEntry({ id: null, type: "", percentage: "", order: "" });
+        setCurrentAssessmentEntry({ id: undefined, type: "", percentage: "", order: "" });
     };
 
     // Remove assessment entry: It is equal to the _removeAssessment function + validation checks.
@@ -315,33 +318,35 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
         toast.success(`Assessment "${assessmentEntry?.type || 'entry'}" removed successfully!`);
     };
 
+    // Strategy: Always send the entire assessment structure array to the server. The server will then handle the creation, update, and deletion of assessment structures.
     // on submit function - update assessment structure
     async function onSubmit(data: AssessmentStructureFormValues) {
+        const { assessmentStructure } = data;
         try {
-            // Call server action to update assessment structure only
-            const result = await updateAssessmentStructure(data.assessmentStructure);
+            // Transform form data to payload format (percentage is string in form, number in payload)
+            const payload: UpsertAssessmentStructurePayload = assessmentStructure.map((as) => ({
+                id: as.id || undefined,
+                type: as.type.trim(),
+                percentage: parseFloat(as.percentage),
+                order: as.order,
+            }));
 
-            // Check if the request was successful
-            if (result.error) {
-                toast.error("Failed to update assessment structure", {
-                    description: "Please review the form details and try again",
-                });
-                return;
-            }
+            // Call server action to update assessment structures
+            await upsertAssessmentStructures(payload);
 
             // Success!
             toast.success("Assessment structure updated successfully");
             router.refresh();
-        } catch (err) {
-            console.error("Error submitting form:", err);
+        }
+        catch (err) {
             toast.error("Failed to update assessment structure", {
-                description: "An unexpected error occurred. Please try again.",
+                description: errorMessage || "An unexpected error occurred. Please try again.",
             });
         }
     }
 
     // loading state for the submit button
-    const loading = form.formState.isSubmitting;
+    const loading = form.formState.isSubmitting || isMutating;
 
     return (
         <Card className="border shadow-md">

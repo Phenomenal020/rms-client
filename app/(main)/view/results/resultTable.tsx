@@ -16,7 +16,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { getScorePercentage } from "./utils/scoreFns";
-import { Student, AssessmentStructure, AssessmentScore } from "./ResultsComponent";
+import type { Student, AssessmentStructure, AssessmentScore, StudentSubject } from "@/types/drizzle";
 
 
 // Component Props
@@ -75,7 +75,7 @@ export function ResultTable({
     const form = useForm({
         resolver: zodResolver(tableSchema),  // validate the form data against the table schema
         defaultValues: {
-            subjects: (enrolledSubjects || []).map((enrolledSubject) => {
+            subjects: (enrolledSubjects || []).map((enrolledSubject: StudentSubject) => {
                 // assessments are stored on each enrolled subject
                 const assessment = enrolledSubject.assessments?.[0];  // b/c prisma returns an array of assessments for each subject
 
@@ -99,14 +99,14 @@ export function ResultTable({
     // use effect to reset the form when the selected student changes to get that student's enrolled subjects and assessments
     useEffect(() => {
         form.reset({
-            subjects: (enrolledSubjects || []).map((enrolledSubject) => {
+            subjects: (enrolledSubjects || []).map((enrolledSubject: StudentSubject) => {
                 const assessment = enrolledSubject.assessments?.[0];
 
                 return {
                     subjectId: enrolledSubject.subjectId,
                     scores: (assessmentStructure || []).map((as) => {
                         const scoreEntry = assessment?.scores?.find(
-                            (s) => s.assessmentStructureId === as.id
+                            (s: AssessmentScore) => s.assessmentStructureId === as.id
                         );
 
                         return {
@@ -124,7 +124,7 @@ export function ResultTable({
 
 
     // on submit, call the handleSaveScores function to save the scores to the database
-    const onSubmit = (data: { subjects: Array<{ subjectId: string; scores: AssessmentScore[] }> }): void => {
+    const onSubmit = (data: z.infer<typeof tableSchema>): void => {
         startTransition(async () => {
             await handleSaveScores(data.subjects);
         });
@@ -224,7 +224,7 @@ export function ResultTable({
                             {/* Table body - subjects and corresponding scores, grade, remark */}
                             <tbody>
                                 {enrolledSubjects && enrolledSubjects.length > 0 ? (
-                                    enrolledSubjects.map((enrolledSubject, index) => {
+                                    enrolledSubjects.map((enrolledSubject: StudentSubject, index: number) => {
 
                                         // Get scores from subject
                                         const scores = enrolledSubject.assessments[0]?.scores || [];
@@ -243,7 +243,7 @@ export function ResultTable({
                                                 {/* Dynamically render assessment type columns (assessment headers) */}
                                                 {sortedAssessments.map((assessment) => {
                                                     const assessmentType = assessment.type;
-                                                    const scoreValue = scores.find((s) => s.assessmentStructureId === assessment.id)?.score || 0;
+                                                    const scoreValue = scores.find((s: AssessmentScore) => s.assessmentStructureId === assessment.id)?.score || 0;
                                                     const scoreIndex = sortedAssessments.findIndex(
                                                         (as) => as.type === assessmentType
                                                     );

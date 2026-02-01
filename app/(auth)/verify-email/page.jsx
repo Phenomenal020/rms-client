@@ -1,5 +1,5 @@
-import { getServerSession } from "@/src/lib/get-session";
-import { redirect } from "next/navigation";
+// import { getServerSession } from "@/src/lib/get-session";
+// import { redirect } from "next/navigation";
 import { ResendVerificationButton } from "./resend-verification-button";
 import {
   Card,
@@ -16,14 +16,14 @@ export const metadata = {
 };
 
 export default async function VerifyEmailPage() {
-  const session = await getServerSession();
-  const user = session?.user;
+  // const session = await getServerSession();
+  // const user = session?.user;
 
-  // if the user tries to access this page without being logged in, redirect to sign in
-  if (!user) redirect("/sign-in");
+  // // if the user tries to access this page without being logged in, redirect to sign in
+  // if (!user) redirect("/sign-in");
 
-  // if the user is already verified, redirect to the settings profile page
-  if (user.emailVerified) redirect("/settings/profile");
+  // // if the user is already verified, redirect to the settings profile page
+  // if (user.emailVerified) redirect("/settings/profile");
 
   return (
     <main className="flex min-h-svh items-center justify-center px-4">

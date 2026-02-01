@@ -29,70 +29,56 @@ import {
   Pencil,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { updateStudents } from "@/app/api/students/actions";
-import type { Prisma } from "@/src/generated/prisma/client";
+import { useUser } from "@/contexts/user-context";
+import { Student, UpsertStudentsPayload } from "@/types/students";
+import { useUpsertStudents } from "@/fetcher/mutations";
+import Loading from "./loading";
 
-// Type for user prop (from Prisma query in page.tsx)
-type UserWithRelations = Prisma.UserGetPayload<{
-  include: {
-    school: true;
-    academicTerms: {
-      include: {
-        subjects: true;
-        students: {
-          include: {
-            subjects: {
-              include: {
-                subject: true;
-              };
-            };
-          };
-        };
-      };
-    };
-  };
-}>;
-
-// Props interface for StudentsForm
-interface StudentsFormProps {
-  user: UserWithRelations;
-}
 
 // Student schema - for edit student form
 const studentSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   firstName: z.string().trim().min(1, { message: "First name is required" }),  // required field
   middleName: z.string().trim().optional(),  // optional field
   lastName: z.string().trim().min(1, { message: "Last name is required" }),  // required field
   dateOfBirth: z.string().optional(), // optional field
-  gender: z.enum(["NONE", "MALE", "FEMALE"]).optional(), // optional field - matches Gender enum
-  department: z.enum(["NONE", "SCIENCE", "ARTS", "GENERAL"]).optional(), // Optional per schema - matches Department enum
-  daysPresent: z.number().min(0, { message: "Days present must be a valid number" }).optional(),
+  gender: z.preprocess(
+    (val) => val === "" || val === undefined ? undefined : val,
+    z.enum(["NONE", "MALE", "FEMALE"]).optional()
+  ), // optional field - transform empty string to undefined
+  department: z.preprocess(
+    (val) => val === "" || val === undefined ? undefined : val,
+    z.enum(["NONE", "SCIENCE", "ARTS", "GENERAL"]).optional()
+  ), // Optional per schema - transform empty string to undefined
+  daysPresent: z.preprocess(
+    (val) => {
+      if (val === "" || val === undefined || val === null) return undefined;
+      const num = typeof val === "string" ? Number(val) : (typeof val === "number" ? val : undefined);
+      if (num === undefined || isNaN(num) || num < 0) return undefined;
+      return num;
+    },
+    z.number().min(0, { message: "Days present must be a valid number" }).optional()
+  ),
   subjects: z
-    .array(z.object({ name: z.string() }))  // array of objects with name field
+    .array(z.object({ id: z.string(), name: z.string() }))  // array of objects with id and name fields
     .min(1, { message: "At least one subject is required" })  // at least one subject is required
 });
 
 // Schema for the students list
 const studentsFormSchema = z.object({
-  students: z
-    .array(studentSchema)
-    .min(1, { message: "At least one student is required" }),  // at least one student is required
+  students: z.array(studentSchema).min(1, { message: "At least one student is required" }),  // at least one student is required
 });
 
 // students form component
-export function StudentsForm({ user }: StudentsFormProps) {
+export function StudentsForm() {
 
   // Date of birth open state
   const [dateOfBirthOpen, setDateOfBirthOpen] = useState(false);
-
-  // Available subjects state
-  const [availableSubjects, setAvailableSubjects] = useState<Array<{ name: string }>>([]);
 
   // Editing student: index and id state
   const [editingStudentIndex, setEditingStudentIndex] = useState<number | null>(null);
@@ -105,16 +91,8 @@ export function StudentsForm({ user }: StudentsFormProps) {
   const formSectionRef = useRef<HTMLDivElement>(null);
 
   // New student form state: temporarilly hold add/edit values
-  const [newStudent, setNewStudent] = useState<{
-    firstName: string;
-    middleName: string;
-    lastName: string;
-    dateOfBirth: string;
-    gender: string | undefined;
-    department: string | undefined;
-    daysPresent: number | string;   // number or ""
-    subjects: Array<{ name: string }>;
-  }>({
+  const [newStudent, setNewStudent] = useState<Student>({
+    id: undefined,
     firstName: "",
     middleName: "",
     lastName: "",
@@ -125,18 +103,18 @@ export function StudentsForm({ user }: StudentsFormProps) {
     subjects: [],
   });
 
-  // Get the most recent academic term
-  const academicTerm = user?.academicTerms?.[0];
+  // Get the students and academic term from the user context
+  const { students, subjects } = useUser();
 
-  // Get students list from the academic term
-  const students = academicTerm?.students || [];
+  // Mutation hook for upserting students
+  const { upsertStudents, isMutating, errorMessage } = useUpsertStudents();
 
-  // Student form - on render
+  // Student form - on render (MUST be called before any conditional returns)
   const form = useForm({
     resolver: zodResolver(studentsFormSchema),
     defaultValues: { // default values for the form on render
-      students: students.map((student) => ({
-        id: student.id,
+      students: students?.map((student: Student) => ({
+        id: student.id || undefined,
         firstName: student.firstName,
         middleName: student.middleName || "",
         lastName: student.lastName,
@@ -146,55 +124,42 @@ export function StudentsForm({ user }: StudentsFormProps) {
         gender: student.gender || "",  // optional
         department: student.department || "",  // optional
         daysPresent: student.daysPresent ?? undefined,  // optional - keep as number or undefined
-        subjects: student.subjects.map((studentSubject) => ({
-          name: studentSubject.subject.name,
-        })),  // subjects list
-      })),
+        subjects: student.subjects.map((studentSubject: any) => ({
+          id: studentSubject.subject?.id,
+          name: studentSubject.subject?.name,
+        })),  // subjects list with id and name
+      })) || [],
     },
   });
 
-  // useFieldArray: to manage the array of students from react-hook-form
+  // useFieldArray: to manage the array of students from react-hook-form (MUST be called before any conditional returns)
   const { fields: studentFields, append: appendStudent, remove: removeStudent, update: updateStudent } = useFieldArray({
     control: form.control,
     name: "students",
   });
 
-  // Fetch available subjects from academic term. Rerender when academic term subjects change (add/remove)
   useEffect(() => {
-    const termSubjects = academicTerm?.subjects || [];
-    if (termSubjects.length > 0) {
-      // set available subjects (from academic term)
-      setAvailableSubjects(termSubjects.map((s: { name: string }) => ({ name: s.name })));
-    }
-  }, [academicTerm?.subjects]);
+    // console.log('students changed:', students);
+  }, [students?.subjects]);
 
-  // Reset form when students data changes (e.g., after router.refresh())
-  useEffect(() => {
-    const formData = {
-      students: students.map((student) => ({
-        id: student.id,
-        firstName: student.firstName,
-        middleName: student.middleName || "",
-        lastName: student.lastName,
-        dateOfBirth: student.dateOfBirth ? new Date(student.dateOfBirth).toISOString().split("T")[0] : "",
-        gender: student.gender || "",
-        department: student.department || "",
-        daysPresent: student.daysPresent ?? undefined,  // optional - keep as number or undefined
-        subjects: student.subjects.map((studentSubject) => ({
-          name: studentSubject.subject.name,
-        })),
-      })),
-    };
-    form.reset(formData);
-  }, [students, form]);
+  // Conditional return AFTER all hooks
+  if (students === undefined || students === null) {
+    return <Loading />
+  }
+
+
+
+  // Available subjects from academic term (with id and name)
+  const availableSubjects = subjects?.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })) || [];
+
 
   // Toggle student subject selection
-  const toggleStudentSubject = (subjectToToggle: { name: string }) => {
+  const toggleStudentSubject = (subjectToToggle: { id: string; name: string }) => {
     // check if the subject to toggle is already in the subjects list. If it is, remove it, otherwise add it.
     setNewStudent((prev) => ({
       ...prev,
-      subjects: prev.subjects.some(subject => subject.name === subjectToToggle.name)
-        ? prev.subjects.filter(subject => subject.name !== subjectToToggle.name)
+      subjects: prev.subjects.some(subject => subject.id === subjectToToggle.id)
+        ? prev.subjects.filter(subject => subject.id !== subjectToToggle.id)
         : [...prev.subjects, subjectToToggle],
     }));
   };
@@ -211,6 +176,7 @@ export function StudentsForm({ user }: StudentsFormProps) {
 
     // Populate the form with the selected student data
     setNewStudent({
+      id: student.id || undefined,
       firstName: student.firstName || "",
       middleName: student.middleName || "",
       lastName: student.lastName || "",
@@ -232,6 +198,7 @@ export function StudentsForm({ user }: StudentsFormProps) {
     setEditingStudentIndex(null);
     setEditingStudentId(null);
     setNewStudent({
+      id: undefined,
       firstName: "",
       middleName: "",
       lastName: "",
@@ -264,9 +231,9 @@ export function StudentsForm({ user }: StudentsFormProps) {
 
     // construct the new student data from the form
     const studentData = {
-      id: editingStudentId || String(Date.now() + Math.random()),
+      id: editingStudentIndex !== null ? newStudent.id : undefined,
       firstName: newStudent.firstName.trim(),
-      middleName: newStudent.middleName.trim() || undefined,
+      middleName: newStudent.middleName?.trim() || undefined,
       lastName: newStudent.lastName.trim(),
       dateOfBirth: newStudent.dateOfBirth || undefined,
       gender: (newStudent.gender && (newStudent.gender === "NONE" || newStudent.gender === "MALE" || newStudent.gender === "FEMALE"))
@@ -276,13 +243,15 @@ export function StudentsForm({ user }: StudentsFormProps) {
         ? newStudent.department as "NONE" | "SCIENCE" | "ARTS" | "GENERAL"
         : undefined,
       daysPresent: newStudent.daysPresent || undefined,
-      subjects: [...newStudent.subjects],
+      // Create a new array reference to ensure React Hook Form detects the change
+      subjects: newStudent.subjects.map(s => ({ ...s })),
     };
 
     // ---------------------------------------------------------------------------
     if (editingStudentIndex !== null) {
       // Editing mode: Update the student data in the form
-      form.setValue(`students.${editingStudentIndex}`, studentData as z.infer<typeof studentSchema>);
+      // Use updateStudent from useFieldArray to properly track nested array changes (like subjects)
+      updateStudent(editingStudentIndex, studentData as z.infer<typeof studentSchema>);
       toast.success(
         `Student "${newStudent.firstName.trim()} ${newStudent.lastName.trim()}" updated successfully!`
       );
@@ -292,7 +261,7 @@ export function StudentsForm({ user }: StudentsFormProps) {
       // Check for duplicate student (same firstName + lastName, case-insensitive)
       const firstNameLower = newStudent.firstName.trim().toLowerCase();
       const lastNameLower = newStudent.lastName.trim().toLowerCase();
-      const middleNameLower = newStudent.middleName.trim().toLowerCase();
+      const middleNameLower = newStudent.middleName?.trim().toLowerCase() || undefined;
 
       const isDuplicate = studentFields.some((field, index) => {
         const existingStudent = form.getValues(`students.${index}`);
@@ -332,6 +301,7 @@ export function StudentsForm({ user }: StudentsFormProps) {
       // Reset form (keep termDays and className)
       setNewStudent((prev) => ({
         ...prev,
+        id: undefined,
         firstName: "",
         middleName: "",
         lastName: "",
@@ -348,28 +318,30 @@ export function StudentsForm({ user }: StudentsFormProps) {
 
   // on submit function - update students + set status
   async function onSubmit(data: z.infer<typeof studentsFormSchema>) {
+    console.log('onSubmit called!', data);
     try {
       // transform students data with proper type conversions
       const studentsData = data.students.map((student) => {
-        const studentData = {
-          id: student.id,
+        const studentData: any = {
+          id: student.id || undefined,
           firstName: student.firstName,
           lastName: student.lastName,
           middleName: student.middleName || undefined,
-          dateOfBirth: student.dateOfBirth || undefined,
           gender: student.gender || undefined,
           department: student.department || undefined,
           daysPresent: student.daysPresent || undefined,
           subjects: [...student.subjects],
         };
 
-        if (studentData.dateOfBirth) {
-          const dateValue = typeof studentData.dateOfBirth === 'string'
-            ? new Date(studentData.dateOfBirth).toISOString()
-            : studentData.dateOfBirth as Date
-              ? (studentData.dateOfBirth as Date).toISOString()
-              : studentData.dateOfBirth;
-          studentData.dateOfBirth = dateValue;
+        // Convert dateOfBirth from string to Date object if present
+        if (student.dateOfBirth) {
+          const dateValue = typeof student.dateOfBirth === 'string'
+            ? new Date(student.dateOfBirth)
+            : student.dateOfBirth;
+          // Only include if it's a valid date
+          if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+            studentData.dateOfBirth = dateValue;
+          }
         }
 
         // daysPresent is already a number from the schema, no conversion needed
@@ -381,29 +353,21 @@ export function StudentsForm({ user }: StudentsFormProps) {
         return studentData;
       });
 
-      // Call server action to update students
-      const result = await updateStudents({ students: studentsData });
-
-      // Check if the request was successful
-      if (result.error) {
-        toast.error("Failed to update students", {
-          description: result.error || "Please review the form details and try again",
-        });
-        return;
-      }
+      // Call mutation to update students
+      await upsertStudents(studentsData as UpsertStudentsPayload);
 
       // Success!
-      toast.success(result.success || "Students updated successfully");
+      toast.success("Students updated successfully");
       router.refresh(); // Refresh the page to show updated data
     } catch (err) {
       console.error("Error submitting form:", err);
       toast.error("Failed to update students", {
-        description: "An unexpected error occurred. Please try again.",
+        description: errorMessage || "An unexpected error occurred. Please try again.",
       });
     }
   }
 
-  const loading = form.formState.isSubmitting;
+  const loading = form.formState.isSubmitting || isMutating;
 
   return (
     <Card className="border shadow-md" ref={formSectionRef}>
@@ -558,7 +522,7 @@ export function StudentsForm({ user }: StudentsFormProps) {
                         onValueChange={(value) =>
                           setNewStudent((prev) => ({
                             ...prev,
-                            gender: value === "none" ? undefined : value,
+                            gender: value === "NONE" ? "" : value,
                           }))
                         }
                       >
@@ -566,7 +530,7 @@ export function StudentsForm({ user }: StudentsFormProps) {
                           <SelectValue placeholder="Select gender (optional)" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="NONE">None</SelectItem>
                           <SelectItem value="MALE">Male</SelectItem>
                           <SelectItem value="FEMALE">Female</SelectItem>
                         </SelectContent>
@@ -586,7 +550,7 @@ export function StudentsForm({ user }: StudentsFormProps) {
                         onValueChange={(value) =>
                           setNewStudent((prev) => ({
                             ...prev,
-                            department: value === "none" ? undefined : value,
+                            department: value === "NONE" ? "" : value,
                           }))
                         }
                       >
@@ -594,7 +558,7 @@ export function StudentsForm({ user }: StudentsFormProps) {
                           <SelectValue placeholder="Select department (optional)" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="NONE">None</SelectItem>
                           <SelectItem value="SCIENCE">Science</SelectItem>
                           <SelectItem value="ARTS">Arts</SelectItem>
                           <SelectItem value="GENERAL">General</SelectItem>
@@ -642,10 +606,10 @@ export function StudentsForm({ user }: StudentsFormProps) {
 
                       {/* Select Subjects List */}
                       <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 mt-1">
-                        {availableSubjects.map((subject, index) => {
+                        {availableSubjects.map((subject: { id: string; name: string }, index: number) => {
                           // for each if the subject is already selected
                           const isSelected = newStudent.subjects.some(
-                            (s) => s.name === subject.name
+                            (s) => s.id === subject.id
                           );
 
                           return (
@@ -828,14 +792,12 @@ export function StudentsForm({ user }: StudentsFormProps) {
                                 </p>
                                 <div className="flex flex-wrap gap-1 mt-1">
                                   {student.subjects.map(
-                                    (subject, index) => (
+                                    (subject: { id: string; name: string }, index: number) => (
                                       <span
-                                        key={index}
+                                        key={subject.id || index}
                                         className="text-xs sm:text-base bg-blue-100 text-blue-800 px-2 py-1 rounded"
                                       >
-                                        {typeof subject === "object"
-                                          ? subject.name
-                                          : subject}
+                                        {subject.name}
                                       </span>
                                     )
                                   )}

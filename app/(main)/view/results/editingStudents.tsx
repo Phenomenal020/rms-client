@@ -16,13 +16,12 @@ import {
     FormMessage,
 } from "@/shadcn/ui/form";
 import { updateSelectedStudent } from "@/app/api/views/edit-student-action";
-import { Student, AcademicTerm } from "./ResultsComponent";
+import type { Student, AcademicTerm } from "@/types/drizzle";
 
 
 
 // ------------------------------------------------------------
 // Type definitions
-type Class = AcademicTerm['class'];
 
 interface EditingStudentsProps {
     isEditingStudent: boolean;
@@ -58,7 +57,7 @@ export function EditingStudents({
         firstName: z.string().trim().min(1, "First name is required"),
         middleName: z.string().trim().optional(),
         lastName: z.string().trim().min(1, "Last name is required"),
-        daysPresent: z.number().default(0),  // on submission, set 0 to undefined 
+        daysPresent: z.number().optional(),  // on submission, set 0 to undefined 
     });
 
     // Form default values
@@ -70,7 +69,7 @@ export function EditingStudents({
     };
 
     // Use the useForm hook to handle the form submission
-    const form = useForm({
+    const form = useForm<z.infer<typeof studentSchema>>({
         resolver: zodResolver(studentSchema),
         defaultValues: formDefaults,
     });
@@ -136,16 +135,17 @@ export function EditingStudents({
         };
 
         startTransition(async () => {
-            const result = await updateSelectedStudent(finalPayload);
+            console.log("final payload from editing student", finalPayload);
+            // const result = await updateSelectedStudent(finalPayload);
 
-            if (result.error) {
-                toast.error("Failed to update student", { description: 'Please review the form and try again.' });
-                return;
-            }
+            // if (result.error) {
+            //     toast.error("Failed to update student", { description: 'Please review the form and try again.' });
+            //     return;
+            // }
 
-            toast.success("Student updated");
-            saveStudentChanges({ ...selectedStudent, ...finalPayload });
-            router.refresh();
+            // toast.success("Student updated");
+            // saveStudentChanges({ ...selectedStudent, ...finalPayload });
+            // router.refresh();
         });
     };
 

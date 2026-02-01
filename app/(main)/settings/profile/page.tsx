@@ -1,12 +1,7 @@
-// imports: current session, unauthorised page, teacher profile form, prisma
-import { auth, type Session, type User } from "@/src/lib/auth";
-import { unauthorized } from "next/navigation";
-import prisma from "@/src/lib/prisma";
+// imports: teacher profile form
 import VerifyEmailButton from "../shared/verify-email-button";
 import TeacherProfileTabs from "./teacher-profile-tabs";
-import { headers } from "next/headers";
 import type { Metadata } from "next";
-import type { UserData } from "./types";
 
 // page metadata: title and description
 export const metadata: Metadata = {
@@ -14,46 +9,8 @@ export const metadata: Metadata = {
   description: "Manage your profile information",
 };
 
-// page component
-export default async function SettingsPage(): Promise<React.ReactElement> {
-
-  // get the headers
-  const headerList = await headers()
-
-  // get the user from the session
-  const session: Session | null = await auth.api.getSession({ headers: headerList })
-  const sessionUser: User | undefined = session?.user;
-
-  // if there is no session user, then return the unauthorised page (user not authenticated)
-  if (!sessionUser) unauthorized();
-
-  // check if the user has signed up via a password or used oauth (This is for the password reset/change tab)
-  const accounts = await auth.api.listUserAccounts({ headers: headerList })
-  const hasPasswordAccount: boolean = accounts.some(account => account.providerId === "credential") // true if the user has a password associated with this account.
-
-  // get all the user's sessions (This is for the sessions tab) 
-  const sessions = await auth.api.listSessions({ headers: headerList })
-  // as well as the current session token
-  const currentSessionToken: string = session?.session?.token ?? ""
-
-  // Fetch fresh user data from database to ensure we have the latest fields
-  const user: UserData | null = await prisma.user.findUnique({
-    where: { id: sessionUser.id },
-    select: {
-      id: true,
-      name: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      emailVerified: true,
-      image: true,
-      role: true,
-      subscription: true,
-    },
-  });
-
-  // if there is no user, then return the unauthorised page (this user does not exist in the database and is therefore not authenticated)
-  if (!user) unauthorized();
+// page component (Server Component - no data fetching here)
+export default function SettingsPage() {
 
   // return the main layout
   return (
@@ -81,7 +38,7 @@ export default async function SettingsPage(): Promise<React.ReactElement> {
 
         {/* Profile Sections - Organised in tabs layout */}
         <div className="w-full mx-auto">
-          <TeacherProfileTabs user={user} hasPasswordAccount={hasPasswordAccount} sessions={sessions} currentSessionToken={currentSessionToken} />
+          <TeacherProfileTabs />
         </div>
 
       </div>

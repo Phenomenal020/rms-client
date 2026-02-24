@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useUpsertSubjects } from "@/fetcher/mutations";
+import { useUpsertSubjects, getErrorMessage } from "@/fetcher/mutations";
 import type { UpsertSubjectsPayload } from "@/types/subjects";
 
 // Schema for a subject entry
@@ -43,7 +43,7 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
     // new subject name
     const [newSubjectName, setNewSubjectName] = useState("");
 
-    const { upsertSubjects, isMutating, error, data, errorMessage } = useUpsertSubjects();
+    const { upsertSubjects, isMutating, error, data } = useUpsertSubjects();
 
 
     // current subject entry (for editing a subject)
@@ -104,7 +104,7 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
         });
 
         // show a success toast message
-        toast.success(`Subject "${newSubjectName.trim()}" added successfully!`);
+        toast.success(`Subject "${newSubjectName.trim()}" successfully added and ready to be saved!`);
         setNewSubjectName(""); // clear the new subject field
     };
 
@@ -191,7 +191,7 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
             cancelEditSubject();
         }
         // show a success toast message
-        toast.success(`Subject "${subjectFields[index]?.name}" removed successfully!`);
+        toast.success(`Subject "${subjectFields[index]?.name}" successfully removed and ready to be saved!`);
     };
 
     // Strategy: Always send the entire subjects array to the server. The server will then handle the creation, update, and deletion of subjects.
@@ -206,9 +206,9 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
             toast.success("Subjects updated successfully");
             router.refresh();
         }
-        catch (err) {
+        catch (err: any) {
             toast.error("Failed to update subjects", {
-                description: errorMessage || "An unexpected error occurred. Please try again.",
+                description: getErrorMessage(err),
             });
         }
     }
@@ -223,26 +223,26 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                             {/* Subject Section */}
-                            <div className="space-y-4 mt-8">
+                            <div className="space-y-4">
 
-                                {/* New Subject Section Header */}
-                                <div className="pb-2 border-b border-gray-200">
-                                    <h3 className="text-xl sm:text-2xl font-bold text-gray-700 uppercase tracking-wide">Add New Subject</h3>
+                                {/* Add New Subject Section subheading (h3) */}
+                                <div className="pb-2 border-b border-border">
+                                    <h3 className="text-lg sm:text-xl font-bold text-foreground uppercase tracking-wide">Add New Subject</h3>
                                 </div>
 
                                 {/* Add Custom Subject Form */}
-                                <div className="flex gap-4 items-end">
-                                    <div className="space-y-2 flex-1">
-                                        <FormLabel className="text-gray-700 font-semibold">Subject Name</FormLabel>
+                                <div className="flex flex-col sm:flex-row gap-4 items-end">
+                                    <div className="space-y-2 flex-1 w-full">
+                                        <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">Subject Name</FormLabel>
                                         <Input
                                             placeholder="e.g., Advanced Mathematics, Creative Writing"
                                             value={newSubjectName}
                                             onChange={(e) => setNewSubjectName(e.target.value)}
-                                            className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
+                                            className="h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary"
                                         />
                                     </div>
-                                    <div>
-                                        <Button type="button" onClick={addSubject} className="fit-content h-14 cursor-pointer">
+                                    <div className="w-full sm:w-auto">
+                                        <Button type="button" onClick={addSubject} className="w-full sm:w-auto h-10 md:h-14 text-sm md:text-base cursor-pointer">
                                             <Plus className="w-4 h-4 mr-2" />
                                             Add Subject
                                         </Button>
@@ -252,11 +252,11 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
 
                             {/* Subjects List Section - shown only if there are subjects */}
                             {subjectFields.length > 0 && (
-                                <div className="space-y-6 mt-8 pt-8 border-t border-gray-200">
+                                <div className="space-y-4 mt-4 pt-4 border-t border-border">
 
-                                    {/* Subjects List Section Header */}
-                                    <div className="pb-2 border-b border-gray-200">
-                                        <h3 className="text-xl sm:text-2xl font-bold text-gray-700 uppercase tracking-wide">Subjects</h3>
+                                    {/* Subjects Section subheading (h3) */}
+                                    <div className="pb-2 border-b border-border">
+                                        <h3 className="text-lg sm:text-xl font-bold text-foreground uppercase tracking-wide">Subjects</h3>
                                     </div>
 
                                     {/* For each subject */}
@@ -268,9 +268,9 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
                                             return (
                                                 <div
                                                     key={subjectField.tempId}
-                                                    className={`flex items-center justify-between p-3 rounded-md border ${editingSubjectIndex === subjectIndex
-                                                        ? "bg-blue-50 border-blue-300"
-                                                        : "bg-gray-50 border-gray-200"
+                                                    className={`flex items-center justify-between p-3 md:p-4 rounded-md border text-sm md:text-base ${editingSubjectIndex === subjectIndex
+                                                        ? "bg-primary/10 border-primary/30"
+                                                        : "bg-muted border-border"
                                                         }`}
                                                 >
 
@@ -281,18 +281,18 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
                                                             type="text"
                                                             value={currentSubjectEntry.name}
                                                             onChange={(e) => setCurrentSubjectEntry({ ...currentSubjectEntry, name: e.target.value })}
-                                                            className="flex-1 mr-2 h-14 text-base bg-white"
+                                                            className="flex-1 mr-2 h-10 md:h-14 text-sm md:text-base bg-background"
                                                             placeholder="Subject name"
                                                         />
                                                     ) : (
                                                         // Otherwise, show the subject name
-                                                        <span className="text-gray-700 font-medium">
+                                                        <span className="text-foreground font-medium">
                                                             {subject?.name || "Unnamed Subject"}
                                                         </span>
                                                     )}
 
                                                     {/* Edit and Remove icons */}
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex items-center">
                                                         {/* if editing, show a ✓ and X icon */}
                                                         {editingSubjectIndex === subjectIndex ? (
                                                             <>
@@ -302,7 +302,7 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
                                                                     variant="ghost"
                                                                     size="sm"
                                                                     onClick={updateSubject}
-                                                                    className="text-green-500 hover:text-green-700"
+                                                                    className="h-8 md:h-10 text-sm md:text-base text-primary hover:text-primary/80"
                                                                 >
                                                                     <Check className="w-4 h-4" />
                                                                 </Button>
@@ -312,7 +312,7 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
                                                                     variant="ghost"
                                                                     size="sm"
                                                                     onClick={cancelEditSubject}
-                                                                    className="text-gray-500 hover:text-gray-700"
+                                                                    className="h-8 md:h-10 text-sm md:text-base text-muted-foreground hover:text-foreground"
                                                                 >
                                                                     <X className="w-4 h-4" />
                                                                 </Button>
@@ -325,7 +325,7 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
                                                                     variant="ghost"
                                                                     size="sm"
                                                                     onClick={() => editSubject(subjectIndex)}
-                                                                    className="text-blue-500 hover:text-blue-700"
+                                                                    className="h-8 md:h-10 text-sm md:text-base text-primary hover:text-primary/80"
                                                                     // Disable if any subject is being edited
                                                                     disabled={editingSubjectIndex !== null}
                                                                 >
@@ -337,7 +337,7 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
                                                                     variant="ghost"
                                                                     size="sm"
                                                                     onClick={() => removeSubjectEntry(subjectIndex)}
-                                                                    className="text-red-500 hover:text-red-700"
+                                                                    className="h-8 md:h-10 text-sm md:text-base text-destructive hover:text-destructive/80"
                                                                     // Disable if any subject is being edited
                                                                     disabled={editingSubjectIndex !== null}
                                                                 >
@@ -364,15 +364,23 @@ export function SubjectsForm({ subjects }: SubjectsFormProps) {
                                 )}
                             />
 
-                            {/* Submit Button */}
-                            <div className="pt-6 border-t border-gray-200 mt-6">
-                                {/* Submit Button Container */}
-                                <div className="flex justify-center">
+                            {/* Submit / Discard Buttons */}
+                            <div className="pt-4 md:pt-6 border-t border-border mt-4 md:mt-6">
+                                <div className="flex justify-center gap-3">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        disabled={!form.formState.isDirty || loading}
+                                        onClick={() => { form.reset(); setEditingSubjectIndex(null); setNewSubjectName(""); }}
+                                        className="w-max h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                                    >
+                                        Discard Changes
+                                    </Button>
                                     <LoadingButton
                                         type="submit"
                                         loading={loading}
                                         disabled={loading || editingSubjectIndex !== null || !form.formState.isDirty}
-                                        className="w-full sm:w-auto min-w-[160px] h-12 text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                                        className="w-max h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
                                     >
                                         {loading ? "Saving..." : "Save Changes"}
                                     </LoadingButton>

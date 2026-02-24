@@ -1,68 +1,66 @@
 // Type definitions
 interface StudentStatsProps {
-    studentStats: {
-        totalMarks: number;
-        maxPossibleMarks: number;
-        average: number;
-        overallGrade: string | null;
-        overallRemark: string | null;
-        totalStudents?: number;
-    };
+  studentStats: {
+    totalMarks: number;
+    maxPossibleMarks: number;
+    average: number;
+    overallGrade: string | null;
+    overallRemark: string | null;
+    totalStudents?: number;
+  };
+  studentName: string;
+  className?: string;
 }
 
-export const StudentStats = ({ studentStats }: StudentStatsProps) => {
-  return <div className="grid grid-cols-2 gap-6 mb-8">
-
-    {/* left side */}
-    <div className="space-y-1">
-      {/* Performance Summary Header Text */}
-      <h4 className="text-base md:text-lg font-bold text-gray-800  border-gray-300 pb-2">
+export const StudentStats = ({ studentStats, studentName, className }: StudentStatsProps) => {
+  return (
+    <div className="mb-6">
+      {/* Header */}
+      <h4 className="text-base sm:text-lg font-bold text-foreground mb-1 md:mb-2">
         PERFORMANCE SUMMARY
       </h4>
-      {/* Performance Summary Content */}
-      <div className="space-y-2">
-        {/* Total Marks Obtained: */}
-        <div className="flex justify-between">
-          <span className="text-gray-700 text-sm md:text-base">
-            Total Marks:
-          </span>
-          <span className="font-semibold text-gray-900 text-sm md:text-base">
-            {studentStats.totalMarks}/
-            {studentStats.maxPossibleMarks}
-          </span>
-        </div>
-        
-        {/* Average Score: */}
-        <div className="flex justify-between">
-          <span className="text-gray-700 text-sm md:text-base">Average Score:</span>
-          <span className="font-semibold text-gray-900 text-sm md:text-base">
-            {studentStats.average}%
-          </span>
-        </div>
-      </div>
-    </div>
 
-    {/* right side */}
-    <div className="space-y-1">
-      <h4 className="text-base md:text-lg font-bold text-gray-800 border-gray-300 pb-2">
-        CLASS POSITION
-      </h4>
-      <div className="space-y-2">
-        {/* Overall Grade: */}
-        <div className="flex justify-between">
-          <span className="text-gray-700 text-sm md:text-base">Overall Grade:</span>
-          <span className="font-bold text-base md:text-lg text-gray-900">
-            {studentStats.overallGrade}
-          </span>
-        </div>
-        {/* Remark: */}
-        <div className="flex justify-between">
-          <span className="text-gray-700 text-sm md:text-base">Remark:</span>
-          <span className="font-semibold text-gray-900 text-sm md:text-base">{studentStats.overallRemark}</span>
-        </div>
+      {/* Content Grid - stacks on mobile, 2 columns on sm+ */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
+
+        {/* Student Name */}
+        <p className="text-sm sm:text-base">
+          <span className="font-semibold text-muted-foreground">Name: </span>
+          <span className="text-foreground">{studentName}</span>
+        </p>
+
+        {/* Class */}
+        <p className="text-sm sm:text-base">
+          <span className="font-semibold text-muted-foreground">Class: </span>
+          <span className="text-foreground">{className}</span>
+        </p>
+
+        {/* Total Marks */}
+        <p className="text-sm sm:text-base">
+          <span className="font-semibold text-muted-foreground">Total Marks: </span>
+          <span className="text-foreground">{studentStats.totalMarks}</span>
+        </p>
+
+        {/* Position */}
+        <p className="text-sm sm:text-base">
+          <span className="font-semibold text-muted-foreground">Position: </span>
+          <span className="text-foreground">N/A</span>
+        </p>
+
+        {/* Average Score */}
+        <p className="text-sm sm:text-base">
+          <span className="font-semibold text-muted-foreground">Average: </span>
+          <span className="text-foreground">{studentStats.average}%</span>
+        </p>
+
+        {/* Overall Grade */}
+        <p className="text-sm sm:text-base">
+          <span className="font-semibold text-muted-foreground">Grade: </span>
+          <span className="text-foreground">{studentStats.overallGrade}</span>
+        </p>
 
       </div>
-    </div>
 
-  </div>
+    </div>
+  );
 }

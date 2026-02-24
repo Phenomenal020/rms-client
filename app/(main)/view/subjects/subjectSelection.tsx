@@ -33,13 +33,13 @@ export const SubjectSelection = ({
 }: SubjectSelectionProps) => {
     return (
         <Card className="mb-6">
-            <CardContent className="p-4">
+            <CardContent className="p-2 md:p-4">
                 <div className="flex items-center justify-between">
 
                     {/* Subject Selection Dropdown - updates the selected subject and the current subject index */}
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1 sm:gap-2 md:gap-4 w-[70%] text-sm md:text-base">
                         {/* Subject Icon */}
-                        <BookOpen className="w-5 h-5 text-gray-600" />
+                        {/* <BookOpen className="w-5 h-5 text-muted-foreground" /> */}
                         {/* Subject Selection Dropdown */}
                         <Select
                             value={selectedSubjectName || ""}
@@ -55,7 +55,7 @@ export const SubjectSelection = ({
                             disabled={isGlobalEditing}
                         >
                             {/* Select Dropdown Trigger */}
-                            <SelectTrigger className="w-64">
+                            <SelectTrigger className="w-48 sm:w-64">
                                 <SelectValue placeholder="Select subject" />
                             </SelectTrigger>
 
@@ -80,26 +80,26 @@ export const SubjectSelection = ({
 
 
                     {/* Previous and Next Subject Buttons - navigate through the subjects */}
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 sm:gap-2">
                         {/* Previous Subject Button */}
                         <Button
                             onClick={goToPreviousSubject}
                             disabled={currentSubjectIndex === 0 || !subjectNames || subjectNames.length === 0 || isGlobalEditing}
                             variant="outline"
-                            size="sm"
-                            className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                            size="icon-sm"
+                            className="border-border text-foreground hover:bg-muted"
                         >
-                            <ArrowLeft className="w-4 h-4" />
+                            <ArrowLeft className="w-2 h-2 sm:w-4 sm:h-4" />
                         </Button>
                         {/* Next Subject Button */}
                         <Button
                             onClick={goToNextSubject}
                             disabled={!subjectNames || currentSubjectIndex === subjectNames.length - 1 || isGlobalEditing}
                             variant="outline"
-                            size="sm"
-                            className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                            size="icon-sm"
+                            className="border-border text-foreground hover:bg-muted"
                         >
-                            <ArrowRight className="w-4 h-4" />
+                            <ArrowRight className="w-2 h-2 sm:w-4 sm:h-4" />
                         </Button>
                     </div>
                 </div>
@@ -107,4 +107,3 @@ export const SubjectSelection = ({
         </Card>
     )
 }
-

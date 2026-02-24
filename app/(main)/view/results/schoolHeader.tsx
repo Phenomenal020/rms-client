@@ -1,431 +1,55 @@
 "use client";
 
-import { useEffect, useMemo, useTransition } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { Button } from "@/shadcn/ui/button";
-import { Input } from "@/shadcn/ui/input";
-import { Edit3, Loader2, Save, X } from "lucide-react";
-import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
-} from "@/shadcn/ui/form";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/shadcn/ui/select";
-// import { updateSchoolAndTerm } from "@/app/api/views/edit-school-actions";
 import type { School, AcademicTerm } from "@/types/drizzle";
 
 interface SchoolHeaderProps {
-    isEditingSchool: boolean;
-    startEditingSchool: () => void;
-    saveSchoolChanges: (updatedSchool: School | null) => void;
-    cancelEditingSchool: () => void;
-    editingSchoolData: School | null; // school data being edited
-    setEditingSchoolData: (data: School | null) => void;
-    school: School | null; // school data from the database
-    academicTerm: AcademicTerm; // academic term data from the database
-    isGlobalEditing: boolean;
+    school: School | null;
+    academicTerm: AcademicTerm;
 }
 
-// Handle empty email fields (should pass validation if the email is empty)
-const emailSchema = z.string().optional().refine(
-    (val) => !val || val.trim() === "" || z.email().safeParse(val.trim()).success,
-    { message: "Invalid email address" }
-);
-
-// This component jointly edits the school information and the academic term information. Therefore, use a combined schema.
-const schoolTermSchema = z.object({
-    schoolName: z.string().trim().min(1, { message: "School name is required" }),
-    schoolAddress: z.string().trim().optional(),
-    schoolMotto: z.string().trim().optional(),
-    schoolTelephone: z.string().trim().optional(),
-    schoolEmail: emailSchema,
-    academicYear: z.string().trim().min(1, { message: "Academic year is required" }),
-    term: z.enum(["FIRST", "SECOND", "THIRD"], {
-        message: "Please select a valid term",
-    }),
-});
-
 export const SchoolHeader = ({
-    isEditingSchool,
-    startEditingSchool,
-    saveSchoolChanges,
-    cancelEditingSchool,
-    editingSchoolData, // school data being edited
-    setEditingSchoolData,
-    school, // school data from the database
-    academicTerm, // academic term data from the database
-    isGlobalEditing,
+    school,
+    academicTerm,
 }: SchoolHeaderProps) => {
-
-    // Use the router to refresh the page after a successful update
-    const router = useRouter();
-
-    // Use the useTransition hook to handle the loading state
-    const [isPending, startTransition] = useTransition();
-
-    // Form defaults
-    const formDefaults = {
-        schoolName: editingSchoolData?.schoolName ?? school?.schoolName, // from editingSchoolData or school data
-        schoolAddress: editingSchoolData?.schoolAddress ?? school?.schoolAddress ?? "", // likewise + "" fallback
-        schoolMotto: editingSchoolData?.schoolMotto ?? school?.schoolMotto ?? "",
-        schoolTelephone: editingSchoolData?.schoolTelephone ?? school?.schoolTelephone ?? "",
-        schoolEmail: editingSchoolData?.schoolEmail ?? school?.schoolEmail ?? "",
-        academicYear: academicTerm?.academicYear, // required, so always set
-        term: academicTerm?.term, // required, so always set
-    };
-
-    // Use the useForm hook to handle the form submission
-    const form = useForm<z.infer<typeof schoolTermSchema>>({
-        resolver: zodResolver(schoolTermSchema),
-        defaultValues: formDefaults,
-    });
-
-    // reset the form when the editing state or school data changes
-    useEffect(() => {
-        form.reset(formDefaults);
-    }, [
-        isEditingSchool,
-        school,
-        academicTerm,
-        isGlobalEditing,
-    ]);
-
-    // Build payload: always include required fields; optional fields are sent only if dirty.
-    // Empty dirty strings become null so the server clears them.
-    const buildPayload = (): Record<string, unknown> => {
-        // get all the form values and the dirty fields
-        const allValues = form.getValues();
-        const { dirtyFields } = form.formState;
-
-        // handle required fields and build payload
-        const requiredKeys = ["schoolName", "academicYear", "term"];
-        const payload: Record<string, unknown> = {};
-
-        // Always include required fields, trimmed if string
-        requiredKeys.forEach((key) => {
-            // get the value of each required field
-            const value = allValues[key as keyof typeof allValues];
-            // add this to the payload so they are always included in the payload
-            payload[key] = typeof value === "string" ? value.trim() : value;
-        });
-
-        // Add ONLY dirty optional fields. If the value is not "", then set it to the value sent implying the user changed the value of this field. If the value is "", then set it to null implying the user cleared the field. This will prompt prisma to set that field to null in the db effectively clearing it.
-        Object.entries(dirtyFields).forEach(([key, isDirty]) => {
-            // if the field is not dirty or is a required field (already handled above), skip it
-            if (!isDirty || requiredKeys.includes(key)) return;
-
-            const value = allValues[key as keyof typeof allValues];
-            if (typeof value === "string") {
-                const trimmed = value.trim();
-                // if trimmed value is an empty string, set it to null
-                payload[key] = trimmed === "" ? null : trimmed;
-            } else {
-                payload[key] = value;  // fallback for non-string values. Simply add them since they cannot be empty strings.
-            }
-        });
-
-        return payload;
-    };
-
-    // Handle the cancel button click
-    const handleCancel = (): void => {
-        form.reset(formDefaults);
-        cancelEditingSchool();
-    };
-
-    // The display data to render the form
-    const displayData: {
-        schoolName?: string;
-        schoolMotto?: string | null;
-        schoolAddress?: string | null;
-        schoolTelephone?: string | null;
-        schoolEmail?: string | null;
-        academicYear?: string;
-        term?: "FIRST" | "SECOND" | "THIRD";
-    } = {
-        schoolName: school?.schoolName,
-        schoolMotto: school?.schoolMotto,
-        schoolAddress: school?.schoolAddress,
-        schoolTelephone: school?.schoolTelephone,
-        schoolEmail: school?.schoolEmail,
-        academicYear: academicTerm?.academicYear,
-        term: academicTerm?.term,
-    };
-
-    const onSubmit = async (data: z.infer<typeof schoolTermSchema>): Promise<void> => {
-        // Although class name is not in the form data, it is required to update the term details. Therefore, get it from the academic term data.
-        const className = academicTerm?.class?.name;
-        if (!className) {
-            toast.error("Missing class information", {
-                description: "A class is required to update term details.",
-            });
-            return;
-        }
-
-        const payload = buildPayload();
-        startTransition(async () => {  // ui update not immediately required
-            const finalPayload = {
-                ...payload,
-                className,  // append the classname
-            };
-            // const result = await updateSchoolAndTerm(finalPayload);
-
-            console.log("final payload from school header", finalPayload);
-
-            // if (result?.error) {
-            //     toast.error("Failed to save school and term", {
-            //         description: "Please review the form and try again.",
-            //     });
-            //     return;
-            // }
-
-            // toast.success("School and term updated");
-            // // update local state with the new data
-            // saveSchoolChanges(school ? { ...school, ...payload } : null);
-            // cancelEditingSchool();
-            // router.refresh();
-        });
-    };
-
     return (
-        <div className="text-center mb-8 border-b-2 border-gray-300 pb-6">
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <div className="flex justify-end mb-4">
-                        {/* Edit School Info Button */}
-                        {!isEditingSchool ? (
-                            <Button
-                                onClick={startEditingSchool}
-                                variant="outline"
-                                disabled={isGlobalEditing}
-                                size="sm"
-                                className="border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer"
-                                type="button"
-                            >
-                                <Edit3 className="w-4 h-4 mr-2" />
-                                Edit 
-                            </Button>
-                        ) : (
-                            <div className="flex gap-2">
-                                <Button
-                                    type="submit"
-                                    size="sm"
-                                    disabled={isPending || !form.formState.isDirty}
-                                    className="bg-gray-800 hover:bg-gray-900 text-white cursor-pointer"
-                                >
-                                    {isPending ? (
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    ) : (
-                                        <Save className="w-4 h-4 mr-2" />
-                                    )}
-                                    Save
-                                </Button>
-                                <Button
-                                    onClick={handleCancel}
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer"
-                                    disabled={isPending}
-                                >
-                                    <X className="w-4 h-4 mr-2" />
-                                    Cancel
-                                </Button>
-                            </div>
-                        )}
-                    </div>
+        <div className="text-center mb-3 border-b-2 border-border pb-3 space-y-1">
+            {/* School Name */}
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+                {school?.schoolName}
+            </h1>
 
-                    {/* School Name */}
-                    {isEditingSchool ? (
-                        <FormField
-                            control={form.control}
-                            name="schoolName"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormControl>
-                                        <Input
-                                            {...field}
-                                            placeholder="School Name"
-                                            className="text-2xl md:text-3xl font-bold text-center mb-2 p-3"
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    ) : (
-                        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-                            {displayData.schoolName}
-                        </h1>
-                    )}
+            {/* School Motto */}
+            {school?.schoolMotto && (
+                <p className="text-base sm:text-lg md:text-xl text-foreground italic">
+                    {school.schoolMotto}
+                </p>
+            )}
 
-                    {/* School Motto */}
-                    {isEditingSchool ? (
-                        <FormField
-                            control={form.control}
-                            name="schoolMotto"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormControl>
-                                        <Input
-                                            {...field}
-                                            placeholder="School Motto"
-                                            className="text-xl md:text-2xl text-center mb-2 p-3"
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    ) : (
-                        <p className="text-xl md:text-2xl text-gray-700 mb-1">
-                            {displayData.schoolMotto || ""}
-                        </p>
-                    )}
+            {/* School Address */}
+            {school?.schoolAddress && (
+                <p className="text-sm sm:text-base md:text-lg text-muted-foreground">
+                    {school.schoolAddress}
+                </p>
+            )}
 
-                    {/* School Address */}
-                    {isEditingSchool ? (
-                        <FormField
-                            control={form.control}
-                            name="schoolAddress"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormControl>
-                                        <Input
-                                            {...field}
-                                            placeholder="School Address"
-                                            className="text-base md:text-lg text-center mb-2 p-3"
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    ) : (
-                        <p className="text-base md:text-lg text-gray-600 mb-1">
-                            {displayData.schoolAddress || ""}
-                        </p>
-                    )}
+            {/* School Telephone and Email */}
+            {(school?.schoolTelephone || school?.schoolEmail) && (
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                    {school?.schoolTelephone ? `Tel: ${school.schoolTelephone}` : null}
+                    {school?.schoolTelephone && school?.schoolEmail ? " | " : null}
+                    {school?.schoolEmail ? `Email: ${school.schoolEmail}` : null}
+                </p>
+            )}
 
-                    {/* School Telephone and Email */}
-                    <div className="flex flex-col items-center gap-2">
-                        {isEditingSchool ? (
-                            <>
-                                <FormField
-                                    control={form.control}
-                                    name="schoolTelephone"
-                                    render={({ field }) => (
-                                        <FormItem className="w-full">
-                                            <FormControl>
-                                                <Input
-                                                    {...field}
-                                                    placeholder="School Phone"
-                                                    className="text-xs md:text-sm text-center w-full p-3"
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="schoolEmail"
-                                    render={({ field }) => (
-                                        <FormItem className="w-full">
-                                            <FormControl>
-                                                <Input
-                                                    {...field}
-                                                    placeholder="School Email"
-                                                    className="text-xs md:text-sm text-center w-full p-3"
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </>
-                        ) : displayData.schoolTelephone || displayData.schoolEmail ? (
-                            <p className="text-xs md:text-sm text-gray-500">
-                                {displayData.schoolTelephone ? `Tel: ${displayData.schoolTelephone}` : null}{" "}
-                                {displayData.schoolEmail ? `| Email: ${displayData.schoolEmail}` : null}
-                            </p>
-                        ) : null}
-                    </div>
+            {/* Academic Report Card Title */}
+            <h2 className="text-base md:text-lg font-bold text-foreground !mt-4">
+                ACADEMIC REPORT CARD
+            </h2>
 
-                    {/* Academic Year and Term */}
-                    <h2 className="text-xl md:text-2xl font-bold text-gray-800 mt-3">
-                        ACADEMIC REPORT CARD
-                    </h2>
-
-                    <div className="flex flex-col items-center gap-2 mt-2">
-                        {isEditingSchool ? (
-                            <>
-                                <FormField
-                                    control={form.control}
-                                    name="academicYear"
-                                    render={({ field }) => (
-                                        <FormItem className="w-full">
-                                            <FormLabel className="sr-only">Academic Year</FormLabel>
-                                            <FormControl>
-                                                <Input
-                                                    {...field}
-                                                    placeholder="Academic Year"
-                                                    className="text-xs md:text-sm text-center w-full p-3"
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="term"
-                                    render={({ field }) => (
-                                        <FormItem className="w-full">
-                                            <FormLabel className="sr-only">Term</FormLabel>
-                                            <Select
-                                                value={field.value}
-                                                onValueChange={field.onChange}
-                                                disabled={isPending}
-                                            >
-                                                <FormControl>
-                                                    <SelectTrigger className="text-xs md:text-sm text-center w-full p-3">
-                                                        <SelectValue placeholder="Select term" />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    <SelectItem value="FIRST">First</SelectItem>
-                                                    <SelectItem value="SECOND">Second</SelectItem>
-                                                    <SelectItem value="THIRD">Third</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </>
-                        ) : (
-                            <p className="text-xs md:text-sm text-gray-600">
-                                Academic Year: {displayData.academicYear} | Term: {displayData.term}
-                            </p>
-                        )}
-                    </div>
-                </form>
-            </Form>
+            {/* Academic Year and Term */}
+            <p className="text-sm md:text-base text-muted-foreground">
+                Session: {academicTerm?.academicYear} | Term: {academicTerm?.term}
+            </p>
         </div>
     );
 };
-

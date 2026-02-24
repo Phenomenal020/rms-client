@@ -29,19 +29,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        {/* <ThemeProvider
+        <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
-        > */}
+        >
         <Providers>
           <UserProvider>
             {children}
             <Toaster position="top-right" richColors />
           </UserProvider>
         </Providers>
-        {/* </ThemeProvider> */}
+        </ThemeProvider>
       </body>
     </html>
   );

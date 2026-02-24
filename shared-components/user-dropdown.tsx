@@ -54,8 +54,6 @@ export function UserDropdown({ user }: UserDropdownProps) {
             <UserIcon className="size-4" /> <span>Profile</span>
           </Link>
         </DropdownMenuItem>
-        {/* Only show if the user is an admin */}
-        {user.role === "admin" && <AdminItem />}
         {/* Sign Out Dropdown Item */}
         <SignOutItem />
       </DropdownMenuContent>

@@ -209,17 +209,17 @@ export const SpreadsheetGrid = ({
       {/* Scrollable Container */}
       <div 
         ref={scrollContainerRef}
-        className="overflow-x-auto border border-gray-300 rounded-lg [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        className="overflow-x-auto border border-border rounded-lg [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         style={{ maxWidth: '100%' }}
       >
-        <table className="border-collapse bg-white" style={{ tableLayout: 'auto', width: 'max-content' }}>
+        <table className="border-collapse bg-card" style={{ tableLayout: 'auto', width: 'max-content' }}>
         <thead>
           {/* First Header Row - Subject Codes */}
-          <tr className="bg-gray-100 border-b-2 border-gray-300">
+          <tr className="bg-muted border-b-2 border-border">
             {/* Student Name Column - spans 2 rows */}
             <th
               rowSpan={2}
-              className="border border-gray-300 p-3 text-left font-semibold text-gray-700 sticky left-0 bg-gray-100 z-10 min-w-[150px]"
+              className="border border-border p-3 text-left font-semibold text-foreground sticky left-0 bg-muted z-10 min-w-[150px]"
             >
               Student Name
             </th>
@@ -233,7 +233,7 @@ export const SpreadsheetGrid = ({
                   key={subject}
                   ref={index === 0 ? firstSubjectHeaderRef : null}
                   colSpan={colSpan}
-                  className="border border-gray-300 p-2 text-center font-semibold text-gray-700 bg-gray-50"
+                  className="border border-border p-2 text-center font-semibold text-foreground bg-muted/80"
                 >
                   {code}
                 </th>
@@ -243,7 +243,7 @@ export const SpreadsheetGrid = ({
             {/* Add Subject Button Column - spans 2 rows */}
             <th
               rowSpan={2}
-              className="border border-gray-300 p-2 text-center bg-gray-50"
+              className="border border-border p-2 text-center bg-muted/80"
             >
               <Button
                 onClick={onAddSubject}
@@ -258,25 +258,25 @@ export const SpreadsheetGrid = ({
           </tr>
 
           {/* Second Header Row - Column Names */}
-          <tr className="bg-gray-100 border-b-2 border-gray-300">
+          <tr className="bg-muted border-b-2 border-border">
             {/* For each subject, show: dynamic assessment types, Total, Grade, Remark */}
             {subjects.map((subject) => (
               <React.Fragment key={subject}>
                 {sortedAssessments.map((assessment) => (
                   <th
                     key={assessment.type}
-                    className="border border-gray-300 p-2 text-center font-semibold text-gray-700 min-w-[80px]"
+                    className="border border-border p-2 text-center font-semibold text-foreground min-w-[80px]"
                   >
                     {assessment.type} ({assessment.percentage}%)
                   </th>
                 ))}
-                <th className="border border-gray-300 p-2 text-center font-semibold text-gray-700 min-w-[80px]">
+                <th className="border border-border p-2 text-center font-semibold text-foreground min-w-[80px]">
                   Total
                 </th>
-                <th className="border border-gray-300 p-2 text-center font-semibold text-gray-700 min-w-[60px]">
+                <th className="border border-border p-2 text-center font-semibold text-foreground min-w-[60px]">
                   Grade
                 </th>
-                <th className="border border-gray-300 p-2 text-center font-semibold text-gray-700 min-w-[100px]">
+                <th className="border border-border p-2 text-center font-semibold text-foreground min-w-[100px]">
                   Remark
                 </th>
               </React.Fragment>
@@ -287,9 +287,9 @@ export const SpreadsheetGrid = ({
         <tbody>
           {/* Student Rows */}
           {students.map((student) => (
-            <tr key={student.studentId} className="hover:bg-gray-50">
+            <tr key={student.studentId} className="hover:bg-muted">
               {/* Student Name Cell */}
-              <td className="border border-gray-300 p-3 font-medium text-gray-900 sticky left-0 bg-white z-10">
+              <td className="border border-border p-3 font-medium text-foreground sticky left-0 bg-card z-10">
                 {student.name}
               </td>
 
@@ -314,10 +314,10 @@ export const SpreadsheetGrid = ({
                       return (
                         <td 
                           key={assessmentType} 
-                          className="border border-gray-300 p-1 text-center"
+                          className="border border-border p-1 text-center"
                         >
                           {!isEnrolled ? (
-                            <div className="p-2 text-gray-400">
+                            <div className="p-2 text-muted-foreground">
                               -
                             </div>
                           ) : isEditing ? (
@@ -336,7 +336,7 @@ export const SpreadsheetGrid = ({
                             />
                           ) : (
                             <div
-                              className="p-2 cursor-pointer hover:bg-gray-100 rounded"
+                              className="p-2 cursor-pointer hover:bg-muted rounded"
                               onClick={() => handleCellClick(student.studentId, subject, assessmentType)}
                             >
                               {scoreValue}
@@ -347,17 +347,17 @@ export const SpreadsheetGrid = ({
                     })}
 
                     {/* Total Cell (calculated) */}
-                    <td className="border border-gray-300 p-2 text-center font-semibold text-gray-900">
+                    <td className="border border-border p-2 text-center font-semibold text-foreground">
                       {isEnrolled ? scores.total : "-"}
                     </td>
 
                     {/* Grade Cell (calculated) */}
-                    <td className="border border-gray-300 p-2 text-center font-bold text-gray-900">
+                    <td className="border border-border p-2 text-center font-bold text-foreground">
                       {isEnrolled ? (grade || "-") : "-"}
                     </td>
 
                     {/* Remark Cell (calculated) */}
-                    <td className="border border-gray-300 p-2 text-center text-gray-700">
+                    <td className="border border-border p-2 text-center text-foreground">
                       {isEnrolled ? (remark || "-") : "-"}
                     </td>
                   </React.Fragment>
@@ -365,13 +365,13 @@ export const SpreadsheetGrid = ({
               })}
 
               {/* Empty cell for Add Subject column */}
-              <td className="border border-gray-300 p-2"></td>
+              <td className="border border-border p-2"></td>
             </tr>
           ))}
 
           {/* Add Student Row */}
-          <tr className="bg-gray-50">
-            <td className="border border-gray-300 p-2 sticky left-0 bg-gray-50 z-10">
+          <tr className="bg-muted">
+            <td className="border border-border p-2 sticky left-0 bg-muted z-10">
               <Button
                 onClick={onAddStudent}
                 size="sm"
@@ -386,15 +386,15 @@ export const SpreadsheetGrid = ({
             {subjects.map((subject) => (
               <React.Fragment key={subject}>
                 {sortedAssessments.map(() => (
-                  <td key={Math.random()} className="border border-gray-300 p-2"></td>
+                  <td key={Math.random()} className="border border-border p-2"></td>
                 ))}
-                <td className="border border-gray-300 p-2"></td>
-                <td className="border border-gray-300 p-2"></td>
-                <td className="border border-gray-300 p-2"></td>
+                <td className="border border-border p-2"></td>
+                <td className="border border-border p-2"></td>
+                <td className="border border-border p-2"></td>
               </React.Fragment>
             ))}
             {/* Empty cell for Add Subject column */}
-            <td className="border border-gray-300 p-2"></td>
+            <td className="border border-border p-2"></td>
           </tr>
         </tbody>
       </table>

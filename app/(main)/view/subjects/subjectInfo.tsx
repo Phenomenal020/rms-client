@@ -1,78 +1,84 @@
+"use client";
+
 // Interface for the SubjectInfo component props
 interface SubjectInfoProps {
     selectedSubject?: string;
     enrolledStudentsCount?: number;
     term?: string;
     academicYear?: string;
+    subjectStats?: {
+        average: number;
+        minimum: number;
+        maximum: number;
+        classAverage: number;
+    } | null;
 }
 
 export const SubjectInfo = ({
     selectedSubject = "",
     enrolledStudentsCount = 0,
     term = "",
-    academicYear = ""
+    academicYear = "",
+    subjectStats = null,
 }: SubjectInfoProps) => {
     return (
-        <div className="mb-8">
+        <div className="mb-6">
+            {/* Header */}
+            <h4 className="text-base sm:text-lg font-bold text-foreground mb-1 md:mb-2">
+                SUBJECT INFORMATION
+            </h4>
 
-            {/* Edit subject information section */}
-            <div className="flex items-center justify-between mb-3">
+            {/* Content Grid - stacks on mobile, responsive columns on larger screens */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
+                {/* Subject Name */}
+                <p className="text-sm sm:text-base">
+                    <span className="font-semibold text-muted-foreground">Subject: </span>
+                    <span className="text-foreground">{selectedSubject || "N/A"}</span>
+                </p>
 
-                {/* Title of the editing subject information section */}
-                <h3 className="text-lg md:text-xl font-bold text-gray-800  border-gray-300 pb-2">
-                    SUBJECT INFORMATION
-                </h3>
+                {/* Students Enrolled */}
+                <p className="text-sm sm:text-base">
+                    <span className="font-semibold text-muted-foreground">Students Enrolled: </span>
+                    <span className="text-foreground">{enrolledStudentsCount}</span>
+                </p>
 
-            </div>
+                {/* Maximum Score */}
+                <p className="text-sm sm:text-base">
+                    <span className="font-semibold text-muted-foreground">Maximum Score: </span>
+                    <span className="text-foreground">{subjectStats?.maximum ?? "N/A"}%</span>
+                </p>
 
-            {/* More Editing options - subject information */}
-            <div className="grid grid-cols-2 gap-6">
+                {/* Academic Year */}
+                <p className="text-sm sm:text-base">
+                    <span className="font-semibold text-muted-foreground">Session: </span>
+                    <span className="text-foreground">{academicYear || "N/A"}</span>
+                </p>
 
-                <div className="space-y-3">
-                    {/* Subject name (span when not editing, input when editing) */}
-                    <div className="flex items-center">
-                        <span className="font-semibold text-gray-700 w-40 text-sm md:text-base">
-                            Subject Name:
-                        </span>
+                {/* Average Score */}
+                <p className="text-sm sm:text-base">
+                    <span className="font-semibold text-muted-foreground">Average Score: </span>
+                    <span className="text-foreground">{subjectStats?.average ?? "N/A"}%</span>
+                </p>
 
-                        <span className="text-gray-900 text-sm md:text-base">
-                            {selectedSubject || ""}
-                        </span>
-                    </div>
+                {/* Minimum Score */}
+                <p className="text-sm sm:text-base">
+                    <span className="font-semibold text-muted-foreground">Minimum Score: </span>
+                    <span className="text-foreground">{subjectStats?.minimum ?? "N/A"}%</span>
+                </p>
 
-                    {/* Number of students enrolled (read-only) */}
-                    <div className="flex items-center">
-                        <span className="font-semibold text-gray-700 w-40 text-sm md:text-base">
-                            Students Enrolled:
-                        </span>
-                        <span className="text-gray-900 text-sm md:text-base">
-                            {enrolledStudentsCount}
-                        </span>
-                    </div>
-                </div>
 
-                <div className="space-y-3">
-                    {/* Term (read-only, from school data) */}
-                    <div className="flex items-center">
-                        <span className="font-semibold text-gray-700 w-40 text-sm md:text-base">
-                            Term:
-                        </span>
-                        <span className="text-gray-900 text-sm md:text-base">
-                            {term || "N/A"}
-                        </span>
-                    </div>
+                {/* Term */}
+                <p className="text-sm sm:text-base">
+                    <span className="font-semibold text-muted-foreground">Term: </span>
+                    <span className="text-foreground">{term || "N/A"}</span>
+                </p>
 
-                    {/* Academic Year (read-only, from school data) */}
-                    <div className="flex items-center">
-                        <span className="font-semibold text-gray-700 w-40 text-sm md:text-base">
-                            Academic Year:
-                        </span>
-                        <span className="text-gray-900 text-sm md:text-base">
-                            {academicYear || "N/A"}
-                        </span>
-                    </div>
-                </div>
+                {/* Class Average */}
+                <p className="text-sm sm:text-base">
+                    <span className="font-semibold text-muted-foreground">Class Average: </span>
+                    <span className="text-foreground">{subjectStats?.classAverage ?? "N/A"}%</span>
+                </p>
             </div>
         </div>
-    )
+    );
 }

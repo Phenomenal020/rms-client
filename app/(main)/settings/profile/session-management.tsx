@@ -46,51 +46,65 @@ export function SessionManagement({ sessions, currentSessionToken }: SessionMana
     }
 
     return (
-        <div className="space-y-6">
+        <Card className="border shadow-md">
+            {/* Card Content */}
+            <CardContent className="pt-4">
+                <div className="space-y-6">
 
-            {/* Logout Everywhere + intro */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-sm text-muted-foreground space-y-1">
-                    <CardTitle className="text-xl sm:text-2xl text-gray-700 uppercase tracking-wide">Session security</CardTitle>
-                    <p>Review where you&apos;re signed in and revoke access on other devices.</p>
-                </div>
-                <Button
-                    variant="destructive"
-                    size="default"
-                    className="cursor-pointer gap-2 font-semibold rounded-full px-5 shadow-sm hover:shadow-md transition-all"
-                    onClick={logoutEverywhere}
-                >
-                    <LogOut className="h-4 w-4" />
-                    Logout Everywhere
-                </Button>
-            </div>
+                    {/* Session Security Section */}
+                    <div className="space-y-4">
 
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-                {/* Current Session */}
-                <div className="space-y-4">
-                    {currentSession && <SessionCard session={currentSession} isCurrentSession />}
-                </div>
-
-                {/* Other Active Sessions */}
-                <div className="space-y-4">
-                    <h3 className="text-lg sm:text-xl font-semibold text-gray-800">Other active sessions</h3>
-
-                    {otherSessions.length === 0 ? (
-                        <Card className="border-dashed">
-                            <CardContent className="py-8 text-center text-muted-foreground text-sm">
-                                No other active sessions
-                            </CardContent>
-                        </Card>
-                    ) : (
-                        <div className="space-y-3">
-                            {otherSessions.map((session) => (
-                                <SessionCard key={session.id} session={session} />
-                            ))}
+                        {/* Session Security Section subheading (h4) */}
+                        <div className="pb-2 border-b border-border">
+                            <h4 className="text-lg sm:text-xl font-bold text-foreground uppercase tracking-wide">Session Security</h4>
                         </div>
-                    )}
+
+                        {/* Logout Everywhere + intro */}
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="text-sm md:text-base text-muted-foreground space-y-1">
+                                <p>Review where you&apos;re signed in and revoke access on other devices.</p>
+                            </div>
+                            <Button
+                                variant="destructive"
+                                size="default"
+                                className="cursor-pointer gap-2 font-semibold rounded-full px-5 shadow-sm hover:shadow-md transition-all w-full sm:w-auto h-10 md:h-14 text-sm md:text-base"
+                                onClick={logoutEverywhere}
+                            >
+                                <LogOut className="h-4 w-4" />
+                                Logout Everywhere
+                            </Button>
+                        </div>
+
+                        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+                            {/* Current Session */}
+                            <div className="space-y-4">
+                                {currentSession && <SessionCard session={currentSession} isCurrentSession />}
+                            </div>
+
+                            {/* Other Active Sessions */}
+                            <div className="space-y-4">
+                                <h3 className="text-base md:text-lg sm:text-xl font-semibold text-foreground">Other active sessions</h3>
+
+                                {otherSessions.length === 0 ? (
+                                    <Card className="border-dashed">
+                                        <CardContent className="py-8 text-center text-muted-foreground text-sm md:text-base">
+                                            No other active sessions
+                                        </CardContent>
+                                    </Card>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {otherSessions.map((session) => (
+                                            <SessionCard key={session.id} session={session} />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     );
 }
 
@@ -120,15 +134,15 @@ function SessionCard({ session, isCurrentSession = false }: SessionCardProps) {
     }
 
     return (
-        <Card className="border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow rounded-xl bg-gradient-to-br from-white to-slate-50">
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3">
-                <CardTitle className="text-lg sm:text-xl font-semibold text-gray-900">
+        <Card className="border border-border shadow-sm hover:shadow-md transition-shadow rounded-xl bg-card">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border pb-3">
+                <CardTitle className="text-base md:text-lg sm:text-xl font-semibold text-card-foreground">
                     {getBrowserInformation()}
                 </CardTitle>
                 {isCurrentSession && (
                     <Badge
                         variant="default"
-                        className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full text-xs font-semibold"
+                        className="bg-primary/15 text-primary border border-primary/30 px-3 py-1 rounded-full text-xs font-semibold"
                     >
                         Current session
                     </Badge>
@@ -136,15 +150,15 @@ function SessionCard({ session, isCurrentSession = false }: SessionCardProps) {
             </CardHeader>
             <CardContent className="pt-4">
                 <div className="flex items-start gap-4">
-                    <div className="mt-1 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+                    <div className="mt-1 flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
                         {userAgentInfo?.device.type === "mobile" ? <Smartphone className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
                     </div>
                     <div className="space-y-1.5">
-                        <p className="text-sm text-muted-foreground">
-                            Created: <span className="font-medium text-gray-800">{formatDate(session.createdAt)}</span>
+                        <p className="text-sm md:text-base text-muted-foreground">
+                            Created: <span className="font-medium text-foreground">{formatDate(session.createdAt)}</span>
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                            Expires: <span className="font-medium text-gray-800">{formatDate(session.expiresAt)}</span>
+                        <p className="text-sm md:text-base text-muted-foreground">
+                            Expires: <span className="font-medium text-foreground">{formatDate(session.expiresAt)}</span>
                         </p>
                     </div>
                 </div>

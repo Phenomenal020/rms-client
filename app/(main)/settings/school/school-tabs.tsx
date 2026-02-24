@@ -1,15 +1,19 @@
 "use client";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shadcn/ui/tabs";
+import { Tabs, TabsContent } from "@/shadcn/ui/tabs";
+import { Button } from "@/shadcn/ui/button";
 import { SchoolForm } from "./school-form";
 import { TermForm } from "./term-form";
 import { useUser } from "@/contexts/user-context";
 import Loading from "./loading";
+import { useState } from "react";
 
 export default function SchoolTabs() {
 
-    // user data comes from context (backed by SWR: '/users/user')
+    // Fetch user data using SWR hook
     const { user, isLoading, error } = useUser();
+
+    const [activeTab, setActiveTab] = useState("school");
 
     // While the user is loading, don't render forms that depend on the user shape yet.
     // SWR will re-render this component automatically once `user` becomes available.
@@ -19,36 +23,39 @@ export default function SchoolTabs() {
 
     if (error) {
         return (
-            <div className="w-full rounded-xl border border-red-200 bg-red-50/60 p-4 text-sm text-red-700">
+            <div className="w-full rounded-xl border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
                 Failed to load your settings. Please refresh the page.
             </div>
         );
     }
 
-    return (
-        <Tabs defaultValue="school" className="w-full">
-            {/* Tabs List */}
-            <TabsList className="flex justify-center w-full mx-auto bg-white/60 backdrop-blur-sm rounded-lg p-1 gap-1 mb-8 shadow-sm border border-blue-100/50">
+    if (!user) {
+        return <Loading />;
+    }
 
-                {/* School Tab */}
-                <TabsTrigger
-                    value="school"
-                    className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50"
+    return (
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            {/* Buttons List */}
+            <div className="flex flex-wrap justify-center gap-0 mb-2">
+                <Button
+                    onClick={() => setActiveTab("school")}
+                    variant={activeTab === "school" ? "default" : "outline"}
+                    className="h-10 cursor-pointer mb-0 rounded-sm"
                 >
                     School
-                </TabsTrigger>
+                </Button>
 
-                {/* Term Tab (disabled if no school yet) */}
-                <TabsTrigger
-                    value="term"
+                <Button
+                    onClick={() => setActiveTab("term")}
+                    variant={activeTab === "term" ? "default" : "outline"}
                     disabled={!user?.schoolId}
-                    className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50 data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed"
+                    className="h-10 cursor-pointer mb-0 rounded-sm"
                 >
                     Term
-                </TabsTrigger>
-            </TabsList>
+                </Button>
+            </div>
 
-            {/* Tabs Content - School and Term Forms */}
+            {/* Tabs Content */}
             <div className="w-full">
                 {/* School Tab Content - Renders school form */}
                 <TabsContent value="school" className="mt-0">
@@ -61,5 +68,5 @@ export default function SchoolTabs() {
                 </TabsContent>
             </div>
         </Tabs>
-    )
+    );
 }

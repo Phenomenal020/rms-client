@@ -1,48 +1,50 @@
 "use client";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shadcn/ui/tabs";
+import { Tabs, TabsContent } from "@/shadcn/ui/tabs";
+import { Button } from "@/shadcn/ui/button";
 import { SubjectsForm } from "./subjects-form";
 import { AssessmentStructureForm } from "./assessment-structure-form";
-import type { Subject, AssessmentStructure } from "@/src/generated/prisma/client";
 import { useUser } from "@/contexts/user-context";
 import Loading from "./loading";
+import { useState } from "react";
 
-// Subjects Tabs component
 export default function SubjectsTabs() {
 
-    // Get the subjects and assessment structure from the user context
+    // Fetch subjects and assessment structure from context
     const { subjects, assessmentStructure } = useUser();
 
+    const [activeTab, setActiveTab] = useState("subjects");
+
     // Check if there are any subjects (to disable assessment structure tab if no subjects)
-    const hasSubjects = subjects?.length > 0;
+    const hasSubjects = subjects?.length && subjects.length > 0;
 
     if (!subjects) {
-        return <Loading />
+        return <Loading />;
     }
 
     return (
-        <Tabs defaultValue="subjects" className="w-full">
-            {/* Tabs List */}
-            <TabsList className="flex justify-center w-full mx-auto bg-white/60 backdrop-blur-sm rounded-lg p-1 gap-1 mb-8 shadow-sm border border-blue-100/50">
-                {/* Subjects Tab */}
-                <TabsTrigger
-                    value="subjects"
-                    className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50"
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            {/* Buttons List */}
+            <div className="flex flex-wrap justify-center gap-0 mb-2">
+                <Button
+                    onClick={() => setActiveTab("subjects")}
+                    variant={activeTab === "subjects" ? "default" : "outline"}
+                    className="h-10 cursor-pointer mb-0 rounded-sm"
                 >
                     Subjects
-                </TabsTrigger>
+                </Button>
 
-                {/* Assessment Structure Tab (disabled if no subjects yet) */}
-                <TabsTrigger
-                    value="assessment"
+                <Button
+                    onClick={() => setActiveTab("assessment")}
+                    variant={activeTab === "assessment" ? "default" : "outline"}
                     disabled={!hasSubjects}
-                    className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50 data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed"
+                    className="h-10 cursor-pointer mb-0 rounded-sm"
                 >
                     Assessment Structure
-                </TabsTrigger>
-            </TabsList>
+                </Button>
+            </div>
 
-            {/* Tabs Content - Subjects and Assessment Structure Forms */}
+            {/* Tabs Content */}
             <div className="w-full">
                 {/* Subjects Tab Content - Renders subjects form */}
                 <TabsContent value="subjects" className="mt-0">
@@ -55,6 +57,6 @@ export default function SubjectsTabs() {
                 </TabsContent>
             </div>
         </Tabs>
-    )
+    );
 }
 

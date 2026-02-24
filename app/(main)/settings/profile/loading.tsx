@@ -7,7 +7,7 @@ export default function Loading() {
   return (
     <Tabs defaultValue="account" className="w-full">
       {/* Tabs List */}
-      <TabsList className="flex justify-center w-full mx-auto bg-white/60 backdrop-blur-sm rounded-lg p-1 gap-1 mb-8 shadow-sm border border-blue-100/50">
+      <TabsList className="flex justify-center w-full mx-auto bg-card/60 backdrop-blur-sm rounded-lg p-1 gap-1 mb-8 shadow-sm border border-border/50">
         {/* Account Tab Skeleton */}
         <Skeleton className="h-10 w-20 rounded-md" />
 
@@ -33,7 +33,7 @@ export default function Loading() {
               <div className="space-y-6">
                 {/* Personal Information Section */}
                 <div className="space-y-6">
-                  <div className="pb-2 border-b border-gray-200">
+                  <div className="pb-2 border-b border-border">
                     <Skeleton className="h-6 w-48" />
                   </div>
 
@@ -73,7 +73,7 @@ export default function Loading() {
                 </div>
 
                 {/* Submit Button Skeleton */}
-                <div className="pt-6 border-t border-gray-200 mt-6">
+                <div className="pt-6 border-t border-border mt-6">
                   <div className="flex justify-center">
                     <Skeleton className="h-10 w-40" />
                   </div>

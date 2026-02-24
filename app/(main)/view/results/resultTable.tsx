@@ -130,6 +130,8 @@ export function ResultTable({
         });
     };
 
+    // Watch form values so we can show live totals while editing
+    const watchedSubjects = form.watch("subjects");
 
     return (
         <div className="mb-8">
@@ -137,10 +139,10 @@ export function ResultTable({
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
 
                     {/* Academic Performance Title and Edit Scores Button */}
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-1 md:mb-2">
 
                         {/* Academic Performance Header Text */}
-                        <h3 className="text-lg md:text-xl font-bold text-gray-800 border-gray-300 pb-2">
+                        <h3 className="text-base sm:text-lg font-bold text-foreground border-border">
                             ACADEMIC PERFORMANCE
                         </h3>
 
@@ -151,10 +153,10 @@ export function ResultTable({
                                 disabled={isGlobalEditing}
                                 variant="outline"
                                 size="sm"
-                                className="border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer"
+                                className="border-border text-foreground hover:bg-muted cursor-pointer"
                             >
                                 <Edit3 className="w-4 h-4 mr-2" />
-                                Edit
+                                
                             </Button>
                         ) : (
                             <div className="flex gap-2">
@@ -163,7 +165,7 @@ export function ResultTable({
                                     type="submit"
                                     size="sm"
                                     disabled={isPending || !form.formState.isDirty}
-                                    className="bg-gray-800 hover:bg-gray-900 text-white cursor-pointer"
+                                    className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
                                 >
                                     {isPending ? (
                                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -178,7 +180,7 @@ export function ResultTable({
                                     variant="outline"
                                     size="sm"
                                     disabled={isPending}
-                                    className="border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer"
+                                    className="border-border text-foreground hover:bg-muted cursor-pointer"
                                 >
                                     <X className="w-4 h-4 mr-2" />
                                     Cancel
@@ -189,33 +191,33 @@ export function ResultTable({
 
                     {/* Result Table */}
                     <div className="overflow-x-auto">
-                        <table className="w-full border-collapse border border-gray-300">
+                        <table className="w-full border-collapse border border-border ">
                             {/* Table headers - dynamically generated from assessment structure */}
                             <thead>
-                                <tr className="bg-gray-100">
+                                <tr className="bg-muted">
                                     {/* Subject Header */}
-                                    <th className="border border-gray-300 p-3 text-left font-semibold text-gray-700 text-sm md:text-base">
+                                    <th className="border border-border p-2 md:p-3 text-left font-semibold text-foreground text-sm sm:text-base sticky left-0 z-20 bg-muted">
                                         Subject
                                     </th>
                                     {/* Assessment Headers */}
                                     {sortedAssessments.map((assessment) => (
                                         <th
                                             key={assessment.type}
-                                            className="border border-gray-300 p-3 text-center font-semibold text-gray-700 text-sm md:text-base"
+                                            className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base"
                                         >
                                             {assessment.type} ({assessment.percentage}%)
                                         </th>
                                     ))}
                                     {/* Total Score Header */}
-                                    <th className="border border-gray-300 p-3 text-center font-semibold text-gray-700 text-sm md:text-base">
+                                    <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base">
                                         Total (100%)
                                     </th>
                                     {/* Grade Header */}
-                                    <th className="border border-gray-300 p-3 text-center font-semibold text-gray-700 text-sm md:text-base">
+                                    <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base">
                                         Grade
                                     </th>
                                     {/* Remark Header */}
-                                    <th className="border border-gray-300 p-3 text-center font-semibold text-gray-700 text-sm md:text-base">
+                                    <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base">
                                         Remark
                                     </th>
                                 </tr>
@@ -226,18 +228,28 @@ export function ResultTable({
                                 {enrolledSubjects && enrolledSubjects.length > 0 ? (
                                     enrolledSubjects.map((enrolledSubject: StudentSubject, index: number) => {
 
-                                        // Get scores from subject
+                                        // Get scores from subject (original data)
                                         const scores = enrolledSubject.assessments[0]?.scores || [];
-                                        // Compute percentage, grade and remark
-                                        const percentage = getScorePercentage(scores); // Already out of 100
+                                        
+                                        // Get watched form row for live updates
+                                        const formRow = watchedSubjects?.[index];
+                                        const totalFromForm = formRow?.scores?.reduce(
+                                            (sum: number, s: { assessmentStructureId: string; score: number }) => sum + (Number(s.score) || 0),
+                                            0
+                                        ) ?? 0;
+
+                                        // Compute percentage: use form values when editing, original data otherwise
+                                        const percentage = isEditingScores
+                                            ? totalFromForm
+                                            : getScorePercentage(scores);
                                         const grade = getGrade(percentage);
                                         const remark = getRemark(grade);
 
                                         return (
-                                            <tr key={index} className="hover:bg-gray-50">
+                                            <tr key={index} className="hover:bg-muted">
 
                                                 {/* Subject Name */}
-                                                <td className="border border-gray-300 p-3 font-medium text-gray-900 text-sm md:text-base">
+                                                <td className="border border-border p-3 font-medium text-foreground text-sm sm:text-base whitespace-nowrap sticky left-0 z-10 bg-card">
                                                     {enrolledSubject.subject.name}
                                                 </td>
                                                 {/* Dynamically render assessment type columns (assessment headers) */}
@@ -251,7 +263,7 @@ export function ResultTable({
                                                     return (
                                                         <td
                                                             key={assessmentType}
-                                                            className="border border-gray-300 p-3 text-center text-sm md:text-base"
+                                                            className="border border-border p-1.5 md:p-3 text-center text-sm sm:text-base"
                                                         >
                                                             {isEditingScores ? (
                                                                 <FormField
@@ -271,7 +283,7 @@ export function ResultTable({
                                                                                                 : Number(e.target.value)
                                                                                         )
                                                                                     }
-                                                                                    className="w-16 h-8 text-center text-xs md:text-sm border-gray-200 focus:border-gray-400"
+                                                                                    className="w-16 h-8 text-center text-xs sm:text-sm border-border focus:border-input"
                                                                                 />
                                                                             </FormControl>
                                                                             <FormMessage />
@@ -279,24 +291,24 @@ export function ResultTable({
                                                                     )}
                                                                 />
                                                             ) : (
-                                                                <span className="text-gray-700">{scoreValue}</span>
+                                                                <span className="text-foreground">{scoreValue}</span>
                                                             )}
                                                         </td>
                                                     );
                                                 })}
 
                                                 {/* Total score */}
-                                                <td className="border border-gray-300 p-3 text-center font-semibold text-gray-900 text-sm md:text-base">
+                                                <td className="border border-border p-3 text-center font-semibold text-foreground text-sm sm:text-base">
                                                     {percentage}
                                                 </td>
 
                                                 {/* Grade */}
-                                                <td className="border border-gray-300 p-3 text-center font-bold text-gray-900 text-sm md:text-base">
+                                                <td className="border border-border p-3 text-center font-bold text-foreground text-sm sm:text-base">
                                                     {grade}
                                                 </td>
 
                                                 {/* Remark */}
-                                                <td className="border border-gray-300 p-3 text-center text-gray-700 text-sm md:text-base">
+                                                <td className="border border-border p-3 text-center text-foreground text-sm sm:text-base">
                                                     {remark}
                                                 </td>
                                             </tr>
@@ -306,7 +318,7 @@ export function ResultTable({
                                     <tr>
                                         <td
                                             colSpan={sortedAssessments.length + 4}
-                                            className="border border-gray-300 p-3 text-center text-gray-500 text-sm md:text-base"
+                                            className="border border-border p-3 text-center text-muted-foreground text-sm sm:text-base"
                                         >
                                             No subjects available
                                         </td>
@@ -321,4 +333,3 @@ export function ResultTable({
         </div>
     )
 }
-// 

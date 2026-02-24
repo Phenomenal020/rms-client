@@ -13,7 +13,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import type { AssessmentStructure, UpsertAssessmentStructurePayload } from "@/types/school";
-import { useUpsertAssessmentStructures } from "@/fetcher/mutations";
+import { useUpsertAssessmentStructures, getErrorMessage } from "@/fetcher/mutations";
 
 // Assessment Structure Schema: id(string or number), type(string), percentage(number string), order(number)
 const assessmentStructureSchema = z.object({
@@ -59,7 +59,7 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
     // router - to refresh the page after updating assessment structures
     const router = useRouter();
 
-    const { upsertAssessmentStructures, isMutating, error, errorMessage } = useUpsertAssessmentStructures();
+    const { upsertAssessmentStructures, isMutating, error } = useUpsertAssessmentStructures();
 
     // form instance
     const form = useForm<AssessmentStructureFormValues>({
@@ -338,9 +338,9 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
             toast.success("Assessment structure updated successfully");
             router.refresh();
         }
-        catch (err) {
+        catch (err: any) {
             toast.error("Failed to update assessment structure", {
-                description: errorMessage || "An unexpected error occurred. Please try again.",
+                description: getErrorMessage(err),
             });
         }
     }
@@ -354,21 +354,21 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                         {/* Assessment Structure Section */}
-                        <div className="space-y-5 mt-8">
+                        <div className="space-y-4">
 
-                            {/* Assessment Structure Section Header */}
-                            <div className="pb-2 border-b border-gray-200">
-                                <h3 className="text-xl sm:text-2xl font-bold text-gray-700 uppercase tracking-wide">Assessment Structure</h3>
+                            {/* Assessment Structure Section subheading (h3) */}
+                            <div className="pb-2 border-b border-border">
+                                <h3 className="text-lg sm:text-xl font-bold text-foreground uppercase tracking-wide">Assessment Structure</h3>
                             </div>
 
                             {/* Add/Edit Assessment Entry Description */}
-                            <p className="text-sm text-gray-700 font-medium">Add assessment components (e.g., CA: 30%, Exam: 70%. Should equal 100%)</p>
+                            <p className="text-xs md:text-sm text-muted-foreground">Add assessment components (e.g., CA: 30%, Exam: 70%. Should equal 100%)</p>
 
                             {/* Add/Edit Assessment Entry */}
-                            <div className="grid grid-cols-12 gap-2 items-end">
+                            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
 
                                 {/* Assessment Type Field */}
-                                <div className="col-span-4">
+                                <div className="col-span-12 sm:col-span-4">
                                     {/* Assessment Type Field */}
                                     <Input
                                         placeholder="Assessment Type (e.g., CA, Exam, Project)"
@@ -376,12 +376,12 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
                                         onChange={(e) =>
                                             setNewAssessmentEntry({ ...newAssessmentEntry, type: e.target.value })
                                         }
-                                        className="h-14 text-base"
+                                        className="h-10 md:h-14 text-sm md:text-base"
                                     />
                                 </div>
 
                                 {/* Percentage Field */}
-                                <div className="col-span-3">
+                                <div className="col-span-12 sm:col-span-3">
                                     <Input
                                         placeholder="Percentage"
                                         type="number"
@@ -391,12 +391,12 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
                                         onChange={(e) =>
                                             setNewAssessmentEntry({ ...newAssessmentEntry, percentage: e.target.value })
                                         }
-                                        className="h-14 text-base"
+                                        className="h-10 md:h-14 text-sm md:text-base"
                                     />
                                 </div>
 
                                 {/* Order Field */}
-                                <div className="col-span-2">
+                                <div className="col-span-12 sm:col-span-2">
                                     <Input
                                         placeholder="Order (1, 2, 3...)"
                                         type="text"
@@ -416,16 +416,16 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
                                             }
                                             // If invalid, don't update state (prevents invalid input without spamming errors)
                                         }}
-                                        className="h-14 text-base"
+                                        className="h-10 md:h-14 text-sm md:text-base"
                                     />
                                 </div>
 
                                 {/* Add Button */}
-                                <div className="col-span-3">
+                                <div className="col-span-12 sm:col-span-3">
                                     <Button
                                         type="button"
                                         onClick={addAssessmentEntry}
-                                        className="w-full h-14 text-base"
+                                        className="w-full h-10 md:h-14 text-sm md:text-base"
                                         disabled={editingAssessmentIndex !== null}
                                     >
                                         <Plus className="w-4 h-4" />
@@ -471,13 +471,13 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
                                             return (
                                                 <div
                                                     key={entry.fieldKey || entry.id || originalIndex}
-                                                    className={`flex items-center justify-between p-3 rounded-md border ${isEditing
-                                                        ? "bg-blue-50 border-blue-300"
-                                                        : "bg-gray-50 border-gray-200"
+                                                    className={`flex items-center justify-between p-3 md:p-4 rounded-md border text-sm md:text-base ${isEditing
+                                                        ? "bg-primary/10 border-primary/30"
+                                                        : "bg-muted border-border"
                                                         }`}
                                                 >
                                                     {/* If editing, show the input fields. Otherwise, show the assessment order, type and percentage span elements */}
-                                                    <div className="flex items-center gap-3 flex-1">
+                                                    <div className="flex items-center gap-2 md:gap-3 flex-1">
                                                         {isEditing ? (
                                                             <>
                                                                 {/* Order Input */}
@@ -485,7 +485,7 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
                                                                     type="text"
                                                                     value={displayEntry.order ?? ""}
                                                                     onChange={(e) => setCurrentAssessmentEntry({ ...currentAssessmentEntry, order: e.target.value })}
-                                                                    className="w-16 h-14 text-base"
+                                                                    className="w-16 h-10 md:h-14 text-sm md:text-base"
                                                                     placeholder="Order"
                                                                 />
                                                                 {/* Type Input */}
@@ -493,7 +493,7 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
                                                                     type="text"
                                                                     value={displayEntry.type ?? ""}
                                                                     onChange={(e) => setCurrentAssessmentEntry({ ...currentAssessmentEntry, type: e.target.value })}
-                                                                    className="flex-1 h-14 text-base"
+                                                                    className="flex-1 h-10 md:h-14 text-sm md:text-base"
                                                                     placeholder="Type"
                                                                 />
                                                                 {/* Percentage Input */}
@@ -503,16 +503,16 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
                                                                     max="100"
                                                                     value={displayEntry.percentage ?? ""}
                                                                     onChange={(e) => setCurrentAssessmentEntry({ ...currentAssessmentEntry, percentage: e.target.value })}
-                                                                    className="w-24 h-14 text-base"
+                                                                    className="w-24 h-10 md:h-14 text-sm md:text-base"
                                                                     placeholder="%"
                                                                 />
                                                             </>
                                                         ) : (
                                                             <>
-                                                                <span className="text-sm font-semibold text-gray-500 min-w-[2rem]">
+                                                                <span className="text-xs md:text-sm font-semibold text-muted-foreground min-w-[2rem]">
                                                                     #{displayEntry?.order || "—"}
                                                                 </span>
-                                                                <span className="text-gray-700 font-medium">
+                                                                <span className="text-foreground font-medium">
                                                                     {displayEntry?.type || ""}: {displayEntry?.percentage || 0}%
                                                                 </span>
                                                             </>
@@ -520,7 +520,7 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
                                                     </div>
 
                                                     {/* Update/Cancel Edit Button or Edit/Remove Assessment Entry Button */}
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex items-center">
                                                         {/* if editing, show a ✓ and X icon */}
                                                         {isEditing ? (
                                                             <>
@@ -529,7 +529,7 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
                                                                     variant="ghost"
                                                                     size="sm"
                                                                     onClick={updateAssessmentEntry}
-                                                                    className="text-green-500 hover:text-green-700"
+                                                                    className="h-8 md:h-10 text-sm md:text-base text-primary hover:text-primary/80"
                                                                 >
                                                                     <Check className="w-4 h-4" />
                                                                 </Button>
@@ -538,7 +538,7 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
                                                                     variant="ghost"
                                                                     size="sm"
                                                                     onClick={cancelEditAssessment}
-                                                                    className="text-gray-500 hover:text-gray-700"
+                                                                    className="h-8 md:h-10 text-sm md:text-base text-muted-foreground hover:text-foreground"
                                                                 >
                                                                     <X className="w-4 h-4" />
                                                                 </Button>
@@ -551,7 +551,7 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
                                                                     variant="ghost"
                                                                     size="sm"
                                                                     onClick={() => editAssessmentEntry(originalIndex)}
-                                                                    className="text-blue-500 hover:text-blue-700"
+                                                                    className="h-8 md:h-10 text-sm md:text-base text-primary hover:text-primary/80"
                                                                     disabled={editingAssessmentIndex !== null}
                                                                 >
                                                                     <Pencil className="w-4 h-4" />
@@ -561,7 +561,7 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
                                                                     variant="ghost"
                                                                     size="sm"
                                                                     onClick={() => removeAssessmentEntry(originalIndex)}
-                                                                    className="text-red-500 hover:text-red-700"
+                                                                    className="h-8 md:h-10 text-sm md:text-base text-destructive hover:text-destructive/80"
                                                                     disabled={editingAssessmentIndex !== null}
                                                                 >
                                                                     <X className="w-4 h-4" />
@@ -586,24 +586,22 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
                                     <div className="text-right">
                                         <div className="space-y-1">
                                             <span
-                                                className={`text-sm font-medium ${total === 100
-                                                    ? "text-green-600"
-                                                    : total > 100
-                                                        ? "text-red-500"
-                                                        : "text-orange-500"
+                                                className={`text-xs md:text-sm font-medium ${total === 100
+                                                    ? "text-primary"
+                                                    : "text-destructive"
                                                     }`}
                                             >
                                                 Total: {total}%
                                             </span>
                                             {total !== 100 && (
-                                                <p className="text-xs text-red-500">
+                                                <p className="text-xs text-destructive">
                                                     {total < 100
                                                         ? "Total should be 100%. Please add more assessment components."
                                                         : "Total should be 100%. Please adjust the percentages."}
                                                 </p>
                                             )}
                                             {total === 100 && (
-                                                <p className="text-xs text-green-500">
+                                                <p className="text-xs text-primary">
                                                     Total is 100%. Assessment structure is valid.
                                                 </p>
                                             )}
@@ -624,15 +622,23 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
                             />
                         </div>
 
-                        {/* Submit Button */}
-                        <div className="pt-6 border-t border-gray-200 mt-6">
-                            {/* Submit Button Container */}
-                            <div className="flex justify-center">
+                        {/* Submit / Discard Buttons */}
+                        <div className="pt-4 md:pt-6 border-t border-border mt-4 md:mt-6">
+                            <div className="flex justify-center gap-3">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={!form.formState.isDirty || loading}
+                                    onClick={() => { form.reset(); cancelEditAssessment(); }}
+                                    className="w-max h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                                >
+                                    Discard Changes
+                                </Button>
                                 <LoadingButton
                                     type="submit"
                                     disabled={loading || editingAssessmentIndex !== null || !form.formState.isDirty}
                                     loading={loading}
-                                    className="w-full sm:w-auto min-w-[160px] h-12 text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                                    className="w-max h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
                                 >
                                     {loading ? "Saving..." : "Save Changes"}
                                 </LoadingButton>
@@ -644,4 +650,3 @@ export function AssessmentStructureForm({ assessmentStructure }: AssessmentStruc
         </Card>
     );
 }
-

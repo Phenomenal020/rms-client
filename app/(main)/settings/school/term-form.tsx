@@ -24,7 +24,7 @@ import { z } from "zod";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { GradingSystem } from "./grading-system";
-import { useUpsertTerm } from "@/fetcher/mutations";
+import { useUpsertTerm, getErrorMessage } from "@/fetcher/mutations";
 // import type { AcademicTermData } from "./types";   // TODO: Fix this to be derived from the payload type
 import type { GradingEntry } from "@/types/term";
 
@@ -324,14 +324,13 @@ export function TermForm({ academicTerm }: TermFormProps) {
       toast.success("Term information saved successfully", {
         description: "Your term details have been saved",
       });
+      router.refresh();
     }
     catch (err: any) {
-      // Error handling - the mutation's onError already logs it
-      // Show user-friendly error message
-      const errorMessage = err?.response?.data?.message || err?.message || "An unexpected error occurred";
       toast.error("Failed to save term information", {
-        description: errorMessage,
+        description: getErrorMessage(err),
       });
+      router.refresh();
     }
   }
 
@@ -380,26 +379,30 @@ export function TermForm({ academicTerm }: TermFormProps) {
           >
 
             {/* Term Information Section */}
-            <div className="space-y-6">
-              <div className="pb-2 border-b border-gray-200">
-                <h3 className="text-xl sm:text-2xl font-bold text-gray-700 uppercase tracking-wide">Term Information</h3>
+            <div className="space-y-4">
+
+              {/* Term Information Section subheading (h3) */}
+              <div className="pb-2 border-b border-border">
+                <h3 className="text-lg sm:text-xl font-bold text-foreground uppercase tracking-wide">Term Information</h3>
               </div>
 
               {/* Term and Academic Year Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Academic Year Field */}
                 <FormField
                   control={form.control}
                   name="academicYear"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-base text-gray-700 font-semibold">Academic Year</FormLabel>
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">
+                        Academic Year<span className="text-destructive text-base">*</span>
+                      </FormLabel>
                       <FormControl>
                         <Input
                           type="text"
                           {...field}
                           placeholder="e.g., 2024/2025"
-                          className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
+                          className="h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary"
                         />
                       </FormControl>
                       <FormMessage />
@@ -413,13 +416,15 @@ export function TermForm({ academicTerm }: TermFormProps) {
                   name="className"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-base text-gray-700 font-semibold">Class Name</FormLabel>
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">
+                        Class<span className="text-destructive text-base">*</span>
+                      </FormLabel>
                       <FormControl>
                         <Input
                           type="text"
                           {...field}
                           placeholder="e.g., JSS 1A"
-                          className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
+                          className="h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary"
                         />
                       </FormControl>
                       <FormMessage />
@@ -433,10 +438,12 @@ export function TermForm({ academicTerm }: TermFormProps) {
                   name="term"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-base text-gray-700 font-semibold">Term</FormLabel>
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">
+                        Term<span className="text-destructive text-base">*</span>
+                      </FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger className="h-14 text-base w-full">
+                          <SelectTrigger className="h-10 md:h-14 text-sm md:text-base w-full">
                             <SelectValue placeholder="Select term" />
                           </SelectTrigger>
                         </FormControl>
@@ -453,21 +460,21 @@ export function TermForm({ academicTerm }: TermFormProps) {
               </div>
 
               {/* Term Start and End Dates Row */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Term Start Date */}
                 <FormField
                   control={form.control}
                   name="termStart"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-base text-gray-700 font-semibold">Term Start Date (Optional)</FormLabel>
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">Term Start</FormLabel>
                       <Popover open={termStartOpen} onOpenChange={setTermStartOpen}>
                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
                               variant="outline"
                               size="default"
-                              className="w-full h-14 text-base justify-between font-normal"
+                              className="w-full h-10 md:h-14 text-sm md:text-base justify-between font-normal"
                             >
                               {field.value ? format(field.value, "PPP") : "Select date"}
                               <ChevronDown className="w-4 h-4 opacity-50" />
@@ -497,14 +504,14 @@ export function TermForm({ academicTerm }: TermFormProps) {
                   name="termEnd"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-base text-gray-700 font-semibold">Term End Date (Optional)</FormLabel>
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">Term End</FormLabel>
                       <Popover open={termEndOpen} onOpenChange={setTermEndOpen}>
                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
                               variant="outline"
                               size="default"
-                              className="w-full h-14 text-base justify-between font-normal"
+                              className="w-full h-10 md:h-14 text-sm md:text-base justify-between font-normal"
                             >
                               {field.value ? format(field.value, "PPP") : "Select date"}
                               <ChevronDown className="w-4 h-4 opacity-50" />
@@ -534,14 +541,14 @@ export function TermForm({ academicTerm }: TermFormProps) {
                   name="termDays"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-base text-gray-700 font-semibold">Term Days (Optional)</FormLabel>
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">Term Days</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           type="number"
                           min={0}
                           placeholder="Enter number of days in term"
-                          className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
+                          className="h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary"
                           value={field.value || 0}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                             const value = e.target.value === "0" ? undefined : Number(e.target.value);
@@ -568,14 +575,23 @@ export function TermForm({ academicTerm }: TermFormProps) {
               cancelEdit={cancelEdit}
             />
 
-            {/* Submit Button */}
-            <div className="pt-6 border-t border-gray-200 mt-6">
-              <div className="flex justify-center">
+            {/* Submit / Discard Buttons */}
+            <div className="pt-4 md:pt-6 border-t border-border mt-4 md:mt-6">
+              <div className="flex justify-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!form.formState.isDirty || loading}
+                  onClick={() => { form.reset(); cancelEdit(); }}
+                  className="w-max h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                >
+                  Discard Changes
+                </Button>
                 <LoadingButton
                   type="submit"
                   loading={loading}
                   disabled={!form.formState.isDirty || loading || editingIndex !== null}
-                  className="w-full sm:w-auto min-w-[160px] h-12 text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                  className="w-max h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
                 >
                   Save Changes
                 </LoadingButton>

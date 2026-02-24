@@ -14,7 +14,7 @@ export default function SettingsPage() {
 
   // return the main layout
   return (
-    <main className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50/40 to-indigo-50/30 relative overflow-hidden">
+    <main className="min-h-screen w-full bg-background relative overflow-hidden">
 
       <div className="relative mx-auto w-full max-w-5xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
 
@@ -25,14 +25,14 @@ export default function SettingsPage() {
         <div className="text-center mb-10 sm:mb-12">
 
           {/* Profile Settings > header */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 tracking-tight mb-2 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground tracking-tight mb-1">
             Profile Settings
           </h1>
 
           {/* Profile Settings > description */}
-          <p className="text-lg sm:text-2xl text-gray-600 font-medium mx-auto mb-6">
+          <h3 className="text-lg sm:text-xl lg:text-2xl text-muted-foreground font-medium mx-auto mb-4">
             Manage your account information, update email, and password.
-          </p>
+          </h3>
 
         </div>
 

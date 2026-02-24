@@ -217,7 +217,7 @@ const SpreadsheetPage = ({ user, academicTerm }) => {
   // -------------------------------------------------------------------
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-full mx-auto">
         {/* Header - contains save, export, and print buttons */}
         <Header
@@ -227,7 +227,7 @@ const SpreadsheetPage = ({ user, academicTerm }) => {
         />
 
         {/* Spreadsheet Grid */}
-        <div className="bg-white rounded-lg shadow-sm p-4">
+        <div className="bg-card rounded-lg shadow-sm p-4">
           <SpreadsheetGrid
             students={students}
             subjects={subjects}
@@ -265,11 +265,11 @@ const Header = ({ handleSave, handleExport, handlePrint }) => {
   return (
     <div className="mb-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Spreadsheet</h1>
+        <h1 className="text-2xl font-bold text-foreground">Spreadsheet</h1>
         <div className="flex gap-2">
           <Button
             onClick={handleSave}
-            className="bg-gray-800 hover:bg-gray-900 text-white"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             <Save className="w-4 h-4 mr-2" />
             Save
@@ -277,7 +277,7 @@ const Header = ({ handleSave, handleExport, handlePrint }) => {
           <Button
             onClick={handlePrint}
             variant="outline"
-            className="border-gray-300 text-gray-700 hover:bg-gray-50"
+            className="border-border text-foreground hover:bg-muted"
           >
             <Printer className="w-4 h-4 mr-2" />
             Print
@@ -285,7 +285,7 @@ const Header = ({ handleSave, handleExport, handlePrint }) => {
           <Button
             onClick={handleExport}
             variant="outline"
-            className="border-gray-300 text-gray-700 hover:bg-gray-50"
+            className="border-border text-foreground hover:bg-muted"
           >
             <Download className="w-4 h-4 mr-2" />
             Export

@@ -36,7 +36,8 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { useUser } from "@/contexts/user-context";
 import { Student, UpsertStudentsPayload } from "@/types/students";
-import { useUpsertStudents } from "@/fetcher/mutations";
+import { StudentSubject } from "@/types/drizzle";
+import { useUpsertStudents, getErrorMessage } from "@/fetcher/mutations";
 import Loading from "./loading";
 
 
@@ -47,23 +48,17 @@ const studentSchema = z.object({
   middleName: z.string().trim().optional(),  // optional field
   lastName: z.string().trim().min(1, { message: "Last name is required" }),  // required field
   dateOfBirth: z.string().optional(), // optional field
-  gender: z.preprocess(
-    (val) => val === "" || val === undefined ? undefined : val,
-    z.enum(["NONE", "MALE", "FEMALE"]).optional()
-  ), // optional field - transform empty string to undefined
-  department: z.preprocess(
-    (val) => val === "" || val === undefined ? undefined : val,
-    z.enum(["NONE", "SCIENCE", "ARTS", "GENERAL"]).optional()
-  ), // Optional per schema - transform empty string to undefined
-  daysPresent: z.preprocess(
-    (val) => {
+  gender: z.enum(["", "NONE", "MALE", "FEMALE"]).optional()
+    .transform((val) => val === "" || val === undefined ? undefined : val),
+  department: z.enum(["", "NONE", "SCIENCE", "ARTS", "GENERAL"]).optional()
+    .transform((val) => val === "" || val === undefined ? undefined : val),
+  daysPresent: z.union([z.number(), z.string(), z.undefined()]).optional()
+    .transform((val) => {
       if (val === "" || val === undefined || val === null) return undefined;
       const num = typeof val === "string" ? Number(val) : (typeof val === "number" ? val : undefined);
       if (num === undefined || isNaN(num) || num < 0) return undefined;
       return num;
-    },
-    z.number().min(0, { message: "Days present must be a valid number" }).optional()
-  ),
+    }).pipe(z.number().min(0, { message: "Days present must be a valid number" }).optional()),
   subjects: z
     .array(z.object({ id: z.string(), name: z.string() }))  // array of objects with id and name fields
     .min(1, { message: "At least one subject is required" })  // at least one subject is required
@@ -107,13 +102,13 @@ export function StudentsForm() {
   const { students, subjects } = useUser();
 
   // Mutation hook for upserting students
-  const { upsertStudents, isMutating, errorMessage } = useUpsertStudents();
+  const { upsertStudents, isMutating } = useUpsertStudents();
 
   // Student form - on render (MUST be called before any conditional returns)
   const form = useForm({
     resolver: zodResolver(studentsFormSchema),
     defaultValues: { // default values for the form on render
-      students: students?.map((student: Student) => ({
+      students: students?.map((student) => ({
         id: student.id || undefined,
         firstName: student.firstName,
         middleName: student.middleName || "",
@@ -124,7 +119,7 @@ export function StudentsForm() {
         gender: student.gender || "",  // optional
         department: student.department || "",  // optional
         daysPresent: student.daysPresent ?? undefined,  // optional - keep as number or undefined
-        subjects: student.subjects.map((studentSubject: any) => ({
+        subjects: student.subjects.map((studentSubject: StudentSubject) => ({
           id: studentSubject.subject?.id,
           name: studentSubject.subject?.name,
         })),  // subjects list with id and name
@@ -140,14 +135,12 @@ export function StudentsForm() {
 
   useEffect(() => {
     // console.log('students changed:', students);
-  }, [students?.subjects]);
+  }, [students]);
 
   // Conditional return AFTER all hooks
   if (students === undefined || students === null) {
     return <Loading />
   }
-
-
 
   // Available subjects from academic term (with id and name)
   const availableSubjects = subjects?.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })) || [];
@@ -172,7 +165,7 @@ export function StudentsForm() {
 
     // Set the editing student index and id
     setEditingStudentIndex(studentIndex);
-    setEditingStudentId(student.id);
+    setEditingStudentId(student.id ?? null);
 
     // Populate the form with the selected student data
     setNewStudent({
@@ -181,8 +174,8 @@ export function StudentsForm() {
       middleName: student.middleName || "",
       lastName: student.lastName || "",
       dateOfBirth: student.dateOfBirth || "",
-      gender: student.gender || "",
-      department: student.department || "",
+      gender: (student.gender as string) || "",
+      department: (student.department as string) || "",
       daysPresent: student.daysPresent ? String(student.daysPresent) : "",
       subjects: student.subjects || [],
     });
@@ -318,39 +311,37 @@ export function StudentsForm() {
 
   // on submit function - update students + set status
   async function onSubmit(data: z.infer<typeof studentsFormSchema>) {
-    console.log('onSubmit called!', data);
     try {
       // transform students data with proper type conversions
       const studentsData = data.students.map((student) => {
-        const studentData: any = {
+        // Convert dateOfBirth from string to Date object if present
+        let dateOfBirth: Date | undefined = undefined;
+        if (student.dateOfBirth) {
+          const dateValue = typeof student.dateOfBirth === 'string'
+            ? new Date(student.dateOfBirth)
+            : student.dateOfBirth;
+          if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+            dateOfBirth = dateValue;
+          }
+        }
+
+        // daysPresent: ensure it's a valid number
+        let daysPresent: number | undefined = student.daysPresent || undefined;
+        if (daysPresent !== undefined && (isNaN(daysPresent) || daysPresent < 0)) {
+          daysPresent = undefined;
+        }
+
+        return {
           id: student.id || undefined,
           firstName: student.firstName,
           lastName: student.lastName,
           middleName: student.middleName || undefined,
           gender: student.gender || undefined,
           department: student.department || undefined,
-          daysPresent: student.daysPresent || undefined,
+          daysPresent,
           subjects: [...student.subjects],
+          dateOfBirth,
         };
-
-        // Convert dateOfBirth from string to Date object if present
-        if (student.dateOfBirth) {
-          const dateValue = typeof student.dateOfBirth === 'string'
-            ? new Date(student.dateOfBirth)
-            : student.dateOfBirth;
-          // Only include if it's a valid date
-          if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
-            studentData.dateOfBirth = dateValue;
-          }
-        }
-
-        // daysPresent is already a number from the schema, no conversion needed
-        // Ensure it's a valid number if it exists
-        if (studentData.daysPresent !== undefined && (isNaN(studentData.daysPresent) || studentData.daysPresent < 0)) {
-          studentData.daysPresent = undefined;
-        }
-
-        return studentData;
       });
 
       // Call mutation to update students
@@ -360,9 +351,8 @@ export function StudentsForm() {
       toast.success("Students updated successfully");
       router.refresh(); // Refresh the page to show updated data
     } catch (err) {
-      console.error("Error submitting form:", err);
       toast.error("Failed to update students", {
-        description: errorMessage || "An unexpected error occurred. Please try again.",
+        description: getErrorMessage(err),
       });
     }
   }
@@ -379,9 +369,9 @@ export function StudentsForm() {
             <div id="student-form-section" className="space-y-6">
 
               {/* Add/Edit Student Section Header */}
-              <div className="pb-2 border-b border-gray-200">
+              <div className="pb-2 border-b border-border">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl sm:text-2xl font-bold text-gray-700 uppercase tracking-wide">
+                  <h3 className="text-lg sm:text-xl font-bold text-foreground uppercase tracking-wide">
                     {editingStudentIndex !== null ? "Edit Student" : "Add New Student"}
                   </h3>
                 </div>
@@ -389,223 +379,217 @@ export function StudentsForm() {
 
               {/* New Student Form */}
               <Card className="border-0 shadow-none">
-                <CardContent className="space-y-6 p-2">
+                <CardContent className="space-y-4 p-2">
 
                   {/* Basic Information: Names */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
 
                     {/* First Name */}
-                    <div className="space-y-2">
-                      <FormLabel className="text-gray-700 font-semibold">
-                        First Name
+                    <div className="space-y-2 mb-4">
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">
+                        First Name<span className="text-destructive text-base">*</span>
                       </FormLabel>
-                      <Input
-                        placeholder="Enter student's first name"
-                        value={newStudent.firstName}
-                        onChange={(e) =>
-                          setNewStudent((prev) => ({
-                            ...prev,
-                            firstName: e.target.value,
-                          }))
-                        }
-                        className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
-                      />
+                      <div>
+                        <Input
+                          placeholder="Enter student's first name"
+                          value={newStudent.firstName}
+                          onChange={(e) =>
+                            setNewStudent((prev) => ({
+                              ...prev,
+                              firstName: e.target.value,
+                            }))
+                          }
+                          className="h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary w-full"
+                        />
+                      </div>
                     </div>
 
                     {/* Middle Name */}
-                    <div className="space-y-2">
-                      <FormLabel className="text-gray-700 font-semibold">
-                        Middle Name{" "}
-                        <span className="text-gray-500 font-normal">
-                          (optional)
-                        </span>
+                    <div className="space-y-2 mb-4">
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">
+                        Middle Name
                       </FormLabel>
-                      <Input
-                        placeholder="Enter student's middle name"
-                        value={newStudent.middleName}
-                        onChange={(e) =>
-                          setNewStudent((prev) => ({
-                            ...prev,
-                            middleName: e.target.value,
-                          }))
-                        }
-                        className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
-                      />
+                      <div>
+                        <Input
+                          placeholder="Enter student's middle name"
+                          value={newStudent.middleName}
+                          onChange={(e) =>
+                            setNewStudent((prev) => ({
+                              ...prev,
+                              middleName: e.target.value,
+                            }))
+                          }
+                          className="h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary w-full"
+                        />
+                      </div>
                     </div>
 
                     {/* Last Name */}
-                    <div className="space-y-2">
-                      <FormLabel className="text-gray-700 font-semibold">
-                        Last Name
+                    <div className="space-y-2 mb-4">
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">
+                        Last Name<span className="text-destructive text-base">*</span>
                       </FormLabel>
-                      <Input
-                        placeholder="Enter student's last name"
-                        value={newStudent.lastName}
-                        onChange={(e) =>
-                          setNewStudent((prev) => ({
-                            ...prev,
-                            lastName: e.target.value,
-                          }))
-                        }
-                        className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
-                      />
+                      <div>
+                        <Input
+                          placeholder="Enter student's last name"
+                          value={newStudent.lastName}
+                          onChange={(e) =>
+                            setNewStudent((prev) => ({
+                              ...prev,
+                              lastName: e.target.value,
+                            }))
+                          }
+                          className="h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary w-full"
+                        />
+                      </div>
                     </div>
 
                   </div>
 
-                  {/* DoB, Gender */}
-                  <div className="flex flex-col lg:flex-row gap-4">
+                  {/* DoB, Gender, Department, Days Present */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                     
                     {/* Date of Birth */}
-                    <div className="space-y-2 w-full">
-                      <FormLabel className="text-gray-700 font-semibold flex items-center gap-2">
+                    <div className="space-y-2 mb-4">
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold flex items-center gap-2">
                         <CalendarIcon className="w-4 h-4" />
-                        Date of Birth
-                        <span className="text-gray-500 font-normal">
-                          (optional)
-                        </span>
+                        DOB
                       </FormLabel>
-                      <Popover
-                        open={dateOfBirthOpen}
-                        onOpenChange={setDateOfBirthOpen}
-                      >
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full h-14 text-base justify-between font-normal cursor-pointer"
-                          >
-                            {newStudent.dateOfBirth
-                              ? format(new Date(newStudent.dateOfBirth), "PPP")
-                              : "Select date"}
-                            <ChevronDown className="w-4 h-4" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          className="w-auto p-0"
-                          align="start"
+                      <div>
+                        <Popover
+                          open={dateOfBirthOpen}
+                          onOpenChange={setDateOfBirthOpen}
                         >
-                          <Calendar
-                            mode="single"
-                            selected={
-                              newStudent.dateOfBirth
-                                ? new Date(newStudent.dateOfBirth)
-                                : undefined
-                            }
-                            captionLayout="dropdown"
-                            onSelect={(date) => {
-                              if (date) {
-                                const dateString =
-                                  date.toISOString().split("T")[0];
-                                setNewStudent((prev) => ({
-                                  ...prev,
-                                  dateOfBirth: dateString,
-                                }));
-                                setDateOfBirthOpen(false);
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full h-10 md:h-14 text-sm md:text-base justify-between font-normal cursor-pointer"
+                            >
+                              {newStudent.dateOfBirth
+                                ? format(new Date(newStudent.dateOfBirth), "PPP")
+                                : "Select date"}
+                              <ChevronDown className="w-4 h-4" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            className="w-auto p-0"
+                            align="start"
+                          >
+                            <Calendar
+                              mode="single"
+                              selected={
+                                newStudent.dateOfBirth
+                                  ? new Date(newStudent.dateOfBirth)
+                                  : undefined
                               }
-                            }}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
+                              captionLayout="dropdown"
+                              onSelect={(date) => {
+                                if (date) {
+                                  const dateString =
+                                    date.toISOString().split("T")[0];
+                                  setNewStudent((prev) => ({
+                                    ...prev,
+                                    dateOfBirth: dateString,
+                                  }));
+                                  setDateOfBirthOpen(false);
+                                }
+                              }}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
                     </div>
 
                     {/* Gender */}
-                    <div className="space-y-2 w-full">
-                      <FormLabel className="text-gray-700 font-semibold">
+                    <div className="space-y-2 mb-4">
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">
                         Gender
-                        <span className="text-gray-500 font-normal">
-                          (optional)
-                        </span>
                       </FormLabel>
-                      <Select
-                        value={newStudent.gender || ""}
-                        onValueChange={(value) =>
-                          setNewStudent((prev) => ({
-                            ...prev,
-                            gender: value === "NONE" ? "" : value,
-                          }))
-                        }
-                      >
-                        <SelectTrigger className="h-14 text-base">
-                          <SelectValue placeholder="Select gender (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="NONE">None</SelectItem>
-                          <SelectItem value="MALE">Male</SelectItem>
-                          <SelectItem value="FEMALE">Female</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="w-full">
+                        <Select
+                          value={newStudent.gender || ""}
+                          onValueChange={(value) =>
+                            setNewStudent((prev) => ({
+                              ...prev,
+                              gender: value === "NONE" ? "" : value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="w-full h-10 md:h-14 text-sm md:text-base">
+                            <SelectValue placeholder="Select gender (optional)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="NONE">None</SelectItem>
+                            <SelectItem value="MALE">Male</SelectItem>
+                            <SelectItem value="FEMALE">Female</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
 
                     {/* Department */}
-                    <div className="space-y-2 w-full">
-                      <FormLabel className="text-gray-700 font-semibold">
+                    <div className="space-y-2 mb-4">
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">
                         Department
-                        <span className="text-gray-500 font-normal">
-                          (optional)
-                        </span>
                       </FormLabel>
-                      <Select
-                        value={newStudent.department || ""}
-                        onValueChange={(value) =>
-                          setNewStudent((prev) => ({
-                            ...prev,
-                            department: value === "NONE" ? "" : value,
-                          }))
-                        }
-                      >
-                        <SelectTrigger className="h-14 text-base">
-                          <SelectValue placeholder="Select department (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="NONE">None</SelectItem>
-                          <SelectItem value="SCIENCE">Science</SelectItem>
-                          <SelectItem value="ARTS">Arts</SelectItem>
-                          <SelectItem value="GENERAL">General</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="w-full">
+                        <Select
+                          value={newStudent.department || ""}
+                          onValueChange={(value) =>
+                            setNewStudent((prev) => ({
+                              ...prev,
+                              department: value === "NONE" ? "" : value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="w-full h-10 md:h-14 text-sm md:text-base">
+                            <SelectValue placeholder="Select department (optional)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="NONE">None</SelectItem>
+                            <SelectItem value="SCIENCE">Science</SelectItem>
+                            <SelectItem value="ARTS">Arts</SelectItem>
+                            <SelectItem value="GENERAL">General</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Department, Days Present */}
-                  <div className="grid grid-cols-1  lg:grid-cols-2 gap-4">
-
 
                     {/* Days Present */}
                     <div className="space-y-2">
-                      <FormLabel className="text-gray-700 font-semibold">
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">
                         Days Present
-                        <span className="text-gray-500 font-normal">
-                          (optional)
-                        </span>
                       </FormLabel>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        value={newStudent.daysPresent}
-                        onChange={(e) =>
-                          setNewStudent((prev) => ({
-                            ...prev,
-                            daysPresent: e.target.value,
-                          }))
-                        }
-                        className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
-                        min="0"
-                      />
+                      <div>
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          value={newStudent.daysPresent}
+                          onChange={(e) =>
+                            setNewStudent((prev) => ({
+                              ...prev,
+                              daysPresent: e.target.value,
+                            }))
+                          }
+                          className="h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary"
+                          min="0"
+                        />
+                      </div>
                     </div>
                   </div>
 
                   {/* Available Subjects Selection */}
                   {availableSubjects.length > 0 && (
-                    <div className="space-y-2 mt-4 pt-4 border-t border-gray-200">
+                    <div className="space-y-2 mt-4 pt-4 border-t border-border">
 
                       {/* Select Subjects Label */}
-                      <FormLabel className="text-sm sm:text-base font-semibold text-gray-700">
-                        Select Subjects
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">
+                        Assign Subjects to Student<span className="text-destructive text-base">*</span>
                       </FormLabel>
 
                       {/* Select Subjects List */}
-                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 mt-1">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 mt-1">
                         {availableSubjects.map((subject: { id: string; name: string }, index: number) => {
                           // for each if the subject is already selected
                           const isSelected = newStudent.subjects.some(
@@ -623,14 +607,14 @@ export function StudentsForm() {
                                 onClick={() =>
                                   toggleStudentSubject(subject)
                                 }
-                                className="flex items-center hover:bg-gray-50 p-2 rounded-md transition-colors w-full justify-start cursor-pointer h-14"
+                                className="flex items-center hover:bg-muted p-2 rounded-md transition-colors w-full justify-start cursor-pointer h-10 md:h-14"
                               >
                                 {isSelected ? (
-                                  <CheckSquare className="w-4 h-4 text-blue-600" />
+                                  <CheckSquare className="w-4 h-4 text-primary" />
                                 ) : (
-                                  <Square className="w-4 h-4 text-gray-400" />
+                                  <Square className="w-4 h-4 text-muted-foreground" />
                                 )}
-                                <span className="text-sm text-gray-700">
+                                <span className="text-sm md:text-base text-foreground">
                                   {subject.name}
                                 </span>
                               </Button>
@@ -643,20 +627,20 @@ export function StudentsForm() {
 
                   {/* No subjects available message */}
                   {availableSubjects.length === 0 && (
-                    <div className="text-center py-4 text-gray-500 text-sm">
-                      No subjects to assign. Please add subjects in the <Link href="/settings/subjects" className="text-blue-500 hover:text-blue-700">Subjects Settings</Link> first.
+                    <div className="text-center py-4 text-muted-foreground text-sm md:text-base">
+                      No subjects to assign. Please add subjects in the <Link href="/settings/subjects" className="text-primary hover:text-primary/80">Subjects Settings</Link> first.
                     </div>
                   )}
 
                   {/* Cancel/Add/Update Student Buttons */}
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     {/* Show cancel button based on editing mode */}
                     {editingStudentIndex !== null && (
                       <Button
                         type="button"
                         variant="outline"
                         onClick={cancelEditing}
-                        className="flex-1 cursor-pointer"
+                        className="w-full sm:w-auto flex-1 h-10 md:h-14 text-sm md:text-base cursor-pointer"
                       >
                         Cancel
                       </Button>
@@ -665,7 +649,7 @@ export function StudentsForm() {
                     <Button
                       type="button"
                       onClick={addStudent}
-                      className={`${editingStudentIndex !== null ? "flex-1" : "w-full"} h-12 text-base cursor-pointer`}
+                      className={`${editingStudentIndex !== null ? "w-full sm:w-auto flex-1" : "w-full"} h-10 md:h-14 text-sm md:text-base cursor-pointer`}
                       disabled={loading}
                     >
                       {/* Show add/edit based on editing mode */}
@@ -688,11 +672,11 @@ export function StudentsForm() {
 
             {/* Students List Section */}
             {studentFields.length > 0 && (
-              <div className="space-y-6 mt-8 pt-8 border-t border-gray-200">
+              <div className="space-y-6 mt-8 pt-8 border-t border-border">
 
                 {/* Students List Section Header */}
-                <div className="pb-2 border-b border-gray-200">
-                  <h3 className="text-xl sm:text-2xl font-bold text-gray-700 uppercase tracking-wide">
+                <div className="pb-2 border-b border-border">
+                  <h3 className="text-lg sm:text-xl font-bold text-foreground uppercase tracking-wide">
                     Added Students ({studentFields.length})
                   </h3>
                 </div>
@@ -715,13 +699,13 @@ export function StudentsForm() {
                       <AccordionItem
                         key={studentField.id}
                         value={`student-${studentField.id}`}
-                        className={`border border-gray-200 rounded-lg ${isBeingEdited ? "ring-2 ring-blue-500" : ""}`}
+                        className={`border border-border rounded-lg ${isBeingEdited ? "ring-2 ring-primary" : ""}`}
                       >
                         <div className="flex items-start justify-between gap-2 p-2">
                           <AccordionTrigger className="flex-1 text-left cursor-pointer h-14">
                             <div className="min-w-0">
                               {/* Student Full Name */}
-                              <h4 className="font-semibold text-gray-900 text-base md:text-lg">
+                              <h4 className="font-semibold text-foreground text-sm text-base md:text-lg">
                                 {fullName}
                               </h4>
                             </div>
@@ -733,7 +717,7 @@ export function StudentsForm() {
                               variant="ghost"
                               size="sm"
                               onClick={() => startEditingStudent(studentIndex)}
-                              className="text-blue-500 hover:text-blue-700 cursor-pointer"
+                              className="text-primary hover:text-primary/80 cursor-pointer"
                               title="Edit"
                               disabled={isBeingEdited}
                             >
@@ -745,7 +729,7 @@ export function StudentsForm() {
                               variant="ghost"
                               size="sm"
                               onClick={() => removeStudent(studentIndex)}
-                              className="text-red-500 hover:text-red-700 cursor-pointer"
+                              className="text-destructive hover:text-destructive/80 cursor-pointer"
                               title="Delete"
                               disabled={isBeingEdited}
                             >
@@ -754,29 +738,29 @@ export function StudentsForm() {
                           </div>
                         </div>
                         <AccordionContent>
-                          <div className="px-2 pb-2 space-y-2 border-gray-400">
+                          <div className="px-2 pb-2 space-y-2 border-border">
                             <div className="overflow-x-auto ">
-                              <Table className="w-full text-sm border border-gray-200 rounded-md overflow-hidden">
-                                <TableHeader className="bg-gray-50 font-semibold text-xs border-b border-gray-200">
-                                  <TableRow className="divide-x divide-gray-200 text-xs sm:text-base font-semibold">
-                                    <TableHead className="px-3 py-2 ">DOB</TableHead>
-                                    <TableHead className="px-3 py-2 ">Gender</TableHead>
-                                    <TableHead className="px-3 py-2 ">Department</TableHead>
-                                    <TableHead className="px-3 py-2 ">Days Present</TableHead>
+                              <Table className="w-full text-sm border border-border rounded-md overflow-hidden">
+                                <TableHeader className="bg-muted font-semibold text-sm border-b border-border">
+                                  <TableRow className="divide-x divide-border text-sm md:text-base font-semibold">
+                                    <TableHead className="px-2 py-2 ">DOB</TableHead>
+                                    <TableHead className="px-2 py-2 ">Gender</TableHead>
+                                    <TableHead className="px-2 py-2 ">Department</TableHead>
+                                    <TableHead className="px-2 py-2 ">Days Present</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  <TableRow className="text-gray-800 text-xs text-left divide-x divide-gray-200 border-b border-gray-400 text-xs sm:text-base">
-                                    <TableCell className="px-3 py-2">
+                                  <TableRow className="text-foreground text-sm md:text-base text-left divide-x divide-border border-b border-border text-sm md:text-base">
+                                    <TableCell className="px-2 py-2">
                                       {student?.dateOfBirth ? format(new Date(student.dateOfBirth), "PPP") : "N/A"}
                                     </TableCell>
-                                    <TableCell className="px-3 py-2">
-                                      {student?.gender ? student.gender : "N/A"}
+                                    <TableCell className="px-2 py-2">
+                                      {student?.gender ? String(student.gender) : "N/A"}
                                     </TableCell>
-                                    <TableCell className="px-3 py-2">
-                                      {student?.department ? student.department : "N/A"}
+                                      <TableCell className="px-2 py-2">
+                                      {student?.department ? String(student.department) : "N/A"}
                                     </TableCell>
-                                    <TableCell className="px-3 py-2">
+                                    <TableCell className="px-2 py-2">
                                       {student?.daysPresent ? `${student.daysPresent} days` : "N/A"}
                                     </TableCell>
                                   </TableRow>
@@ -787,7 +771,7 @@ export function StudentsForm() {
                             {/* Student Subjects */}
                             {student?.subjects && student.subjects.length > 0 && (
                               <div className="px-2">
-                                <p className="text-xs sm:text-base text-gray-500">
+                                <p className="text-sm md:text-base text-muted-foreground">
                                   Subjects:
                                 </p>
                                 <div className="flex flex-wrap gap-1 mt-1">
@@ -795,7 +779,7 @@ export function StudentsForm() {
                                     (subject: { id: string; name: string }, index: number) => (
                                       <span
                                         key={subject.id || index}
-                                        className="text-xs sm:text-base bg-blue-100 text-blue-800 px-2 py-1 rounded"
+                                        className="text-sm md:text-base bg-primary/15 text-primary px-2 py-1 rounded"
                                       >
                                         {subject.name}
                                       </span>
@@ -824,14 +808,23 @@ export function StudentsForm() {
               )}
             />
 
-            {/* Submit Button */}
-            <div className="pt-6 border-t border-gray-200 mt-6">
-              <div className="flex justify-center">
+            {/* Submit / Discard Buttons */}
+            <div className="pt-4 md:pt-6 border-t border-border mt-4 md:mt-6">
+              <div className="flex justify-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!form.formState.isDirty || loading}
+                  onClick={() => { form.reset(); cancelEditing(); }}
+                  className="w-max h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                >
+                  Discard Changes
+                </Button>
                 <LoadingButton
                   type="submit"
                   loading={loading}
                   disabled={editingStudentIndex !== null || !form.formState.isDirty || loading}
-                  className="w-full sm:w-auto min-w-[160px] h-12 text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                  className="w-max h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
                 >
                   {loading ? "Saving..." : "Save Changes"}
                 </LoadingButton>

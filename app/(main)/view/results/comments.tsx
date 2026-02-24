@@ -36,7 +36,7 @@ export const Comments = ({
 
       {/* Teacher's Comments Title and Edit Comments Button */}
       <div className="flex items-center justify-between mb-4">
-        <h4 className="text-base md:text-lg font-bold text-gray-800 border-gray-300 pb-2">
+        <h4 className="text-base md:text-lg font-bold text-foreground border-border pb-2">
           TEACHER'S COMMENTS
         </h4>
         {/* Edit Button */}
@@ -45,7 +45,7 @@ export const Comments = ({
             onClick={startEditingComments}
             variant="outline"
             size="sm"
-            className="border-gray-300 text-gray-700 hover:bg-gray-50"
+            className="border-border text-foreground hover:bg-muted"
           >
             <Edit3 className="w-4 h-4 mr-2" />
             Edit Comments
@@ -56,7 +56,7 @@ export const Comments = ({
             <Button
               onClick={saveCommentsChanges}
               size="sm"
-              className="bg-gray-800 hover:bg-gray-900 text-white"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               <Save className="w-4 h-4 mr-2" />
               Save
@@ -66,7 +66,7 @@ export const Comments = ({
               onClick={cancelEditingComments}
               variant="outline"
               size="sm"
-              className="border-gray-300 text-gray-700 hover:bg-gray-50"
+              className="border-border text-foreground hover:bg-muted"
             >
               <X className="w-4 h-4 mr-2" />
               Cancel
@@ -76,16 +76,16 @@ export const Comments = ({
       </div>
 
 
-      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+      <div className="bg-muted p-4 rounded-lg border border-border">
         {isEditingComments ? (
           <Textarea
             value={editingComment}
             onChange={(e) => setEditingComment(e.target.value)}
-            className="text-gray-700 leading-relaxed min-h-[120px] resize-y"
+            className="text-foreground leading-relaxed min-h-[120px] resize-y"
             placeholder="Enter teacher's comments..."
           />
         ) : (
-          <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+          <p className="text-foreground leading-relaxed whitespace-pre-wrap">
             {selectedStudent.comments || ""}
           </p>
         )}

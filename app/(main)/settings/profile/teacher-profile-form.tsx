@@ -1,6 +1,7 @@
 "use client";
 
 import { LoadingButton } from "@/shared-components/loading-button";
+import { Button } from "@/shadcn/ui/button";
 import { Card, CardContent } from "@/shadcn/ui/card";
 import {
   Form,
@@ -100,14 +101,14 @@ export function TeacherProfileForm({ user }: TeacherProfileFormProps) {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
             {/* Personal Information Section */}
-            <div className="space-y-6">
+            <div className="space-y-4">
 
-              {/* Personal Information Section subheading */}
-              <div className="pb-2 border-b border-gray-200">
-                <h3 className="text-xl sm:text-2xl font-bold text-gray-700 uppercase tracking-wide">Personal Information</h3>
+              {/* Personal Information Section subheading (h3) */}
+              <div className="pb-2 border-b border-border">
+                <h3 className="text-lg sm:text-xl font-bold text-foreground uppercase tracking-wide">Personal Information</h3>
               </div>
               {/* First Name and Last Name Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                 {/* First Name Field */}
                 <FormField
@@ -115,13 +116,13 @@ export function TeacherProfileForm({ user }: TeacherProfileFormProps) {
                   name="firstName"
                   render={({ field }: { field: ControllerRenderProps<TeacherProfileFormValues, "firstName"> }) => (
                     <FormItem>
-                      <FormLabel className="text-base text-gray-700 font-semibold">First Name</FormLabel>
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">First Name</FormLabel>
                       <FormControl>
                         <Input
                           type="text"
                           {...field}
                           placeholder="Enter your first name"
-                          className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
+                          className="h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary"
                         />
                       </FormControl>
                       <FormMessage />
@@ -135,13 +136,13 @@ export function TeacherProfileForm({ user }: TeacherProfileFormProps) {
                   name="lastName"
                   render={({ field }: { field: ControllerRenderProps<TeacherProfileFormValues, "lastName"> }) => (
                     <FormItem>
-                      <FormLabel className="text-base text-gray-700 font-semibold">Last Name</FormLabel>
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">Last Name</FormLabel>
                       <FormControl>
                         <Input
                           type="text"
                           {...field}
                           placeholder="Enter your last name"
-                          className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
+                          className="h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary"
                         />
                       </FormControl>
                       <FormMessage />
@@ -151,7 +152,7 @@ export function TeacherProfileForm({ user }: TeacherProfileFormProps) {
               </div>
 
               {/* Subscription and Role Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                 {/* Subscription Field */}
                 <FormField
@@ -159,14 +160,14 @@ export function TeacherProfileForm({ user }: TeacherProfileFormProps) {
                   name="subscription"
                   render={({ field }: { field: ControllerRenderProps<TeacherProfileFormValues, "subscription"> }) => (
                     <FormItem>
-                      <FormLabel className="text-base text-gray-700 font-semibold">Subscription</FormLabel>
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">Subscription</FormLabel>
                       <FormControl>
                         <Input
                           type="text"
                           disabled={true}
                           {...field}
                           placeholder="Subscription"
-                          className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary bg-gray-50"
+                          className="h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary bg-muted"
                         />
                       </FormControl>
                       <FormMessage />
@@ -180,14 +181,14 @@ export function TeacherProfileForm({ user }: TeacherProfileFormProps) {
                   name="role"
                   render={({ field }: { field: ControllerRenderProps<TeacherProfileFormValues, "role"> }) => (
                     <FormItem>
-                      <FormLabel className="text-base text-gray-700 font-semibold">Role</FormLabel>
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">Role</FormLabel>
                       <FormControl>
                         <Input
                           type="text"
                           disabled={true}
                           {...field}
                           placeholder="Role"
-                          className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary bg-gray-50"
+                          className="h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary bg-muted"
                         />
                       </FormControl>
                       <FormMessage />
@@ -197,15 +198,23 @@ export function TeacherProfileForm({ user }: TeacherProfileFormProps) {
               </div>
             </div>
 
-            {/* Submit Button */}
-            <div className="pt-6 border-t border-gray-200 mt-6">
-              {/* Submit Button Container */}
-              <div className="flex justify-center">
+            {/* Submit / Discard Buttons */}
+            <div className="pt-4 md:pt-6 border-t border-border mt-4 md:mt-6">
+              <div className="flex justify-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!form.formState.isDirty || loading}
+                  onClick={() => form.reset()}
+                  className="w-max h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                >
+                  Discard Changes
+                </Button>
                 <LoadingButton
                   type="submit"
                   disabled={!form.formState.isDirty}
                   loading={loading}
-                  className="w-full sm:w-auto min-w-[160px] h-12 text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                  className="w-max h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
                 >
                   Save Changes
                 </LoadingButton>

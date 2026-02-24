@@ -2,7 +2,7 @@
 
 import { LoadingButton } from "@/shared-components/loading-button";
 import { PasswordInput } from "@/shared-components/password-input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shadcn/ui/card";
+import { Card, CardContent } from "@/shadcn/ui/card";
 import {
   Form,
   FormControl,
@@ -140,15 +140,19 @@ export function PasswordForm({ hasPasswordAccount }: PasswordFormProps) {
   const loading = form.formState.isSubmitting;
 
   return (
-    <Card className="border shadow-md h-full">
-      <CardHeader>
-        <CardTitle className="text-xl sm:text-2xl text-gray-700 uppercase tracking-wide">
-          Password
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <Card className="border shadow-md">
+      {/* Card Content */}
+      <CardContent className="pt-4">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+
+            {/* Password Section */}
+            <div className="space-y-4">
+
+              {/* Password Section subheading (h4) */}
+              <div className="pb-2 border-b border-border">
+                <h4 className="text-lg sm:text-xl font-bold text-foreground uppercase tracking-wide">Password</h4>
+              </div>
 
             {/* Current Password Field - Only show if user has a password account and editing is enabled */}
             {hasPasswordAccount && (
@@ -160,14 +164,14 @@ export function PasswordForm({ hasPasswordAccount }: PasswordFormProps) {
 
                   // current password field
                   <FormItem>
-                    <FormLabel className="text-base text-gray-700 font-semibold">Current Password</FormLabel>
-                    <div className="flex gap-3 mt-2 w-full">
+                    <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">Current Password</FormLabel>
+                    <div className="flex flex-col sm:flex-row gap-3 mt-2 w-full">
                       <div className="flex-1">
                         <FormControl>
                           <PasswordInput
                             {...field}
                             placeholder="Enter current password"
-                            className="w-full h-14 text-base transition-colors hover:border-gray-400 focus:border-primary bg-gray-50"
+                            className="w-full h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary bg-muted"
                             disabled={!allowPasswordChange}
                           />
                         </FormControl>
@@ -180,7 +184,7 @@ export function PasswordForm({ hasPasswordAccount }: PasswordFormProps) {
                           onClick={handleChangePasswordClick}
                           loading={false}
                           disabled={false}
-                          className="h-14 text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer whitespace-nowrap"
+                          className="h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer whitespace-nowrap w-full sm:w-auto"
                         >
                           Change Password
                         </LoadingButton>
@@ -191,7 +195,7 @@ export function PasswordForm({ hasPasswordAccount }: PasswordFormProps) {
                           onClick={handleChangePasswordClick}
                           loading={false}
                           disabled={false}
-                          className="h-14 text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer whitespace-nowrap"
+                          className="h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer whitespace-nowrap w-full sm:w-auto"
                         >
                           Cancel
                         </LoadingButton>
@@ -206,14 +210,14 @@ export function PasswordForm({ hasPasswordAccount }: PasswordFormProps) {
             {/* For OAuth users without password, show a button to set password */}
             {!hasPasswordAccount && !allowPasswordChange && (
               <div>
-                <FormLabel className="text-base text-gray-700 font-semibold">Password</FormLabel>
+                <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">Password</FormLabel>
                 <div className="mt-2">
                   <LoadingButton
                     type="button"
                     onClick={handleChangePasswordClick}
                     loading={false}
                     disabled={false}
-                    className="w-full h-14 text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                    className="w-full h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
                   >
                     Set Password
                   </LoadingButton>
@@ -229,18 +233,18 @@ export function PasswordForm({ hasPasswordAccount }: PasswordFormProps) {
                 name="newPassword"
                 render={({ field }: { field: ControllerRenderProps<PasswordFormValues, "newPassword"> }) => (
                   <FormItem>
-                    <FormLabel className="text-base text-gray-700 font-semibold">
+                    <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">
                       {hasPasswordAccount ? "New Password" : "Password"}
                     </FormLabel>
                     <FormControl>
                       <PasswordInput
                         {...field}
                         placeholder={hasPasswordAccount ? "Enter new password" : "Enter password"}
-                        className="w-full h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
+                        className="w-full h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary"
                       />
                     </FormControl>
                     <FormMessage />
-                    <p className="text-sm font-bold mt-1 text-gray-600">
+                    <p className="text-sm font-bold mt-1 text-muted-foreground">
                       {hasPasswordAccount 
                         ? "Changing your password will log you out from all other devices for security."
                         : "Setting a password will log you out from all other devices for security."}
@@ -250,19 +254,24 @@ export function PasswordForm({ hasPasswordAccount }: PasswordFormProps) {
               />
             )}
 
+            </div>
+
             {/* Submit Button - Only show when editing is enabled */}
             {allowPasswordChange && (
-              <div className="pt-2">
-                <LoadingButton
-                  type="submit"
-                  loading={loading}
-                  disabled={!allowPasswordChange}
-                  className="w-full h-14 text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
-                >
-                  {hasPasswordAccount ? "Change Password" : "Set Password"}
-                </LoadingButton>
+              <div className="pt-4 md:pt-6 border-t border-border mt-4 md:mt-6">
+                <div className="flex justify-center">
+                  <LoadingButton
+                    type="submit"
+                    loading={loading}
+                    disabled={!allowPasswordChange}
+                    className="w-full sm:w-auto min-w-[160px] h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                  >
+                    {hasPasswordAccount ? "Change Password" : "Set Password"}
+                  </LoadingButton>
+                </div>
               </div>
             )}
+
           </form>
         </Form>
       </CardContent>

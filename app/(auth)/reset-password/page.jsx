@@ -1,5 +1,4 @@
 import { ResetPasswordForm } from "./reset-password-form";
-import { getServerSession } from "@/src/lib/get-session";
 import { redirect } from "next/navigation";
 
 export const metadata = {
@@ -11,9 +10,6 @@ export default async function ResetPasswordPage({ searchParams }) {
   // get the token from the search params
   const token = searchParams?.token;
   if (!token) redirect("/forgot-password?error=missing_token");
-
-  // // if the user is already logged in, redirect to dashboard
-  // if (!user) redirect("/sign-in");
 
   return (
     <main className="flex min-h-svh items-center justify-center px-4">

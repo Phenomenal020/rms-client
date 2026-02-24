@@ -8,6 +8,7 @@ export type School = {
     schoolMotto: string | null | undefined;
     schoolTelephone: string | null | undefined;
     schoolEmail: string | null | undefined;
+    // schoolLogoUrl: string | null | undefined;
     createdAt: Date;
     updatedAt: Date;
 } | null;

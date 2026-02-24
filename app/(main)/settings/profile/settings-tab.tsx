@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useForm, type ControllerRenderProps } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/shadcn/ui/button";
 import { Input } from "@/shadcn/ui/input";
 import { Switch } from "@/shadcn/ui/switch";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shadcn/ui/card";
-import { Bell, AlertTriangle, Trash2 } from "lucide-react";
+import { Card, CardContent } from "@/shadcn/ui/card";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Form,
@@ -31,7 +31,7 @@ const deleteAccountSchema = z.object({
 
 export function SettingsTab() {
 
-  // state for the notifications
+  // state for the notifications. TODO: Add these to the User model
   const [notifications, setNotifications] = useState({
     loginNotifications: true,
     emailChangeNotifications: false,
@@ -64,193 +64,171 @@ export function SettingsTab() {
     <div className="space-y-6">
 
       {/* Email Notifications */}
-      <Card className="border-2 shadow-lg hover:shadow-xl transition-shadow duration-300 mb-8">
-
-        {/* Card Header */}
-        <CardHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 py-4">
-          <CardTitle className="flex items-center gap-3 text-2xl sm:text-3xl">
-            <div className="rounded-xl bg-primary p-2 shadow-md">
-              <Bell className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <div>
-              <p className="bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent text-xl sm:text-2xl">
-                Email Notifications
-              </p>
-              <p className="text-sm sm:text-base mt-1 text-muted-foreground">
-                Manage your email notification preferences
-              </p>
-            </div>
-          </CardTitle>
-        </CardHeader>
-
+      <Card className="border shadow-md">
         {/* Card Content */}
-        <CardContent className="pt-4 space-y-4">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
-              <div>
-                <h4 className="text-base font-semibold">Login Notifications</h4>
-                <p className="text-sm sm:text-base text-muted-foreground">
-                  Receive notifications when there is a new login activity
-                </p>
-              </div>
-              <Switch
-                checked={notifications.loginNotifications}
-                onCheckedChange={(checked: boolean) =>
-                  setNotifications((prev) => ({ ...prev, loginNotifications: checked }))
-                }
-                className="cursor-pointer"
-              />
-            </div>
+        <CardContent className="pt-4">
+          <div className="space-y-6">
 
-            <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
-              <div>
-                <h4 className="text-base font-semibold">Email Change Notifications</h4>
-                <p className="text-sm sm:text-base text-muted-foreground">
-                  Receive notifications when your email address is changed
-                </p>
-              </div>
-              <Switch
-                checked={notifications.emailChangeNotifications}
-                onCheckedChange={(checked: boolean) =>
-                  setNotifications((prev) => ({ ...prev, emailChangeNotifications: checked }))
-                }
-                className="cursor-pointer"
-              />
-            </div>
+            {/* Email Notifications Section */}
+            <div className="space-y-4">
 
-            <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
-              <div>
-                <h4 className="text-base font-semibold">Password Change Notifications</h4>
-                <p className="text-sm sm:text-base text-muted-foreground">
-                  Receive notifications when your password is changed
-                </p>
+              {/* Email Notifications Section subheading (h4) */}
+              <div className="pb-2 border-b border-border">
+                <h4 className="text-lg sm:text-xl font-bold text-foreground uppercase tracking-wide">Email Notifications</h4>
               </div>
-              <Switch
-                checked={notifications.passwordChangeNotifications}
-                onCheckedChange={(checked: boolean) =>
-                  setNotifications((prev) => ({ ...prev, passwordChangeNotifications: checked }))
-                }
-                className="cursor-pointer"
-              />
-            </div>
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border bg-muted/30">
+                  <div>
+                    <h6 className="text-sm md:text-base font-semibold">Login Notifications</h6>
+                    <p className="text-xs md:text-sm text-muted-foreground">
+                      Receive notifications when there is a new login activity
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notifications.loginNotifications}
+                    onCheckedChange={(checked: boolean) =>
+                      setNotifications((prev) => ({ ...prev, loginNotifications: checked }))
+                    }
+                    className="cursor-pointer"
+                  />
+                </div>
 
-            <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
-              <div>
-                <h4 className="text-base font-semibold">Profile Update Notifications</h4>
-                <p className="text-sm sm:text-base text-muted-foreground">
-                  Receive notifications when your profile information is updated
-                </p>
-              </div>
-              <Switch
-                checked={notifications.profileUpdateNotifications}
-                onCheckedChange={(checked: boolean) =>
-                  setNotifications((prev) => ({ ...prev, profileUpdateNotifications: checked }))
-                }
-                className="cursor-pointer"
-              />
-            </div>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border bg-muted/30">
+                  <div>
+                    <h6 className="text-sm md:text-base font-semibold">Email Change Notifications</h6>
+                    <p className="text-xs md:text-sm text-muted-foreground">
+                      Receive notifications when your email address is changed
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notifications.emailChangeNotifications}
+                    onCheckedChange={(checked: boolean) =>
+                      setNotifications((prev) => ({ ...prev, emailChangeNotifications: checked }))
+                    }
+                    className="cursor-pointer"
+                  />
+                </div>
 
-            <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
-              <div>
-                <h4 className="text-base font-semibold">Print Notifications</h4>
-                <p className="text-sm sm:text-base text-muted-foreground">
-                  Receive notifications when the results are printed
-                </p>
-              </div>
-              <Switch
-                checked={notifications.printNotifications}
-                onCheckedChange={(checked: boolean) =>
-                  setNotifications((prev) => ({ ...prev, printNotifications: checked }))
-                }
-                className="cursor-pointer"
-              />
-            </div>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border bg-muted/30">
+                  <div>
+                    <h6 className="text-sm md:text-base font-semibold">Password Change Notifications</h6>
+                    <p className="text-xs md:text-sm text-muted-foreground">
+                      Receive notifications when your password is changed
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notifications.passwordChangeNotifications}
+                    onCheckedChange={(checked: boolean) =>
+                      setNotifications((prev) => ({ ...prev, passwordChangeNotifications: checked }))
+                    }
+                    className="cursor-pointer"
+                  />
+                </div>
 
-            <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
-              <div>
-                <h4 className="text-base font-semibold">Export Notifications</h4>
-                <p className="text-sm sm:text-base text-muted-foreground">
-                  Receive notifications when the results are exported
-                </p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border bg-muted/30">
+                  <div>
+                    <h6 className="text-sm md:text-base font-semibold">Print Notifications</h6>
+                    <p className="text-xs md:text-sm text-muted-foreground">
+                      Receive notifications when the results are printed
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notifications.printNotifications}
+                    onCheckedChange={(checked: boolean) =>
+                      setNotifications((prev) => ({ ...prev, printNotifications: checked }))
+                    }
+                    className="cursor-pointer"
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border bg-muted/30">
+                  <div>
+                    <h6 className="text-sm md:text-base font-semibold">Export Notifications</h6>
+                    <p className="text-xs md:text-sm text-muted-foreground">
+                      Receive notifications when the results are exported
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notifications.exportNotifications}
+                    onCheckedChange={(checked: boolean) =>
+                      setNotifications((prev) => ({ ...prev, exportNotifications: checked }))
+                    }
+                    className="cursor-pointer"
+                  />
+                </div>
               </div>
-              <Switch
-                checked={notifications.exportNotifications}
-                onCheckedChange={(checked: boolean) =>
-                  setNotifications((prev) => ({ ...prev, exportNotifications: checked }))
-                }
-                className="cursor-pointer"
-              />
+
+              <Button variant="outline" size="default" className="w-full h-10 md:h-14 cursor-pointer text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow" onClick={handleManageAllNotifications}>
+                Manage All Notifications
+              </Button>
+
             </div>
           </div>
-
-          <Button variant="outline" size="default" className="w-full h-14 cursor-pointer text-sm sm:text-base font-gray-700 shadow-sm hover:shadow transition-shadow" onClick={handleManageAllNotifications}>
-            Manage All Notifications
-          </Button>
         </CardContent>
       </Card>
 
       {/* Danger Zone */}
-      <Card className="border-2 border-destructive/50 shadow-lg">
-        <CardHeader className="border-b bg-gradient-to-r from-destructive/10 via-destructive/5 to-destructive/10 py-4">
-          <CardTitle className="flex items-center gap-3 text-2xl text-destructive">
-            <div className="rounded-xl bg-destructive/20 p-2 border border-destructive/30">
-              <AlertTriangle className="h-6 w-6 text-destructive" />
-            </div>
-            <div>
-              <p className="bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent text-xl sm:text-2xl">
-                Danger Zone
-              </p>
-              <p className="text-sm sm:text-base mt-1 text-destructive/80">
-                Irreversible and destructive actions - proceed with caution
-              </p>
-            </div>
-          </CardTitle>
-        </CardHeader>
+      <Card className="border shadow-md border-destructive/50">
+        {/* Card Content */}
+        <CardContent className="pt-4">
+          <div className="space-y-6">
 
-        <CardContent>
-          <div>
-            <div>
-              <h4 className="text-base font-semibold">Delete Account</h4>
-              <p className="text-sm sm:text-base text-muted-foreground mb-4">
-                Once you delete your account, there is no going back.
-              </p>
-              <Form {...deleteAccountForm}>
-                <form
-                  onSubmit={deleteAccountForm.handleSubmit(handleDeleteAccount)}
-                  className="space-y-4"
-                >
-                  <FormField
-                    control={deleteAccountForm.control}
-                    name="confirmation"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-base sm:text-lg font-semibold">
-                          Type <span className="font-mono text-destructive">Delete My Account</span> to confirm
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            type="text"
-                            placeholder="Delete My Account"
-                            className="h-14 text-base cursor-text"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button
-                    type="submit"
-                    variant="destructive"
-                    size="lg"
-                    className="w-full h-14 text-sm sm:text-base font-gray-700 shadow-sm hover:shadow transition-shadow cursor-pointer"
-                    disabled={deleteAccountForm.watch("confirmation") !== "Delete My Account"}
+            {/* Danger Zone Section */}
+            <div className="space-y-4">
+
+              {/* Danger Zone Section subheading (h4) */}
+              <div className="pb-2 border-b border-border">
+                <h4 className="text-lg sm:text-xl font-bold text-foreground uppercase tracking-wide">Danger Zone</h4>
+              </div>
+
+              <div>
+                <h4 className="text-sm md:text-base font-semibold mb-2">Delete Account</h4>
+                <p className="text-xs md:text-sm text-muted-foreground mb-4">
+                  Once you delete your account, there is no going back.
+                </p>
+                <Form {...deleteAccountForm}>
+                  <form
+                    onSubmit={deleteAccountForm.handleSubmit(handleDeleteAccount)}
+                    className="space-y-4"
                   >
-                    <Trash2 className="h-4 w-4" />
-                    Delete My Account
-                  </Button>
-                </form>
-              </Form>
+                    <FormField
+                      control={deleteAccountForm.control}
+                      name="confirmation"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm md:text-base font-semibold">
+                            Type <span className="font-mono text-destructive">Delete My Account</span> to confirm
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              placeholder="Delete My Account"
+                              className="h-10 md:h-14 text-sm md:text-base cursor-text"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="pt-4 md:pt-6 border-t border-border mt-4 md:mt-6">
+                      <div className="flex justify-center">
+                        <Button
+                          type="submit"
+                          variant="destructive"
+                          size="lg"
+                          className="w-full sm:w-auto min-w-[160px] h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                          disabled={deleteAccountForm.watch("confirmation") !== "Delete My Account"}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete My Account
+                        </Button>
+                      </div>
+                    </div>
+                  </form>
+                </Form>
+              </div>
+
             </div>
           </div>
         </CardContent>

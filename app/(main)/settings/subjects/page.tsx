@@ -1,42 +1,46 @@
+// imports: subjects settings form
 import VerifyEmailButton from "../shared/verify-email-button";
 import SubjectsTabs from "./subjects-tabs";
-import {Metadata} from "next";
+import type { Metadata } from "next";
 
-// Metadata for the subjects settings page
+// page metadata: title and description
 export const metadata: Metadata = {
   title: "Settings - Subjects",
   description: "Manage your subjects and assessment structures",
 };
 
-// Subjects Settings Page
+// page component (Server Component - no data fetching here)
 export default function SubjectsSettingsPage() {
 
+  // return the main layout
   return (
-    <main className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50/40 to-indigo-50/30 relative overflow-hidden">
+    <main className="min-h-screen w-full bg-background relative overflow-hidden">
 
       <div className="relative mx-auto w-full max-w-5xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
 
-        {/* Verify Email Button */}
+        {/* Verify Email Button - if user email is not verified */}
         <VerifyEmailButton />
 
         {/* Header Section - Subjects Settings + paragraph */}
         <div className="text-center mb-10 sm:mb-12">
 
-          {/* Subjects Settings header */}
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 tracking-tight mb-2 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
+          {/* Subjects Settings > header */}
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground tracking-tight mb-1">
             Subjects Settings
           </h1>
 
-          {/* Subjects Settings description */}
-          <p className="text-xl sm:text-2xl text-gray-600 font-medium mx-auto">
+          {/* Subjects Settings > description */}
+          <h3 className="text-lg sm:text-xl lg:text-2xl text-muted-foreground font-medium mx-auto mb-4">
             Manage your subjects and their assessment structures.
-          </p>
+          </h3>
+
         </div>
 
         {/* Subjects and Assessment Structure Forms in Tabs */}
         <div className="w-full mx-auto">
           <SubjectsTabs />
         </div>
+
       </div>
     </main>
   );

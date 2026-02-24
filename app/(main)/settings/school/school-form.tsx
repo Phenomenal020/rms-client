@@ -1,6 +1,7 @@
 "use client";
 
 import { LoadingButton } from "@/shared-components/loading-button";
+import { Button } from "@/shadcn/ui/button";
 import { Card, CardContent } from "@/shadcn/ui/card";
 import {
   Form,
@@ -16,8 +17,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, type ControllerRenderProps } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
-import { useUpsertSchool } from "@/fetcher/mutations";
-import type { School as SchoolProps } from "@/types/school";  // for the props
+import { useUpsertSchool, getErrorMessage } from "@/fetcher/mutations";
+import { School } from "@/types/school";  // for the props
 
 // Zod Schema
 // Convert empty strings to undefined and validate email if provided
@@ -47,7 +48,7 @@ const schoolSchema = z.object({
 type SchoolFormValues = z.infer<typeof schoolSchema>;
 
 // School form component
-export function SchoolForm({ school }: { school: SchoolProps }) {
+export function SchoolForm({ school }: { school: School }) {
 
   // mutation hook for upserting school
   const { upsertSchool, isMutating, error } = useUpsertSchool();
@@ -92,19 +93,17 @@ export function SchoolForm({ school }: { school: SchoolProps }) {
       }
 
       // call the upsertSchool mutation to create or update the school information
-      await upsertSchool(data);
+      await upsertSchool(schoolUpdatePayload);
 
       // Success is handled by the mutation's onSuccess callback (cache invalidation)
       // Show success toast
       toast.success("School information saved successfully", {
         description: "Your school details have been saved",
       });
+
     } catch (err: any) {
-      // Error handling - the mutation's onError already logs it
-      // Show user-friendly error message
-      const errorMessage = err?.response?.data?.message || err?.message || "An unexpected error occurred";
       toast.error("Failed to save school information", {
-        description: errorMessage,
+        description: getErrorMessage(err, "An error occurred while saving the school information"),
       });
     }
   }
@@ -118,11 +117,12 @@ export function SchoolForm({ school }: { school: SchoolProps }) {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
-            <div className="space-y-6">
+            {/* School Information Section */}
+            <div className="space-y-4">
 
-              {/* School Information Section Header Text*/}
-              <div className="pb-2 border-b border-gray-200">
-                <h3 className="text-xl sm:text-2xl font-bold text-gray-700 uppercase tracking-wide">
+              {/* School Information Section subheading (h3) */}
+              <div className="pb-2 border-b border-border">
+                <h3 className="text-lg sm:text-xl font-bold text-foreground uppercase tracking-wide">
                   School Information
                 </h3>
               </div>
@@ -133,13 +133,15 @@ export function SchoolForm({ school }: { school: SchoolProps }) {
                 name="schoolName"
                 render={({ field }: { field: ControllerRenderProps<SchoolFormValues, "schoolName"> }) => (
                   <FormItem>
-                    <FormLabel className="text-base text-gray-700 font-semibold">School Name</FormLabel>
+                    <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">
+                      School Name<span className="text-destructive text-base">*</span>
+                    </FormLabel>
                     <FormControl>
                       <Input
                         type="text"
                         {...field}
                         placeholder="Enter school name"
-                        className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
+                        className="h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary"
                       />
                     </FormControl>
                     <FormMessage />
@@ -153,13 +155,13 @@ export function SchoolForm({ school }: { school: SchoolProps }) {
                 name="schoolAddress"
                 render={({ field }: { field: ControllerRenderProps<SchoolFormValues, "schoolAddress"> }) => (
                   <FormItem>
-                    <FormLabel className="text-base text-gray-700 font-semibold">Address (Optional)</FormLabel>
+                    <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">Address</FormLabel>
                     <FormControl>
                       <Input
                         type="text"
                         {...field}
                         placeholder="Enter school address or location"
-                        className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
+                        className="h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary"
                       />
                     </FormControl>
                     <FormMessage />
@@ -173,12 +175,12 @@ export function SchoolForm({ school }: { school: SchoolProps }) {
                 name="schoolMotto"
                 render={({ field }: { field: ControllerRenderProps<SchoolFormValues, "schoolMotto"> }) => (
                   <FormItem>
-                    <FormLabel className="text-base text-gray-700 font-semibold">Motto (Optional)</FormLabel>
+                    <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">Motto</FormLabel>
                     <FormControl>
                       <Textarea
                         {...field}
                         placeholder="Enter your school motto if you want this to appear on the result sheet"
-                        className="min-h-20 text-base transition-colors hover:border-gray-400 focus:border-primary"
+                        className="min-h-20 text-sm md:text-base transition-colors hover:border-input focus:border-primary"
                         rows={3}
                       />
                     </FormControl>
@@ -188,20 +190,20 @@ export function SchoolForm({ school }: { school: SchoolProps }) {
               />
 
               {/* School Telephone and Email */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* School Telephone */}
                 <FormField
                   control={form.control}
                   name="schoolTelephone"
                   render={({ field }: { field: ControllerRenderProps<SchoolFormValues, "schoolTelephone"> }) => (
                     <FormItem>
-                      <FormLabel className="text-base text-gray-700 font-semibold">Telephone (Optional)</FormLabel>
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">Telephone</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           type="tel"
                           placeholder="Enter school telephone number"
-                          className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
+                          className="h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary"
                         />
                       </FormControl>
                       <FormMessage />
@@ -215,13 +217,13 @@ export function SchoolForm({ school }: { school: SchoolProps }) {
                   name="schoolEmail"
                   render={({ field }: { field: ControllerRenderProps<SchoolFormValues, "schoolEmail"> }) => (
                     <FormItem>
-                      <FormLabel className="text-base text-gray-700 font-semibold">Email (Optional)</FormLabel>
+                      <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">Email</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           type="email"
                           placeholder="Enter school email address"
-                          className="h-14 text-base transition-colors hover:border-gray-400 focus:border-primary"
+                          className="h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary"
                         />
                       </FormControl>
                       <FormMessage />
@@ -231,14 +233,23 @@ export function SchoolForm({ school }: { school: SchoolProps }) {
               </div>
             </div>
 
-            {/* Submit Button */}
-            <div className="pt-6 border-t border-gray-200 mt-6">
-              <div className="flex justify-center">
+            {/* Submit / Discard Buttons */}
+            <div className="pt-4 md:pt-6 border-t border-border mt-4 md:mt-6">
+              <div className="flex justify-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!form.formState.isDirty || loading}
+                  onClick={() => form.reset()}
+                  className="w-max h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                >
+                  Discard Changes
+                </Button>
                 <LoadingButton
                   type="submit"
                   loading={loading}
                   disabled={!form.formState.isDirty}
-                  className="w-full sm:w-auto min-w-[160px] h-12 text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                  className="w-max h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
                 >
                   Save Changes
                 </LoadingButton>

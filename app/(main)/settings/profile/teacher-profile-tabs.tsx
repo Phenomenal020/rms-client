@@ -1,6 +1,7 @@
 'use client';
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shadcn/ui/tabs";
+import { Tabs, TabsContent } from "@/shadcn/ui/tabs";
+import { Button } from "@/shadcn/ui/button";
 import { TeacherProfileForm } from "./teacher-profile-form";
 import { EmailForm } from "./email-form";
 import { PasswordForm } from "./password-form";
@@ -9,6 +10,7 @@ import { SettingsTab } from "./settings-tab";
 import { getUserAccounts, getUserSessions, getCurrentSessionToken } from "@/fetcher/queries";
 import Loading from "./loading";
 import { useUser } from "@/contexts/user-context";
+import { useState } from "react";
 
 export default function TeacherProfileTabs() {
 
@@ -18,59 +20,60 @@ export default function TeacherProfileTabs() {
     const { sessions, error: sessionsError, isLoading: sessionsLoading } = getUserSessions(!!user);
     const { token: currentSessionToken, error: currentSessionTokenError, isLoading: currentSessionTokenLoading } = getCurrentSessionToken(!!user);
 
+    const [activeTab, setActiveTab] = useState("account");
+
     if (!user) {
         return <Loading />;
     } else {
         return (
-            <Tabs defaultValue="account" className="w-full">
-                {/* Tabs List */}
-                <TabsList className="flex justify-center w-full mx-auto bg-white/60 backdrop-blur-sm rounded-lg p-1 gap-1 mb-8 shadow-sm border border-blue-100/50">
-
-                    {/* Account Tab */}
-                    <TabsTrigger
-                        value="account"
-                        className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50"
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                {/* Buttons List */}
+                <div className="flex flex-wrap justify-center gap-0 mb-2">
+                    <Button
+                        onClick={() => setActiveTab("account")}
+                        variant={activeTab === "account" ? "default" : "outline"}
+                        className="h-10 cursor-pointer mb-0 rounded-sm"
                     >
                         Account
-                    </TabsTrigger>
+                    </Button>
 
-                    {/* Email Tab */}
-                    <TabsTrigger
-                        value="email"
-                        className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50"
+                    <Button
+                        onClick={() => setActiveTab("email")}
+                        variant={activeTab === "email" ? "default" : "outline"}
+                        className="h-10 cursor-pointer mb-0 rounded-sm"
                     >
                         Email
-                    </TabsTrigger>
+                    </Button>
 
-                    {/* Password Tab */}
-                    <TabsTrigger
-                        value="password"
-                        className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50"
+                    <Button
+                        onClick={() => setActiveTab("password")}
+                        variant={activeTab === "password" ? "default" : "outline"}
+                        className="h-10 cursor-pointer mb-0 rounded-sm"
                     >
                         Password
-                    </TabsTrigger>
+                    </Button>
 
-                    {/* Sessions Tab */}
-                    <TabsTrigger
-                        value="sessions"
-                        className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50"
+                    <Button
+                        onClick={() => setActiveTab("sessions")}
+                        variant={activeTab === "sessions" ? "default" : "outline"}
+                        className="h-10 cursor-pointer mb-0 rounded-sm"
                     >
                         Sessions
-                    </TabsTrigger>
+                    </Button>
 
-                    {/* Settings Tab */}
-                    <TabsTrigger
-                        value="settings"
-                        className="cursor-pointer px-4 py-2 text-sm font-semibold text-slate-600 transition-all duration-200 rounded-md hover:text-blue-700 hover:bg-blue-50/50 data-[state=active]:text-primary-700 data-[state=active]:bg-blue-100/70 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200/50"
+                    <Button
+                        onClick={() => setActiveTab("settings")}
+                        variant={activeTab === "settings" ? "default" : "outline"}
+                        className="h-10 cursor-pointer mb-0 rounded-sm"
                     >
                         Settings
-                    </TabsTrigger>
-                </TabsList>
+                    </Button>
+                </div>
 
                 {/* Tabs Content */}
                 <div className="w-full">
                     {/* Teacher Profile Tab Content - Renders basic user information */}
-                    <TabsContent value="account" className="mt-0 space-y-6">
+                    <TabsContent value="account" className="mt-0 space-y-4">
                         <TeacherProfileForm user={user} />
                     </TabsContent>
 

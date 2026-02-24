@@ -107,7 +107,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onSave, availableSubjects
 
             <div className="space-y-2">
               <Label htmlFor="middleName">
-                Middle Name <span className="text-gray-500">(optional)</span>
+                Middle Name <span className="text-muted-foreground">(optional)</span>
               </Label>
               <Input
                 id="middleName"
@@ -132,7 +132,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onSave, availableSubjects
             {/* Date of Birth */}
             <div className="space-y-2">
               <Label>
-                Date of Birth <span className="text-gray-500">(optional)</span>
+                Date of Birth <span className="text-muted-foreground">(optional)</span>
               </Label>
               <Popover open={dateOfBirthOpen} onOpenChange={setDateOfBirthOpen}>
                 <PopoverTrigger asChild>
@@ -162,7 +162,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onSave, availableSubjects
             {/* Gender */}
             <div className="space-y-2">
               <Label htmlFor="gender">
-                Gender <span className="text-gray-500">(optional)</span>
+                Gender <span className="text-muted-foreground">(optional)</span>
               </Label>
               <Select value={gender} onValueChange={setGender}>
                 <SelectTrigger>
@@ -181,7 +181,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onSave, availableSubjects
             {/* Department */}
             <div className="space-y-2">
               <Label htmlFor="department">
-                Department <span className="text-gray-500">(optional)</span>
+                Department <span className="text-muted-foreground">(optional)</span>
               </Label>
               <Select value={department} onValueChange={setDepartment}>
                 <SelectTrigger>
@@ -200,7 +200,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onSave, availableSubjects
             {/* Days Present */}
             <div className="space-y-2">
               <Label htmlFor="daysPresent">
-                Days Present <span className="text-gray-500">(optional)</span>
+                Days Present <span className="text-muted-foreground">(optional)</span>
               </Label>
               <Input
                 id="daysPresent"
@@ -216,11 +216,11 @@ export const AddStudentDialog = ({ open, onOpenChange, onSave, availableSubjects
           {/* Subjects Selection */}
           <div className="space-y-2">
             <Label>
-              Subjects * <span className="text-gray-500">(select at least one)</span>
+              Subjects * <span className="text-muted-foreground">(select at least one)</span>
             </Label>
-            <div className="border border-gray-300 rounded-md p-4 max-h-48 overflow-y-auto">
+            <div className="border border-border rounded-md p-4 max-h-48 overflow-y-auto">
               {availableSubjects.length === 0 ? (
-                <p className="text-sm text-gray-500">No subjects available. Please add subjects first.</p>
+                <p className="text-sm text-muted-foreground">No subjects available. Please add subjects first.</p>
               ) : (
                 <div className="space-y-2">
                   {availableSubjects.map((subject) => {
@@ -228,13 +228,13 @@ export const AddStudentDialog = ({ open, onOpenChange, onSave, availableSubjects
                     return (
                       <div
                         key={subject.id || subject.name}
-                        className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                        className="flex items-center space-x-2 cursor-pointer hover:bg-muted p-2 rounded"
                         onClick={() => toggleSubject(subject)}
                       >
                         {isSelected ? (
                           <CheckSquare className="w-5 h-5 text-primary" />
                         ) : (
-                          <Square className="w-5 h-5 text-gray-400" />
+                          <Square className="w-5 h-5 text-muted-foreground" />
                         )}
                         <span className="text-sm">{subject.name}</span>
                       </div>

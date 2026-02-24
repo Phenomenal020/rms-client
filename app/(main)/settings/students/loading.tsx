@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/shadcn/ui/card";
 
 export default function Loading() {
   return (
-    <main className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50/40 to-indigo-50/30 relative overflow-hidden">
+    <main className="min-h-screen w-full bg-background relative overflow-hidden">
       <div className="relative mx-auto w-full max-w-4xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
         {/* Header Section Skeleton */}
         <div className="text-center mb-10 sm:mb-12">
@@ -16,7 +16,7 @@ export default function Loading() {
           <CardContent className="pt-4">
             <div className="space-y-6">
               {/* Add New Student Section */}
-              <div className="space-y-4 pb-6 border-b border-gray-200">
+              <div className="space-y-4 pb-6 border-b border-border">
                 <Skeleton className="h-6 w-40" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -77,7 +77,7 @@ export default function Loading() {
               </div>
 
               {/* Submit Button Skeleton */}
-              <div className="pt-6 border-t border-gray-200 mt-6">
+              <div className="pt-6 border-t border-border mt-6">
                 <div className="flex justify-center">
                   <Skeleton className="h-10 w-40" />
                 </div>

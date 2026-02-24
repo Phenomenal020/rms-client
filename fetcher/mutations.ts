@@ -9,6 +9,13 @@ import type { UpsertTermPayload } from "@/types/term"
 import type { UpsertSchoolPayload, UpsertAssessmentStructurePayload } from "@/types/school"
 import type { UpsertSubjectsPayload } from "@/types/subjects"
 import type { UpsertStudentsPayload } from "@/types/students"
+import type { SaveStudentScoresPayload, SaveSubjectScoresPayload } from "@/types/view"
+
+// Shared utility to extract error message from caught errors (axios or generic)
+export function getErrorMessage(err: unknown, fallback = "An unexpected error occurred. Please try again."): string {
+    const error = err as any;
+    return error?.response?.data?.message || error?.message || fallback;
+}
 
 // update user profile
 export function useUpdateProfile() {
@@ -25,7 +32,7 @@ export function useUpdateProfile() {
             onSuccess: () => {
                 // Invalidate cache to refetch fresh user data after update
                 // Since getUser() uses '/users/session', we invalidate it
-                mutate(`/users/session`);
+                mutate(`/users/session`);  
             },
         }
     );
@@ -46,6 +53,7 @@ export function useUpsertSchool() {
         '/school/update',  // key - used by SWR for cache identification
         async (url, { arg }: { arg: UpsertSchoolPayload }) => {  // use form payload type (no id, createdAt, updatedAt, etc) instead of School type (for relations)
             // SWR automatically passes the key as the 'url' parameter. Using POST for upsert (create or update)
+            // Logo is uploaded to Firebase separately, only the download URL is sent in the payload
             const response = await axiosInstance.post(url, arg);  // use it to make the api call
             return response.data;
         },
@@ -53,7 +61,7 @@ export function useUpsertSchool() {
             onSuccess: () => {
                 // Invalidate cache to refetch fresh user data after upsert
                 // Since getUserWithRelations() uses '/users/user', we invalidate it
-                mutate('/users/user');
+                mutate('/users/user');  // for views to get fresh school data
             }
         }
     );
@@ -81,7 +89,7 @@ export function useUpsertTerm() {
             onSuccess: () => {
                 // Invalidate cache to refetch fresh user data after upsert
                 // Since getUserWithRelations() uses '/users/user', we invalidate it
-                mutate('/users/user');
+                mutate('/users/user');  // for views to get fresh term data
             }
         }
     );
@@ -93,7 +101,6 @@ export function useUpsertTerm() {
         data,
     };
 }
-
 
 // upsert subjects (create or update) or delete
 export function useUpsertSubjects() {
@@ -110,24 +117,15 @@ export function useUpsertSubjects() {
             onSuccess: () => {
                 // Invalidate cache to refetch fresh user data after upsert
                 // Since getUserWithRelations() uses '/users/user', we invalidate it
-                mutate('/users/user');
+                mutate('/users/user');  // for views to get fresh subject data
             }
         }
     );
-
-    // Access axios error message
-    // error?.response?.data?.message - server error message
-    // error?.message - axios error message
-    // error?.response?.data - full error response data
-    const errorMessage = error && 'response' in error 
-        ? (error as any).response?.data?.message || (error as any).message 
-        : (error as any)?.message;
 
     return {
         upsertSubjects: trigger,
         isMutating,
         error,
-        errorMessage,
         data,
     };
 }
@@ -147,20 +145,15 @@ export function useUpsertAssessmentStructures() {
             onSuccess: () => {
                 // Invalidate cache to refetch fresh user data after upsert
                 // Since getUserWithRelations() uses '/users/user', we invalidate it
-                mutate('/users/user');
+                mutate('/users/user');  // for views to get fresh assessment structure data
             }
         }
     );
-
-    const errorMessage = error && 'response' in error 
-        ? (error as any).response?.data?.message || (error as any).message 
-        : (error as any)?.message;
 
     return {
         upsertAssessmentStructures: trigger,
         isMutating,
         error,
-        errorMessage,
         data,
     };
 }
@@ -180,20 +173,74 @@ export function useUpsertStudents() {
             onSuccess: () => {
                 // Invalidate cache to refetch fresh user data after upsert
                 // Since getUserWithRelations() uses '/users/user', we invalidate it
-                mutate('/users/user');
+                // mutate('/users/user');
+                mutate('/users/user');  // for views to get fresh student data
             }
         }
     );
-
-    const errorMessage = error && 'response' in error 
-        ? (error as any).response?.data?.message || (error as any).message 
-        : (error as any)?.message;
 
     return {
         upsertStudents: trigger,
         isMutating,
         error,
-        errorMessage,
+        data,
+    };
+}
+
+// save student assessment scores (student-view)
+export function useSaveStudentScores() {
+    const { mutate } = useSWRConfig();
+    
+    const { trigger, isMutating, error, data } = useSWRMutation(
+        '/student-view/save-scores',  // key - used by SWR for cache identification
+        async (url, { arg }: { arg: SaveStudentScoresPayload }) => {
+            // SWR automatically passes the key as the 'url' parameter
+            const response = await axiosInstance.post(url, arg);
+            return response.data;
+        },
+        {
+            onSuccess: () => {
+                // Invalidate cache to refetch fresh user data after saving scores
+                // Since getUserWithRelations() uses '/users/user', we invalidate it
+                // mutate('/users/user');
+                // do nothing
+            }
+        }
+    );
+
+    return {
+        saveStudentScores: trigger,
+        isMutating,
+        error,
+        data,
+    };
+}
+
+// save subject assessment scores (subject-view)
+export function useSaveSubjectScores() {
+    const { mutate } = useSWRConfig();
+    
+    const { trigger, isMutating, error, data } = useSWRMutation(
+        '/subject-view/save-scores',  // key - used by SWR for cache identification
+        async (url, { arg }: { arg: SaveSubjectScoresPayload }) => {
+            // SWR automatically passes the key as the 'url' parameter
+            const response = await axiosInstance.post(url, arg);
+            return response.data;
+        },
+        {
+            onSuccess: () => {
+                // Invalidate cache to refetch fresh user data after saving scores
+                // Since getUserWithRelations() uses '/users/user', we invalidate it
+                // mutate('/users/user');
+                // do nothing
+            }
+        }
+    );
+
+    return {
+        saveSubjectScores: trigger,
+        isMutating,
+        error,
         data,
     };
 }

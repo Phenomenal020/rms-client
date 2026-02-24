@@ -1,19 +1,20 @@
-// import { getServerSession } from "@/src/lib/get-session";
-// import { redirect } from "next/navigation";
+import { Poppins } from "next/font/google";
+
+// Poppins font for auth routes only
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-poppins",
+  display: "swap",
+});
 
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
 
-  // // get the user from the session
-  // const session = await getServerSession();
-  // const user = session?.user;
-
-  // if the user is already logged in and verified, redirect to dashboard
-  // BUT allow unverified users to access auth pages (like verify-email)
-  // if (user && user.emailVerified) {
-  //   redirect("/settings/profile");
-  // }
-
   // No Navbar in this auth group 
-  return children;
+  return (
+    <div className={`${poppins.variable} font-sans`} style={{ fontFamily: 'var(--font-poppins), sans-serif' }}>
+      {children}
+    </div>
+  );
 }
 

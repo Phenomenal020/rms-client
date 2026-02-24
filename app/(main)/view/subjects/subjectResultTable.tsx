@@ -15,20 +15,13 @@ import {
     FormMessage,
 } from "@/shadcn/ui/form";
 import { Edit3, Loader2, Save, X } from "lucide-react";
-import { saveSubjectScores } from "@/app/api/views/edit-subject-action";
 import type { Student, AssessmentStructure, Subject, AssessmentScore } from "@/types/drizzle";
-
-// // Type for assessment score used in forms
-// type AssessmentScore = {
-//   assessmentStructureId: string;
-//   score: number;
-// };
+import { useSaveSubjectScores, getErrorMessage } from "@/fetcher/mutations";
 
 // Component Props
 interface SubjectResultTableProps {
     isEditingScores: boolean;
     startEditingScores: () => void;
-    saveScoreChanges: (updatedStudentsFromForm: Array<{ studentId: string; scores: AssessmentScore[] }>) => void;
     cancelEditingScores: () => void;
     editingStudents?: Student[];
     enrolledStudents?: Student[];
@@ -39,12 +32,12 @@ interface SubjectResultTableProps {
     assessmentStructure?: AssessmentStructure[];
     isGlobalEditing: boolean;
     academicTermId?: string;
+    setIsGlobalEditing: (flag: boolean) => void;
 }
 
 export const SubjectResultTable = ({
     isEditingScores,
     startEditingScores,
-    saveScoreChanges,
     cancelEditingScores,
     editingStudents = [],
     enrolledStudents = [],
@@ -55,6 +48,7 @@ export const SubjectResultTable = ({
     assessmentStructure = [],
     isGlobalEditing,
     academicTermId,
+    setIsGlobalEditing,
 }: SubjectResultTableProps) => {
     const [isPending, startTransition] = useTransition();
 
@@ -84,6 +78,8 @@ export const SubjectResultTable = ({
         students: z.array(rowSchema),
     });
 
+    const { saveSubjectScores, isMutating: isSavingScores } = useSaveSubjectScores();
+
     type TableFormData = z.infer<typeof tableSchema>;
 
     // Build default values from current students list
@@ -93,7 +89,7 @@ export const SubjectResultTable = ({
             const studentSubject = student.subjects?.find(
                 (s: Subject) =>
                     s.subject?.name === selectedSubjectName ||
-                    s.subject?.name === selectedSubjectName 
+                    s.subject?.name === selectedSubjectName
             );
 
             const assessment = studentSubject?.assessments?.[0];  // assessment is the first index of the assessments array
@@ -154,7 +150,7 @@ export const SubjectResultTable = ({
                     return;
                 }
 
-                // Transform form data to match server action format
+                // Transform form data to match api requirements
                 const studentsData = data.students.map((student) => ({
                     studentId: student.studentId,
                     scores: student.scores.map((score) => ({
@@ -163,31 +159,24 @@ export const SubjectResultTable = ({
                     })),
                 }));
 
-                // TODO: Commented out for debugging - restore when ready
-                console.log("saveSubjectScores payload:", JSON.stringify({
-                    subjectId,
-                    academicTermId,
-                    studentsData
-                }, null, 2));
+                // Call server action to save scores
+                const result = await saveSubjectScores(
+                    {
+                        subjectId,
+                        academicTermId,
+                        studentsData
+                    }
+                );
+                setIsGlobalEditing(false);
+                toast.success("Scores saved successfully");
+                cancelEditingScores();
 
-                // // Call server action to save scores
-                // const result = await saveSubjectScores(
-                //     subjectId,
-                //     academicTermId,
-                //     studentsData
-                // );
-                
-                // if ('error' in result && result.error) {
-                //     toast.error("Failed to save scores. Please try again.");
-                //     return;
-                // }
-
-                // // Update local state via parent component
-                // saveScoreChanges(data.students);
 
                 // toast.success("Scores saved successfully");
             } catch (error) {
-                toast.error("Failed to save scores. Please try again.");
+                toast.error("Failed to save scores", {
+                    description: getErrorMessage(error, "An error occurred while saving scores"),
+                });
             }
         });
     };
@@ -200,10 +189,10 @@ export const SubjectResultTable = ({
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                     {/* Academic Performance Title and Edit Scores Button */}
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-1 md:mb-2">
 
                         {/* Academic Performance Title */}
-                        <h3 className="text-lg md:text-xl font-bold text-gray-800 border-gray-300 pb-2">
+                        <h3 className="text-base sm:text-lg font-bold text-foreground border-border">
                             ACADEMIC PERFORMANCE
                         </h3>
 
@@ -214,11 +203,11 @@ export const SubjectResultTable = ({
                                 onClick={startEditingScores}
                                 variant="outline"
                                 size="sm"
-                                className="border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer"
+                                className="border-border text-foreground hover:bg-muted cursor-pointer"
                                 disabled={isGlobalEditing}
                             >
                                 <Edit3 className="w-4 h-4 mr-2" />
-                                Edit
+
                             </Button>
                         ) : (
                             <div className="flex gap-2">
@@ -227,7 +216,7 @@ export const SubjectResultTable = ({
                                     type="submit"
                                     size="sm"
                                     disabled={isPending || !form.formState.isDirty}
-                                    className="bg-gray-800 hover:bg-gray-900 text-white cursor-pointer"
+                                    className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
                                 >
                                     {isPending ? (
                                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -243,7 +232,7 @@ export const SubjectResultTable = ({
                                     variant="outline"
                                     size="sm"
                                     disabled={isPending}
-                                    className="border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer"
+                                    className="border-border text-foreground hover:bg-muted cursor-pointer"
                                 >
                                     <X className="w-4 h-4 mr-2" />
                                     Cancel
@@ -254,28 +243,29 @@ export const SubjectResultTable = ({
 
                     {/* Result Table */}
                     <div className="overflow-x-auto">
-                        <table className="w-full border-collapse border border-gray-300">
+                        <table className="w-full border-collapse border border-border">
                             {/* Table headers - dynamically generated from assessment structure */}
                             <thead>
-                                <tr className="bg-gray-100">
-                                    <th className="border border-gray-300 p-3 text-left font-semibold text-gray-700 text-sm md:text-base">
+                                <tr className="bg-muted">
+                                    <th className="border border-border p-2 md:p-3 text-left font-semibold text-foreground text-sm sm:text-base sticky left-0 z-20 bg-muted">
                                         Student Name
                                     </th>
                                     {sortedAssessments.map((assessment) => (
                                         <th
                                             key={assessment.type}
-                                            className="border border-gray-300 p-3 text-center font-semibold text-gray-700 text-sm md:text-base"
+                                            className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base"
                                         >
                                             {assessment.type} ({assessment.percentage}%)
                                         </th>
                                     ))}
-                                    <th className="border border-gray-300 p-3 text-center font-semibold text-gray-700 text-sm md:text-base">
+
+                                    <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base">
                                         Total (100%)
                                     </th>
-                                    <th className="border border-gray-300 p-3 text-center font-semibold text-gray-700 text-sm md:text-base">
+                                    <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base">
                                         Grade
                                     </th>
-                                    <th className="border border-gray-300 p-3 text-center font-semibold text-gray-700 text-sm md:text-base">
+                                    <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base">
                                         Remark
                                     </th>
                                 </tr>
@@ -312,8 +302,8 @@ export const SubjectResultTable = ({
                                         const remark = getRemark(grade);
 
                                         return (
-                                            <tr key={student.id || index} className="hover:bg-gray-50">
-                                                <td className="border border-gray-300 p-3 font-medium text-gray-900 text-sm md:text-base">
+                                            <tr key={student.id || index} className="hover:bg-muted">
+                                                <td className="border border-border p-3 font-medium text-foreground text-sm sm:text-base whitespace-nowrap sticky left-0 z-10 bg-card">
                                                     {studentName}
                                                 </td>
 
@@ -338,7 +328,7 @@ export const SubjectResultTable = ({
                                                     return (
                                                         <td
                                                             key={assessmentType}
-                                                            className="border border-gray-300 p-3 text-center"
+                                                            className="border border-border p-2 sm:p-3 text-center"
                                                         >
                                                             {isEditingScores ? (
                                                                 <FormField
@@ -357,7 +347,7 @@ export const SubjectResultTable = ({
                                                                                         const value = e.target.value === "" ? "" : Number(e.target.value);
                                                                                         field.onChange(value as number);
                                                                                     }}
-                                                                                    className="w-16 h-8 text-center text-sm border-gray-200 focus:border-gray-400"
+                                                                                    className="w-16 h-8 text-center text-sm border-border focus:border-input"
                                                                                     disabled={isPending}
                                                                                 />
                                                                             </FormControl>
@@ -366,24 +356,24 @@ export const SubjectResultTable = ({
                                                                     )}
                                                                 />
                                                             ) : (
-                                                                <span className="text-gray-700 text-sm md:text-base">{scoreValue}</span>
+                                                                <span className="text-foreground text-sm md:text-base">{scoreValue}</span>
                                                             )}
                                                         </td>
                                                     );
                                                 })}
 
                                                 {/* Total score */}
-                                                <td className="border border-gray-300 p-3 text-center font-semibold text-gray-900 text-sm md:text-base">
+                                                <td className="border border-border p-2 sm:p-3 text-center font-semibold text-foreground text-sm md:text-base">
                                                     {percentage}
                                                 </td>
 
                                                 {/* Grade */}
-                                                <td className="border border-gray-300 p-3 text-center font-bold text-gray-900 text-sm md:text-base">
+                                                <td className="border border-border p-2 sm:p-3 text-center font-bold text-foreground text-sm md:text-base">
                                                     {grade}
                                                 </td>
 
                                                 {/* Remark */}
-                                                <td className="border border-gray-300 p-3 text-center text-gray-700 text-sm md:text-base">
+                                                <td className="border border-border p-2 sm:p-3 text-center text-foreground text-sm md:text-base">
                                                     {remark}
                                                 </td>
                                             </tr>
@@ -391,13 +381,12 @@ export const SubjectResultTable = ({
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan={sortedAssessments.length + 4} className="border border-gray-300 p-3 text-center text-gray-500 text-sm md:text-base">
+                                        <td colSpan={sortedAssessments.length + 4} className="border border-border p-2 sm:p-3 text-center text-muted-foreground text-sm md:text-base">
                                             No students enrolled in this subject
                                         </td>
                                     </tr>
                                 )}
                             </tbody>
-
                         </table>
                     </div>
                 </form>

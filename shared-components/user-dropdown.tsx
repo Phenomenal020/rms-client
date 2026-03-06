@@ -30,7 +30,7 @@ export function UserDropdown({ user }: UserDropdownProps) {
       {/* Button: User Profile Image or User Icon Dropdown Trigger */}
       <DropdownMenuTrigger asChild>
         <Button variant="outline">
-          {user.image ? (
+          {user?.image ? (
             <Image
               src={user.image}
               alt={user.name}
@@ -46,11 +46,11 @@ export function UserDropdown({ user }: UserDropdownProps) {
       </DropdownMenuTrigger>
       {/* Dropdown Menu Content: User Profile, Admin, Sign Out */}
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
+        <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
         {/* Separator: Between User Email and User Profile */}
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/settings/profile">
+          <Link href="/settings">
             <UserIcon className="size-4" /> <span>Profile</span>
           </Link>
         </DropdownMenuItem>

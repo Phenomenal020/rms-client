@@ -6,19 +6,23 @@
 //   - authClient.signOut()
 
 import { createAuthClient } from "better-auth/react";
-// import { nextCookies } from "better-auth/next-js";
-// import { inferAdditionalFields } from "better-auth/client/plugins";
-// import { auth } from "./auth";
-
-// export const authClient = createAuthClient({
-//     plugins: [
-//         inferAdditionalFields<typeof auth>(),
-//         nextCookies()  // Must be the last plugin
-//     ]
-// })
+import { emailOTPClient, inferAdditionalFields, twoFactorClient } from "better-auth/client/plugins"
 
 export const authClient = createAuthClient({
-    baseURL: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth`
+    baseURL: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth`,
+    plugins: [
+        emailOTPClient(), // Email OTP plugin
+        // Allow additional fields to be passed to the sign up form
+        inferAdditionalFields({
+            user: {
+                firstName: { type: "string", required: true },
+                lastName: { type: "string", required: true },
+                role: { type: "string", required: false, input: false },
+                subscription: { type: "string", required: false },
+            }
+        }),
+        twoFactorClient() 
+    ]
 })
 
 // Type for session list items (from listSessions API)

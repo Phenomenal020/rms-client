@@ -15,8 +15,10 @@ export function Navbar() {
   const { theme, setTheme } = useTheme();
   const { toggle } = useSidebar();
 
+  console.log(user);
+
   // if the user is not found, return null
-  if (!user) return null;
+  // if (!user) return null;
 
   const isDark = theme === "dark";
 

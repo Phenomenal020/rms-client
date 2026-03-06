@@ -1,0 +1,1 @@
+export type TeacherInvitationStatus = "PENDING" | "ACCEPTED" | "EXPIRED" | "REVOKED" | "CLICKED" | "UNSENT";

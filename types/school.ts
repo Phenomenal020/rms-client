@@ -4,36 +4,34 @@
 export type School = {
     id: string;
     schoolName: string; // Required - always present when school exists
+    schoolRegistrationId: string; // Server-generated UUID, shared with teachers to join the school
+    // Optional stuff
     schoolAddress: string | null | undefined;
     schoolMotto: string | null | undefined;
     schoolTelephone: string | null | undefined;
     schoolEmail: string | null | undefined;
-    // schoolLogoUrl: string | null | undefined;
+    // schoolLogoUrl: string | null | undefined;  TODO
     createdAt: Date;
     updatedAt: Date;
 } | null;
 
 // Type for school upsert payload (matches form values and API DTO)
+// schoolRegistrationId is never sent by the client — it is server-generated
 export type UpsertSchoolPayload = {
     schoolName: string;
-    schoolAddress?: string | undefined;
-    schoolMotto?: string | undefined;
-    schoolTelephone?: string | undefined;
-    schoolEmail?: string | undefined;
+    schoolAddress?: string | null | undefined;
+    schoolMotto?: string | null | undefined;
+    schoolTelephone?: string | null | undefined;
+    schoolEmail?: string | null | undefined;
 };
 
-export type AssessmentStructure = {
-    id?: string;
-    type: string;
-    percentage: number;
-    order: number;
+// Response from POST /school — includes the generated registration ID
+export type CreateSchoolResponse = {
+    success: string;
+    schoolRegistrationId: string;
 };
 
-// Type for assessment structure upsert payload (matches form values and API DTO)
-export type UpsertAssessmentStructurePayload = Array<{
-    id?: string;
-    type: string;
-    percentage: number;
-    order: number;
-}>;
-// 
+// Response from PATCH /school
+export type UpdateSchoolResponse = {
+    success: string;
+};

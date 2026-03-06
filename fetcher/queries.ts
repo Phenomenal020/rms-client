@@ -7,7 +7,7 @@ import type { SessionListItem } from "@/src/auth-client"
 
 // get user from session (CLIENT COMPONENT ONLY - uses React hook)
 export function getUser() {
-    const { data, error, isLoading } = useSWR(`/users/session`, fetcher)  // TODO: Add return type
+    const { data, error, isLoading } = useSWR(`/api/v1/users/session`, fetcher)  // TODO: Add return type
     const result = { data, error, isLoading }
     return result
 }
@@ -51,7 +51,7 @@ export function getCurrentSessionToken(enabled: boolean = true) {
 
 // get user with all relations + infer the type from the fetch function
 export function getUserWithRelations() {
-    const { data, error, isLoading } = useSWR('/users/user', fetcher);
+    const { data, error, isLoading } = useSWR('/api/v1/users/user', fetcher);
     return { user: data, error, isLoading };
 }
 export type UserWithRelations = Awaited<ReturnType<typeof getUserWithRelations>>;

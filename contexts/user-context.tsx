@@ -2,48 +2,29 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 import { getUserWithRelations, type UserWithRelations } from "@/fetcher/queries";
-import type {
-  UserData,
-  Subject,
-  AssessmentStructure,
-  Student,
-  AcademicTerm,
-  GradingEntry,
-  School,
-} from "@/types/drizzle";
 
-// Define the context type based on the return type of getUserWithRelations
-// Extract nested types from the Drizzle query result
-export type UserContextType = UserWithRelations & {
-  subjects: Subject[] | undefined;
-  assessmentStructure: AssessmentStructure[] | undefined;
-  students: Student[] | undefined;
-  academicTerm: AcademicTerm | undefined;
-  gradingEntry: GradingEntry[] | undefined;
-  school: School | undefined;
-};
+// The context only carries what the app shell needs:
+//   • core user fields (role, name, email, etc.)
+//   • school row  — to know whether a school has been created
+//   • academicTerms rows — to know whether terms exist and which is active
+//
+// Page-level data (subjects, classes, students, assessments, scores) is NOT
+// included here. Each page fetches its own data on demand via SWR so that
+// this global fetch stays small and fast.
+export type UserContextType = UserWithRelations;
 
-// Create the context with undefined as default (will be provided by UserProvider)
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-// Provider component that fetches user data and provides it to children
 export function UserProvider({ children }: { children: ReactNode }) {
   const userData = getUserWithRelations();
-  const subjects = userData?.user?.academicTerm?.subjects;
-  const assessmentStructure = userData?.user?.academicTerm?.assessmentStructure;
-  const students = userData?.user?.academicTerm?.students;
-  const academicTerm = userData?.user?.academicTerm;
-  const gradingEntry = userData?.user?.academicTerm?.gradingEntry;
-  const school = userData?.user?.school;
 
   return (
-    <UserContext.Provider value={{ ...userData, subjects, assessmentStructure, students, academicTerm, gradingEntry, school }}>
+    <UserContext.Provider value={userData}>
       {children}
     </UserContext.Provider>
   );
 }
 
-// Custom hook to use the user context
 export function useUser() {
   const context = useContext(UserContext);
 

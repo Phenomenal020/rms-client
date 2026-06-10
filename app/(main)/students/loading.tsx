@@ -1,92 +1,30 @@
 import { Skeleton } from "@/shadcn/ui/skeleton";
 import { Card, CardContent } from "@/shadcn/ui/card";
+import { StudentsLoadingTable } from "./students-loading-table";
 
-export default function Loading() {
-  return (
-    <main className="min-h-screen w-full bg-background relative overflow-hidden">
-      <div className="relative mx-auto w-full max-w-4xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-        {/* Header Section Skeleton */}
-        <div className="text-center mb-10 sm:mb-12">
-          <Skeleton className="h-12 w-72 mx-auto mb-2" />
-          <Skeleton className="h-6 w-[500px] mx-auto" />
-        </div>
+export default function StudentsLoading() {
+    return (
+        <main className="min-h-screen w-full bg-background relative overflow-hidden px-4 py-6 md:px-6 md:py-10">
+            <div className="mx-auto w-full max-w-5xl space-y-10">
+                <Card className="border shadow-md">
+                    <CardContent className="space-y-6">
+                        <section className="overflow-hidden rounded-sm bg-card">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <Skeleton className="h-6 w-36" />
+                                {/* search bar and add student button */}
+                                <div className="flex w-full gap-2 sm:w-auto sm:items-center">
+                                    <Skeleton className="h-6 w-full sm:max-w-xs" />
+                                    <Skeleton className="h-6 w-32" />
+                                </div>
+                            </div>
 
-        {/* Form Card Skeleton */}
-        <Card className="border shadow-md">
-          <CardContent className="pt-4">
-            <div className="space-y-6">
-              {/* Add New Student Section */}
-              <div className="space-y-4 pb-6 border-b border-border">
-                <Skeleton className="h-6 w-40" />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-28" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-20" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-28" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                </div>
-                <Skeleton className="h-10 w-40" />
-              </div>
+                            <hr className="my-4" />
 
-              {/* Students List Section */}
-              <div className="space-y-4">
-                <Skeleton className="h-6 w-32" />
-                <div className="space-y-4">
-                  {/* Student Card Skeletons */}
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="border rounded-lg p-4 space-y-3">
-                      <div className="flex justify-between items-start">
-                        <div className="space-y-2 flex-1">
-                          <Skeleton className="h-5 w-48" />
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                            <Skeleton className="h-4 w-20" />
-                            <Skeleton className="h-4 w-16" />
-                            <Skeleton className="h-4 w-24" />
-                            <Skeleton className="h-4 w-20" />
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Skeleton className="h-8 w-8 rounded" />
-                          <Skeleton className="h-8 w-8 rounded" />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Submit Button Skeleton */}
-              <div className="pt-6 border-t border-border mt-6">
-                <div className="flex justify-center">
-                  <Skeleton className="h-10 w-40" />
-                </div>
-              </div>
+                            <StudentsLoadingTable />
+                        </section>
+                    </CardContent>
+                </Card>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    </main>
-  );
+        </main>
+    );
 }
-

@@ -39,7 +39,7 @@ export function StudentSelection({
         if (!student) return "";
         const parts = [
             student.firstName,
-            student.middleName,
+            student.middleName ? ` ${student.middleName[0]}. ` : "",
             student.lastName
         ].filter(Boolean);
         return parts.join(" ");

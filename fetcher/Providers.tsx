@@ -8,7 +8,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <SWRConfig
             value={{
                 fetcher,
-                // refreshInterval: 2000,
+                // Default SWR retries failed requests up to 5 times — cap retries to limit noise and load on bad endpoints.
+                // errorRetryCount: 1,
+                // errorRetryInterval: 15_000,
+                refreshInterval: 15000,
                 // revalidateOnFocus: false,
                 // revalidateOnReconnect: true,
                 // revalidateIfStale: false,

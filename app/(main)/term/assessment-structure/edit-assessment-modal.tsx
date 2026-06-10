@@ -11,13 +11,14 @@ import {
     DialogTitle,
 } from "@/shadcn/ui/dialog";
 import type { UseFormReturn } from "react-hook-form";
-import type { AssessmentValues } from "./assessment-structure-card";
+import type { AssessmentStructureValues } from "./assessment-structure-card";
+import { LoadingButton } from "@/shared-components/loading-button";
 
 type EditAssessmentModalProps = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    form: UseFormReturn<AssessmentValues>;
-    onSubmit: (values: AssessmentValues) => void;
+    form: UseFormReturn<AssessmentStructureValues>;
+    onSubmit: (values: AssessmentStructureValues) => void;
     loading: boolean;
 };
 
@@ -75,7 +76,7 @@ export function EditAssessmentModal({ open, onOpenChange, form, onSubmit, loadin
                             {/* Order */}
                             <FormField
                                 control={form.control}
-                                name="order"
+                                name="displayOrder"
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel className="font-semibold text-muted-foreground">Order</FormLabel>
@@ -94,10 +95,8 @@ export function EditAssessmentModal({ open, onOpenChange, form, onSubmit, loadin
                             />
                         </div>
 
-                        <hr className="my-2" />
-
                         {/* Footer */}
-                        <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2">
+                        <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-2">
                             <Button
                                 type="button"
                                 variant="outline"
@@ -107,9 +106,13 @@ export function EditAssessmentModal({ open, onOpenChange, form, onSubmit, loadin
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={loading} className="cursor-pointer h-10 md:h-12">
+                            <LoadingButton
+                                type="submit"
+                                loading={loading}
+                                disabled={loading || !form.formState.isDirty}
+                                className="cursor-pointer h-10 md:h-12">
                                 Save Changes
-                            </Button>
+                            </LoadingButton>
                         </DialogFooter>
 
                     </form>

@@ -6,11 +6,14 @@ import { ArrowLeft, FileQuestion, LayoutDashboard } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function NotFound() {
+  // use router to navigate back to the previous page
   const router = useRouter();
+
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-16">
       <div className="mx-auto max-w-2xl text-center">
         <div className="space-y-8">
+
           {/* Icon/Illustration */}
           <div className="flex justify-center">
             <div className="relative">
@@ -21,7 +24,7 @@ export default function NotFound() {
             </div>
           </div>
 
-          {/* Content */}
+          {/* Content: 404 Page Not Found */}
           <div className="space-y-4">
             <div className="space-y-2">
               <h1 className="text-6xl font-bold tracking-tight text-foreground">
@@ -37,12 +40,12 @@ export default function NotFound() {
             </p>
           </div>
 
-          {/* Action Buttons */}
+          {/* Action Buttons: Dashboard and Back */}
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Button asChild size="lg" className="w-full sm:w-auto cursor-pointer">
-              <Link href="/settings/profile" className="flex items-center gap-2">
+              <Link href="/dashboard" className="flex items-center gap-2">
                 <LayoutDashboard className="size-4" />
-                Go To Profile
+                Dashboard
               </Link>
             </Button>
             <Button 
@@ -51,24 +54,10 @@ export default function NotFound() {
               className="w-full sm:w-auto bg-white text-black hover:bg-gray-50 cursor-pointer" 
               onClick={() => router.back()}
             >
-              <ArrowLeft className="size-4 mr-2" />
-              Go Back
+              <ArrowLeft className="size-4" />
+              Back
             </Button>
           </div>
-
-          {/* Additional Help */}
-          {/* <div className="pt-8">
-            <p className="text-sm text-muted-foreground">
-              Need help? Try searching or{" "}
-              <Link 
-                href="/dashboard" 
-                className="font-medium text-primary underline-offset-4 hover:underline"
-              >
-                return to your dashboard
-              </Link>
-              .
-            </p>
-          </div> */}
         </div>
       </div>
     </main>

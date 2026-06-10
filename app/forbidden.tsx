@@ -1,3 +1,4 @@
+// User is authenticated but not authorised to access this resource
 import { Button } from "@/shadcn/ui/button";
 import Link from "next/link";
 

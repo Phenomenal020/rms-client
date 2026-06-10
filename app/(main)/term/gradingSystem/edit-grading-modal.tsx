@@ -3,15 +3,10 @@
 import { Button } from "@/shadcn/ui/button";
 import { Input } from "@/shadcn/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shadcn/ui/form";
-import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/shadcn/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/shadcn/ui/dialog";
 import type { UseFormReturn } from "react-hook-form";
 import type { GradingEntryValues } from "./grading-system-card";
+import { LoadingButton } from "@/shared-components/loading-button";
 
 type EditGradingModalProps = {
     open: boolean;
@@ -33,9 +28,9 @@ export function EditGradingModal({ open, onOpenChange, form, onSubmit, loading }
                 </DialogHeader>
 
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 space-y-4">
 
                             {/* Grade */}
                             <FormField
@@ -62,8 +57,6 @@ export function EditGradingModal({ open, onOpenChange, form, onSubmit, loading }
                                         <FormControl>
                                             <Input
                                                 type="number"
-                                                // min={0}
-                                                // max={100}
                                                 {...field}
                                                 onChange={(e) => field.onChange(Number(e.target.value))}
                                                 className="h-10 md:h-12"
@@ -84,8 +77,6 @@ export function EditGradingModal({ open, onOpenChange, form, onSubmit, loading }
                                         <FormControl>
                                             <Input
                                                 type="number"
-                                                // min={0}
-                                                // max={100}
                                                 {...field}
                                                 onChange={(e) => field.onChange(Number(e.target.value))}
                                                 className="h-10 md:h-12"
@@ -101,20 +92,25 @@ export function EditGradingModal({ open, onOpenChange, form, onSubmit, loading }
 
                         {/* Footer */}
                         <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2">
+                            {/* Cancel Button */}
                             <Button
                                 type="button"
                                 variant="outline"
                                 onClick={() => onOpenChange(false)}
-                                disabled={loading}
+                                disabled={loading || form.formState.isDirty}
                                 className="cursor-pointer h-10 md:h-12"
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={loading} className="cursor-pointer h-10 md:h-12">
+                            {/* Save Changes Button */}
+                            <LoadingButton
+                                type="submit"
+                                disabled={loading || form.formState.isSubmitting || form.formState.isDirty}
+                                loading={loading || form.formState.isDirty}
+                                className="cursor-pointer h-10 md:h-12">
                                 Save Changes
-                            </Button>
+                            </LoadingButton>
                         </DialogFooter>
-
                     </form>
                 </Form>
 

@@ -1,24 +1,62 @@
-export type Student = {
-    id?: string;
+// Payload for getting a single student
+export type getSingleStudent = {
+    id: string;
     firstName: string;
-    middleName?: string;
+    middleName?: string | null;
     lastName: string;
-    dateOfBirth: string;
-    gender: string;
-    department: string;
-    daysPresent: number | string;   // number or ""
-    subjects: Array<{ id: string; name: string }>;
+    gender: "NONE" | "MALE" | "FEMALE";
+    status: "ACTIVE" | "INACTIVE";
+    classId: string | null;
+    // className?: string | null;
 }
 
-// Type for student upsert payload (matches form values and API DTO)
-export type UpsertStudentsPayload = Array<{
-    id?: string;
+// Payload for getting all students
+export type getAllStudentsPayload = {
+    success: boolean;
+    data: getSingleStudent[];
+}
+
+// Payload for updating a single student
+export type updateSingleStudent = {
+    id: string;
+    firstName?: string;
+    middleName?: string;
+    lastName?: string;
+    gender?: "NONE" | "MALE" | "FEMALE";
+    status?: "ACTIVE" | "INACTIVE";
+    // Pass a UUID to assign, null to remove from class, omit to leave unchanged
+    classId?: string | null;
+}
+
+// Payload for creating a single student
+export type createSingleStudent = {
     firstName: string;
     middleName?: string;
     lastName: string;
-    dateOfBirth?: string;
-    gender?: "NONE" | "MALE" | "FEMALE";
-    department?: "NONE" | "SCIENCE" | "ARTS" | "GENERAL";
-    daysPresent?: number;
-    subjects: Array<{ id: string; name: string }>;
-}>;
+    gender: "NONE" | "MALE" | "FEMALE";
+    classId: string | null;
+    // status is active by default
+}
+
+/////////////////////////////////////////////
+export type enrollmentAssignment = {
+    enrollmentId: string;
+    assignmentId: string;
+}
+
+export type enrollmentStudent = {
+    studentId: string;
+    firstName: string;
+    middleName?: string;
+    lastName: string;
+}
+
+export type enrollmentPayload = {
+    student: enrollmentStudent;
+    enrollments: enrollmentAssignment[];
+};
+
+export type enrollmentsResponse = {
+    success: boolean;
+    data: enrollmentPayload[]
+}

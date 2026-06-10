@@ -1,3 +1,10 @@
+// Type for saving class record export (server loads the class record; do not send the full snapshot)
+export type SaveClassRecordExportPayload = {
+  classId: string;
+  academicTermId: string;
+  comment: string;
+};
+
 // Type for saving student assessment scores (student-view)
 export type SaveStudentScoresPayload = {
     studentId: string;

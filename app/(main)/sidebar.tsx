@@ -1,13 +1,22 @@
 "use client";
 
-import { School, User, Users, Book, BookOpen, FileSpreadsheet, LayoutDashboard,  GitMerge, Settings } from "lucide-react"
+import { School, User, Users, Book, BookOpen, FileSpreadsheet, LayoutDashboard, GitMerge, Settings } from "lucide-react"
 import { usePathname } from "next/navigation";
 import Link from "next/link"
 import { useSidebar } from "@/contexts/sidebar-context"
+import { useUser } from "@/contexts/user-context";
 
+// Admin sidebar items
+const adminSidebarItems = [
+    {
+        title: "Dashboard",
+        url: "/dashboard",
+        icon: LayoutDashboard,
+    },
+]
 
 // Organisation
-const organisationItems = [
+const orgAdminOrganisationItems = [
     {
         title: "Dashboard",
         url: "/dashboard",
@@ -23,19 +32,24 @@ const organisationItems = [
         url: "/teachers",
         icon: Users,
     },
-]
-
-// Term-scoped
-const termItems = [
-    {
-        title: "Term Setup",
-        url: "/term",
-        icon: BookOpen,
-    },
     {
         title: "Subjects",
         url: "/subjects",
         icon: Book,
+    },
+    {
+        title: 'Students',
+        url: '/students',
+        icon: User,
+    },
+]
+
+// Term-scoped
+const orgAdminTermItems = [
+    {
+        title: "Term Setup",
+        url: "/term",
+        icon: BookOpen,
     },
     {
         title: "Classes",
@@ -43,22 +57,17 @@ const termItems = [
         icon: School,
     },
     {
-        title: 'Students',
-        url: '/students',
-        icon: User,
-    },
-    {
-        title: "Pull Request",
-        url: "/merge-requests",
-        icon: GitMerge,
-    },
+        title: "Enrollment",
+        url: "/enrollment",
+        icon: Users,
+    }
 ]
 
 // Result sheets
 const viewsItems = [
     {
         title: 'Result',
-        url: '/results',
+        url: '/students-view',
         icon: BookOpen,
     },
     {
@@ -66,11 +75,20 @@ const viewsItems = [
         url: '/subject-view',
         icon: Book,
     },
+    // {
+    //     title: 'Spreadsheet',
+    //     url: '/spreadsheet',
+    //     icon: FileSpreadsheet,
+    // }
+]
+
+// User sidebar items
+const userSidebarItems = [
     {
-        title: 'Spreadsheet',
-        url: '/spreadsheet',
-        icon: FileSpreadsheet,
-    }
+        title: "Dashboard",
+        url: "/dashboard",
+        icon: LayoutDashboard,
+    },
 ]
 
 export default function AppSidebar() {
@@ -79,6 +97,18 @@ export default function AppSidebar() {
     const { isOpen, toggle } = useSidebar()
     const pathname = usePathname();
     const isActive = (url: string) => pathname === url;
+
+    // Get user from User context
+    const { user } = useUser();
+
+    // Check if the user is an admin
+    const isAdmin = user?.role === "admin";
+
+    // Check if the user is an organisation admin
+    const isOrgAdmin = user?.role === "orgadmin";
+
+    // Check if the user is a regular user
+    const isUser = user?.role === "user";
 
     // Render the sidebar
     return (
@@ -101,65 +131,105 @@ export default function AppSidebar() {
                 <nav className="h-full flex flex-col overflow-y-auto">
                     <ul className="flex-1 px-3 py-2 relative">
 
-                         {/* Organisation group */}
-                         <li className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                            Organisation
+                        <li className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            Profile
                         </li>
-                        {organisationItems.map((item) => (
+                        {/* <li className="absolute bottom-0 left-0 w-full"> */}
                             <SidebarItem
-                                key={item.title}
-                                icon={<item.icon size={20} />}
-                                text={item.title}
-                                active={isActive(item.url)}
-                                url={item.url}
-                                onNavigate={toggle}
-                            />
-                        ))}
-
-                        {/* Term group */}
-                        <li className="px-3 py-2 mt-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                            Term entities
-                        </li>
-                        {termItems.map((item) => (
-                            <SidebarItem
-                                key={item.title}
-                                icon={<item.icon size={20} />}
-                                text={item.title}
-                                active={isActive(item.url)}
-                                url={item.url}
-                                onNavigate={toggle}
-                            />
-                        ))}
-
-                        {/* Result sheets group */}
-                        <li className="px-3 py-2 mt-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                            Result sheets
-                        </li>
-                        {viewsItems.map((item) => (
-                            <SidebarItem
-                                key={item.title}
-                                icon={<item.icon size={20} />}
-                                text={item.title}
-                                active={isActive(item.url)}
-                                url={item.url}
-                                onNavigate={toggle}
-                            />
-                        ))}
-
-                        <li className="absolute bottom-0 left-0 w-full">
-                            <SidebarItem
-                                key="settings"
+                                key="profile"
                                 icon={<Settings size={20} />}
-                                text="Settings"
+                                text="Profile"
                                 active={isActive("/profile")}
                                 url="/profile"
                                 onNavigate={toggle}
                             />
-                        </li>
+                        {/* </li> */}
+
+                        {/* Admin sidebar items */}
+                        {isAdmin && (
+                            <>
+                                <li className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                    Admin
+                                </li>
+                                {adminSidebarItems.map((item) => (
+                                    <SidebarItem
+                                        key={item.title}
+                                        icon={<item.icon size={20} />}
+                                        text={item.title}
+                                        active={isActive(item.url)}
+                                        url={item.url}
+                                        onNavigate={toggle}
+                                    />
+                                ))}
+                            </>
+                        )}
+
+                        {/* User sidebar items */}
+                        {isUser && <>
+                            <li className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                User
+                            </li>
+                            {userSidebarItems.map((item) => (
+                                <SidebarItem key={item.title} icon={<item.icon size={20} />} text={item.title} active={isActive(item.url)} url={item.url} onNavigate={toggle} />
+                            ))}
+                        </>}
+
+                        {/* Organisation admin sidebar items */}
+                        {isOrgAdmin && <>
+                            {/* Organisation group */}
+                            <li className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                Organisation
+                            </li>
+                            {orgAdminOrganisationItems.map((item) => (
+                                <SidebarItem
+                                    key={item.title}
+                                    icon={<item.icon size={20} />}
+                                    text={item.title}
+                                    active={isActive(item.url)}
+                                    url={item.url}
+                                    onNavigate={toggle}
+                                />
+                            ))}
+
+                            {/* Term group */}
+                            <li className="px-3 py-2 mt-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                Term entities
+                            </li>
+                            {orgAdminTermItems.map((item) => (
+                                <SidebarItem
+                                    key={item.title}
+                                    icon={<item.icon size={20} />}
+                                    text={item.title}
+                                    active={isActive(item.url)}
+                                    url={item.url}
+                                    onNavigate={toggle}
+                                />
+                            ))}
+                        </>}
+
+
+                        {/* Result sheets group */}
+                        {(isOrgAdmin || isUser) && <>
+                            <li className="px-3 py-2 mt-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                Result sheets
+                            </li>
+                            {viewsItems.map((item) => (
+                                <SidebarItem
+                                    key={item.title}
+                                    icon={<item.icon size={20} />}
+                                    text={item.title}
+                                    active={isActive(item.url)}
+                                    url={item.url}
+                                    onNavigate={toggle}
+                                />
+                            ))}
+                        </>}
 
 
                     </ul>
                 </nav>
+
+
             </aside>
         </>
     )

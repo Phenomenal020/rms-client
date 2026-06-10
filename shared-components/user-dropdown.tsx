@@ -1,20 +1,13 @@
 "use client";
 
 import { authClient } from "@/src/auth-client";
-import { LogOutIcon, ShieldIcon, UserIcon } from "lucide-react";
+import { LogOutIcon, UserIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/shadcn/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/shadcn/ui/dropdown-menu";
+import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger} from "@/shadcn/ui/dropdown-menu";
 
 interface UserDropdownProps {
   user: {
@@ -24,6 +17,7 @@ interface UserDropdownProps {
     role: string;
   };
 }
+
 export function UserDropdown({ user }: UserDropdownProps) {
   return (
     <DropdownMenu>
@@ -49,8 +43,8 @@ export function UserDropdown({ user }: UserDropdownProps) {
         <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
         {/* Separator: Between User Email and User Profile */}
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/settings">
+        <DropdownMenuItem asChild className="cursor-pointer">
+          <Link href="/profile">
             <UserIcon className="size-4" /> <span>Profile</span>
           </Link>
         </DropdownMenuItem>
@@ -58,17 +52,6 @@ export function UserDropdown({ user }: UserDropdownProps) {
         <SignOutItem />
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-// Admin Dropdown Item
-function AdminItem() {
-  return (
-    <DropdownMenuItem asChild>
-      <Link href="/admin">
-        <ShieldIcon className="size-4" /> <span>Admin</span>
-      </Link>
-    </DropdownMenuItem>
   );
 }
 
@@ -89,9 +72,8 @@ function SignOutItem() {
   }
 
   return (
-    <DropdownMenuItem onClick={handleSignOut}>
+    <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
       <LogOutIcon className="size-4" /> <span>Sign out</span>
     </DropdownMenuItem>
   );
 }
-// 

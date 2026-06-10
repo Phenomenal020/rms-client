@@ -1,0 +1,309 @@
+================================================================================
+TERM ROUTE — CODE REVIEW
+Route: client/app/(main)/term
+Reviewed: 2026-06-08
+Files: page.tsx, term-form.tsx, loading.tsx, term-loading-skeletons.tsx,
+       term/term-setup-card.tsx, term/add-term-modal.tsx, term/edit-term-modal.tsx,
+       gradingSystem/grading-system-card.tsx, gradingSystem/add-grading-modal.tsx,
+       gradingSystem/edit-grading-modal.tsx,
+       assessment-structure/assessment-structure-card.tsx,
+       assessment-structure/add-assessment-modal.tsx,
+       assessment-structure/edit-assessment-modal.tsx
+Related: fetcher/queries.ts, fetcher/mutations.ts, types/term.ts,
+         api/src/terms/*, api/src/grading-system/*, api/src/assessment-structure/*,
+         sidebar.tsx, shared-components/org-admin-gate.tsx,
+         utils/auth-redirect.ts
+Architecture:
+  • TermSetupCard — lists/creates terms; ACTIVE term drives downstream cards
+  • AssessmentStructureCard — GET/POST/PATCH assessment-structure?termId=
+  • GradingSystemCard — GET/POST grading-system?termId=
+Review indicator:
+ ✅ - FIXED
+ 📌 - SIGNIFICANT CHANGE/API CHANGE. To be done later
+================================================================================
+
+
+1) LOADING INDICATION — Suspense vs loading.tsx (with skeletons)
+--------------------------------------------------------------------------------
+
+Previous state
+  • page.tsx was "use client" with no OrgAdminGate.
+  • loading.tsx was stale (school/term tabs skeleton) — did not match 3-card layout.
+  • term-form.tsx returned full-page <Loading /> while getTerms() ran — hid all cards.
+  • Grading/assessment cards had no in-card skeleton; jumped straight to empty state.
+
+Recommendation: use BOTH layers (same pattern as classes/students/enrollment).
+
+  A) loading.tsx (route-level) + OrgAdminGate fallback
+     FIX: TermRouteSkeleton — page shell + Term / Assessment / Grading card skeletons ✅
+
+  B) In-component skeleton (data-level)
+     • isLoadingTerms → TermRouteSkeleton in term-form (replaces whole stack briefly)
+     • termId set + isLoadingGS → GradingTableSkeleton inside grading card
+     • termId set + isLoadingAS → AssessmentTableSkeleton inside assessment card
+     FIX: Implemented as recommended ✅
+
+  C) Suspense — not used (client SWR pattern) ✅
+
+  D) Mutation loading — LoadingButton on Save Changes (grading + assessment);
+     Add/Edit modals use loading prop on term mutations ✅
+
+  E) No-term UX — grading/assessment show dashed empty + helper text when termId=""
+     (active term not set yet). Cards still render after terms load ✅
+
+
+2) API ISSUES (current + potential)
+--------------------------------------------------------------------------------
+
+Critical / high
+
+  [Wrong SWR mutate key after createTerm]
+    useCreateTerm onSuccess mutates '/api/v1/term' but getTerms() key is '/api/v1/terms'.
+    New term did not appear until hard refresh.
+    FIX: useCreateTerm() now mutates '/api/v1/terms' ✅
+
+  [Wrong SWR mutate keys for grading / assessment hooks]
+    useSaveGradingSystem mutates '/api/v1/grading-system' (no termId query).
+    useCreateAssessmentStructure / useUpdateAssessmentStructure mutate
+    '/api/v1/assessment-structure' (no termId query).
+    Queries use `/api/v1/...?termId=${id}` — cache miss after save.
+    FIX: Cards manually mutate term-scoped keys after successful save ✅
+    📌 Align onSuccess matchers in fetcher/mutations.ts
+
+  [GET errors masked as empty data]
+    getTerms / getGradingSystem / getAssessmentStructure return [] on failure.
+    FIX: termsError at form level; gsError / asError via ErrorBanner per card ✅
+
+  [deleteGrading checked editingIndex instead of index]
+    Delete button always failed with "No grade selected to delete".
+    FIX: Removed erroneous editingIndex guard ✅
+
+  [assessment initial state used asData?.data]
+    getAssessmentStructure already unwraps data.data → asData is the array.
+    Initial state was always [] even when data present on first paint edge case.
+    FIX: useState([]) + mapAssessmentRows in useEffect ✅
+
+  [savedAssessmentStructures not updated on save success]
+    Discard could restore stale pre-save buffer after successful POST/PATCH.
+    FIX: setSavedAssessmentStructures(assessmentStructures) on success ✅
+
+Medium
+
+  [console.log("termId", termId) in grading-system-card]
+    FIX: Removed ✅
+
+  [page.tsx client shell without access gate]
+    FIX: Server page + OrgAdminGate + TermLoading fallback ✅
+
+  [No active term — grading/assessment blocked]
+    Empty termId + warning copy is intentional; depends on user setting ACTIVE status
+    in edit modal. Documented UX ✅
+
+  [Only ACTIVE term passed to child cards]
+    term-form uses activeTerm?.id — DRAFT-only terms won't drive grading/assessment.
+    Intentional; matches enrollment/classes pattern ✅
+
+
+3) ERROR HANDLING — 400, 500, client behaviour, backend mitigation
+--------------------------------------------------------------------------------
+
+  • handleAuthRedirect from utils/auth-redirect.ts (shared; no per-card duplication).
+  • Mutation errors: mutationErr = hookError || err before toast/redirect.
+  • termsError → ErrorBanner inside Term card body (not page-level hide).
+  • gsError / asError → mutually exclusive branch: error | skeleton | content (classes pattern).
+  • retryAllFetches in term-form mutates terms + grading + assessment keys.
+  • Buttons disabled when loadError !== undefined || isComponentLoading.
+  • useEffect 401/403 redirect on fetch errors (no toast on fetch — toast on mutation only).
+  FIX: Implemented to match classes-form ✅
+
+  | Scenario                         | After fix                         |
+  |----------------------------------|-----------------------------------|
+  | Terms load fail                  | ErrorBanner + retry               | ✅
+  | Grading GET fail (termId set)    | ErrorBanner in grading card       | ✅
+  | Assessment GET fail              | ErrorBanner in assessment card    | ✅
+  | Save grading 400 coverage error  | Toast (client validation first)   | ✅
+  | Save assessment total ≠ 100%     | Toast (client validation first)   | ✅
+  | Mutation 401/403                 | handleAuthRedirect + toast        | ✅
+  | No ACTIVE term                   | Warning + disabled save buttons   | ✅
+
+Backend
+  ✓ Org-scoped term/grading/assessment endpoints expected
+  📌 Return created term in POST body for optimistic row insert
+  📌 PATCH assessment should return full entry list with ids for first-save flow
+
+
+4) HIDE ROUTE FROM NON-ORG USERS + DISABLE ACTIONS FOR NON-ORGADMIN
+--------------------------------------------------------------------------------
+
+  A) Sidebar — Term Setup under orgAdminTermItems ✅
+  B) OrgAdminGate on page.tsx + TermLoading fallback
+     FIX: Implemented ✅
+  C) canManage — hide Add/Edit/Delete/Save/Discard; early returns in handlers
+     • TermSetupCard, GradingSystemCard, AssessmentStructureCard
+     FIX: Implemented ✅
+  D) OrgAdminGate !isOrgAdmin fallback — shared fix from school route ✅
+  E) Modals — buttons gated at card level (modals not opened when !canManage) ✅
+
+
+5) PROTECTED ROUTE
+--------------------------------------------------------------------------------
+
+  1. Middleware matcher for /term [shared ToDo] ✅
+  2. OrgAdminGate on page ✅
+  3. OrgAdminGuard on API controllers (verify per module) ✅
+  4. Optional org-admin layout [ToDo...] 📌
+
+
+6) STRUCTURE, LAYOUT, CODE SMELLS
+--------------------------------------------------------------------------------
+
+What works well
+  • Clear separation: term-form orchestrates activeTermId; child cards own buffers
+  • Local edit buffer + Save/Discard pattern for grading and assessment (batch persist)
+  • Client-side validation (0–100 grading coverage; 100% assessment total)
+  • SecuritySetupModal on term route (2FA prompt)
+  • ACTIVE row highlight in term table
+
+Code smells / improvements
+
+  • term-form.tsx is thin orchestrator — good ✅
+  • grading-system-card.tsx ~400 lines — could extract useGradingBuffer hook 📌
+  • assessment-structure-card.tsx similar — extract shared buffer hook 📌
+  • Unused mutation destructures in term-setup (createTermData, updateTermData) Removed ✅
+  • Duplicate auth redirect useEffect in three files — could use shared hook 📌
+  • Term setup header lives inside TermSetupCard not term-form (OK for now) ✅
+
+
+
+
+
+
+
+
+
+
+
+
+7) TEST CASES
+--------------------------------------------------------------------------------
+
+  High
+  • Terms loading → TermRouteSkeleton (not blank page)
+  • Terms error → ErrorBanner; cards hidden
+  • Create term → table refreshes via mutate('/api/v1/terms')
+  • Set term ACTIVE in edit → assessment/grading receive termId
+  • Grading delete row → works without opening edit modal first
+  • Grading save → mutates term-scoped key; discard restores saved state
+  • Assessment save → savedAssessmentStructures updated; discard works
+  • gsError / asError → ErrorBanner not "No Grading/Assessment yet"
+  • Add/Edit/Save hidden when !canManage
+  • 401/403 on GET → redirect
+
+  Medium
+  • No terms → dashed empty in term card; grading/assessment show no-term warning
+  • Grading add disabled when 0–100 fully covered
+  • Assessment add disabled at 100% total
+  • Changing ACTIVE term (edit status) reloads grading/assessment via termId change
+  • Overlap / order validation toasts on staging edits
+
+  Edge
+  • Multiple DRAFT terms, none ACTIVE → termId "" downstream
+  • Save grading with gaps → client blocks before API
+  • First assessment save (POST) vs update (PATCH) when savedAssessmentStructures empty
+  • Concurrent edit two cards — independent buffers OK
+
+
+8) TYPESCRIPT COMMENTARY
+--------------------------------------------------------------------------------
+
+  • singleTermPayload, GradingEntryPayload, getSingleAssessmentStructure in types/term.ts ✅
+  • BufferEntry local type in assessment card (id: string | null) ✅
+  • getTerms returns untyped data[] — cast in term-form as singleTermPayload[] 📌
+  • mapAssessmentRows helper typed with getSingleAssessmentStructure ✅
+  • useUpdateTerm payload id: string | null in types — API expects string ✅
+
+
+9) GET REQUEST DTOs
+--------------------------------------------------------------------------------
+
+  getTerms()
+    GET /api/v1/terms
+    Response: singleTermPayload[] (ACTIVE | DRAFT | ARCHIVED)
+    FIX: termsError surfaced at form level ✅
+
+  getGradingSystem(termId)
+    GET /api/v1/grading-system?termId=
+    Response: getSingleGradingEntry[]
+    FIX: gsError surfaced; skeleton while loading ✅
+    Empty [] when no termId (SWR key null) ✅
+
+  getAssessmentStructure(termId)
+    GET /api/v1/assessment-structure?termId=
+    Response: getSingleAssessmentStructure[]
+    FIX: asError surfaced; fixed data shape handling ✅
+
+
+10) MUTATION DTOs
+--------------------------------------------------------------------------------
+
+  CreateTermPayload — POST /api/v1/term
+    { academicYear, term, termDays?, termStart?, termEnd? }
+    FIX: Manual mutate /api/v1/terms after create ✅
+
+  UpdateTermPayload — PATCH /api/v1/terms/:id
+    { id, status, termDays?, termStart?, termEnd? }
+    onSuccess mutates /api/v1/terms — correct ✅
+
+  SaveGradingSystemPayload — POST /api/v1/grading-system/:termId
+    { termId, entries: GradingEntryPayload[] } full replace
+    FIX: Manual term-scoped mutate after save ✅
+
+  createAssessmentStructurePayload — POST /api/v1/assessment-structure
+    { termId, entries: createSingleAssessmentStructure[] }
+
+  updateAssessmentStructurePayload — PATCH /api/v1/assessment-structure/:termId
+    { termId, entries: updateSingleAssessmentStructure[] } (requires entry ids)
+    FIX: Manual term-scoped mutate after save ✅
+
+  Gaps:
+    📌 Hook onSuccess keys should use matcher or callback with termId
+    📌 POST assessment should return entries with server ids for buffer sync
+
+
+11) API RECOMMENDATIONS
+--------------------------------------------------------------------------------
+
+  • Unify term list cache key: use /api/v1/terms everywhere (fix useCreateTerm onSuccess)
+  • Grading/assessment onSuccess: mutate keys matching ?termId= query param
+  • GET /terms: include explicit activeTermId field to avoid client .find(ACTIVE)
+  • Validate only one ACTIVE term per org server-side (409 on conflict)
+  • Return full grading/assessment arrays on POST/PATCH for buffer reconciliation
+  • Consider GET /term/active shortcut used by enrollment/classes for consistency
+
+
+================================================================================
+QUICK WINS (priority order)
+================================================================================
+1. loading.tsx + term-loading-skeletons + in-card grading/assessment skeletons
+   FIX: Implemented ✅
+2. OrgAdminGate + canManage across three cards
+   FIX: Implemented ✅
+3. Fix deleteGrading bug
+   FIX: Implemented ✅
+4. Surface terms / grading / assessment fetch errors
+   FIX: Implemented ✅
+5. getApiErrorMessage + handleAuthRedirect on mutations
+   FIX: Implemented ✅
+6. Fix assessment asData?.data shape + savedAssessmentStructures on save
+   FIX: Implemented ✅
+7. Manual SWR mutate with correct term-scoped keys after create/save
+   FIX: Implemented ✅
+8. Remove console.log from grading card
+   FIX: Implemented ✅
+9. Fix useCreateTerm / grading / assessment onSuccess in mutations.ts
+   📌 fetcher layer
+10. Middleware matcher for /term [shared] 📌
+
+================================================================================
+END OF REVIEW
+================================================================================

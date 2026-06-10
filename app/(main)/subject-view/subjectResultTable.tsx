@@ -1,396 +1,162 @@
-import { useEffect, useTransition } from "react";
-import { z } from "zod";
-import { useForm, type Path } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
+'use client';
 
-import { Button } from "@/shadcn/ui/button";
-import { Input } from "@/shadcn/ui/input";
-import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
-} from "@/shadcn/ui/form";
-import { Edit3, Loader2, Save, X } from "lucide-react";
+/**
+ * Subject-wide results table (one column per student for each assessment type).
+ *
+ * ---------------------------------------------------------------------------
+ * TODO: Re-enable editing + persistence via useSaveSubjectScores / subject API.
+ * Previous flow: react-hook-form, Edit / Save / Cancel, onSubmit → saveSubjectScores.
+ * Until then this table is read-only to match the students-view display pattern.
+ * ---------------------------------------------------------------------------
+ */
+
 import type { Student, AssessmentStructure, Subject, AssessmentScore } from "@/types/drizzle";
-import { useSaveSubjectScores, getErrorMessage } from "@/fetcher/mutations";
+import { getScorePercentage } from "../students-view/utils/scoreFns";
 
-// Component Props
+// Component props (parallel to students-view ResultTable, without edit/save handlers)
 interface SubjectResultTableProps {
-    isEditingScores: boolean;
-    startEditingScores: () => void;
-    cancelEditingScores: () => void;
-    editingStudents?: Student[];
-    enrolledStudents?: Student[];
-    selectedSubjectName?: string;
-    getStudentScores: (subjectName: string, student: Student, assessmentStructure?: AssessmentStructure[]) => Record<string, number>;
-    getGrade: (percentage: number) => string | null;
-    getRemark: (grade: string | null) => string | null;
-    assessmentStructure?: AssessmentStructure[];
-    isGlobalEditing: boolean;
-    academicTermId?: string;
-    setIsGlobalEditing: (flag: boolean) => void;
+  enrolledStudents: Student[];
+  selectedSubjectName: string | null;
+  getGrade: (percentage: number) => string | null;
+  getRemark: (grade: string | null) => string | null;
+  assessmentStructure: AssessmentStructure[];
 }
 
-export const SubjectResultTable = ({
-    isEditingScores,
-    startEditingScores,
-    cancelEditingScores,
-    editingStudents = [],
-    enrolledStudents = [],
-    selectedSubjectName = "",
-    getStudentScores,
-    getGrade,
-    getRemark,
-    assessmentStructure = [],
-    isGlobalEditing,
-    academicTermId,
-    setIsGlobalEditing,
-}: SubjectResultTableProps) => {
-    const [isPending, startTransition] = useTransition();
+export function SubjectResultTable({
+  enrolledStudents,
+  selectedSubjectName,
+  getGrade,
+  getRemark,
+  assessmentStructure,
+}: SubjectResultTableProps) {
+  const sortedAssessments = assessmentStructure ?? [];
 
-    // Use editing students if editing, otherwise use enrolled students
-    const students = isEditingScores ? editingStudents : enrolledStudents;
-
-    // Use assessment structure in the order it was added (preserve database order)
-    const sortedAssessments = assessmentStructure || [];
-
-    // Schema for a single score
-    const assessmentEntrySchema = z.object({
-        assessmentStructureId: z.string().min(1), // id of the assessment structure
-        score: z.number().int().min(0), // score value
-    });
-
-    // Schema for a row === an array of length assessment structure and schema a single score.
-    const expectedLen = sortedAssessments.length;
-    const rowSchema = z.object({
-        studentId: z.string().min(1),
-        scores: z
-            .array(assessmentEntrySchema) // score per type
-            .length(expectedLen, { message: `Expected ${expectedLen} scores` }),
-    });
-
-    // Whole table payload
-    const tableSchema = z.object({
-        students: z.array(rowSchema),
-    });
-
-    const { saveSubjectScores, isMutating: isSavingScores } = useSaveSubjectScores();
-
-    type TableFormData = z.infer<typeof tableSchema>;
-
-    // Build default values from current students list
-    const buildDefaultValues = () => ({
-        students: (students || []).map((student) => {
-            // Find the subject entry for the selected subject
-            const studentSubject = student.subjects?.find(
-                (s: Subject) =>
-                    s.subject?.name === selectedSubjectName ||
-                    s.subject?.name === selectedSubjectName
-            );
-
-            const assessment = studentSubject?.assessments?.[0];  // assessment is the first index of the assessments array
-
-            return {  // to match the (expected) schems
-                studentId: String(student.id ?? ""),
-                scores: (sortedAssessments || []).map((as) => {
-                    const scoreEntry = assessment?.scores?.find(  // find the score for the assessment structure
-                        (s: AssessmentScore) => s.assessmentStructureId === as.id || s.assessmentStructure?.type === as.type  // by id or type
-                    );
-
-                    return {
-                        assessmentStructureId: as.id,
-                        score: scoreEntry?.score ?? 0,  // find the score for that entry or default to 0
-                    };
-                }),
-            };
-        }),
-    });
-
-    // Form setup
-    const form = useForm({
-        resolver: zodResolver(tableSchema),
-        defaultValues: buildDefaultValues(),
-    });
-
-    // Reset form when subject, edit mode, or data source changes
-    useEffect(() => {
-        form.reset(buildDefaultValues());
-    }, [selectedSubjectName, isEditingScores, enrolledStudents, editingStudents]);
-
-    // On submit, save the scores to the database
-    const onSubmit = (data: z.infer<typeof tableSchema>): void => {
-        startTransition(async () => {
-            try {
-                // Get subjectId from the first enrolled student's subject data
-                const firstStudent = enrolledStudents[0];
-                if (!firstStudent) {
-                    toast.error("No students found");
-                    return;
-                }
-
-                // Get the student subject from the first enrolled student
-                const studentSubject = firstStudent.subjects?.find(
-                    (s: Subject) =>
-                        s.subject?.name === selectedSubjectName
-                );
-
-                // Get subjectId - could be from subject.id or subjectId field
-                const subjectId = studentSubject?.subject?.id || studentSubject?.subjectId;
-                if (!subjectId) {
-                    toast.error("Subject not found");
-                    return;
-                }
-
-                if (!academicTermId) {
-                    toast.error("Academic term is required");
-                    return;
-                }
-
-                // Transform form data to match api requirements
-                const studentsData = data.students.map((student) => ({
-                    studentId: student.studentId,
-                    scores: student.scores.map((score) => ({
-                        assessmentStructureId: score.assessmentStructureId,
-                        score: Number(score.score) || 0,
-                    })),
-                }));
-
-                // Call server action to save scores
-                const result = await saveSubjectScores(
-                    {
-                        subjectId,
-                        academicTermId,
-                        studentsData
-                    }
-                );
-                setIsGlobalEditing(false);
-                toast.success("Scores saved successfully");
-                cancelEditingScores();
-
-
-                // toast.success("Scores saved successfully");
-            } catch (error) {
-                toast.error("Failed to save scores", {
-                    description: getErrorMessage(error, "An error occurred while saving scores"),
-                });
-            }
-        });
-    };
-
-    // Watch form values so we can show live totals while editing
-    const watchedStudents = form.watch("students");
-
-    return (
-        <div className="mb-8">
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    {/* Academic Performance Title and Edit Scores Button */}
-                    <div className="flex items-center justify-between mb-1 md:mb-2">
-
-                        {/* Academic Performance Title */}
-                        <h3 className="text-base sm:text-lg font-bold text-foreground border-border">
-                            ACADEMIC PERFORMANCE
-                        </h3>
-
-                        {/* Edit Scores Button */}
-                        {!isEditingScores ? (
-                            <Button
-                                type="button"
-                                onClick={startEditingScores}
-                                variant="outline"
-                                size="sm"
-                                className="border-border text-foreground hover:bg-muted cursor-pointer"
-                                disabled={isGlobalEditing}
-                            >
-                                <Edit3 className="w-4 h-4 mr-2" />
-
-                            </Button>
-                        ) : (
-                            <div className="flex gap-2">
-                                {/* Save Scores Button */}
-                                <Button
-                                    type="submit"
-                                    size="sm"
-                                    disabled={isPending || !form.formState.isDirty}
-                                    className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
-                                >
-                                    {isPending ? (
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    ) : (
-                                        <Save className="w-4 h-4 mr-2" />
-                                    )}
-                                    Save
-                                </Button>
-                                {/* Cancel Scores Button */}
-                                <Button
-                                    type="button"
-                                    onClick={cancelEditingScores}
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={isPending}
-                                    className="border-border text-foreground hover:bg-muted cursor-pointer"
-                                >
-                                    <X className="w-4 h-4 mr-2" />
-                                    Cancel
-                                </Button>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Result Table */}
-                    <div className="overflow-x-auto">
-                        <table className="w-full border-collapse border border-border">
-                            {/* Table headers - dynamically generated from assessment structure */}
-                            <thead>
-                                <tr className="bg-muted">
-                                    <th className="border border-border p-2 md:p-3 text-left font-semibold text-foreground text-sm sm:text-base sticky left-0 z-20 bg-muted">
-                                        Student Name
-                                    </th>
-                                    {sortedAssessments.map((assessment) => (
-                                        <th
-                                            key={assessment.type}
-                                            className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base"
-                                        >
-                                            {assessment.type} ({assessment.percentage}%)
-                                        </th>
-                                    ))}
-
-                                    <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base">
-                                        Total (100%)
-                                    </th>
-                                    <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base">
-                                        Grade
-                                    </th>
-                                    <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base">
-                                        Remark
-                                    </th>
-                                </tr>
-                            </thead>
-
-                            {/* Table body - students and corresponding scores, grade, remark */}
-                            <tbody>
-                                {students && students.length > 0 ? (
-                                    students.map((student, index) => {
-                                        const studentName =
-                                            [student.firstName, student.middleName || "", student.lastName]
-                                                .filter(Boolean)
-                                                .join(" ");
-
-                                        // Determine scores based on edit mode
-                                        const formRow = watchedStudents?.[index];
-
-                                        const totalFromForm = formRow?.scores?.reduce(
-                                            (sum, s) => sum + (Number(s.score) || 0),
-                                            0
-                                        ) ?? 0;
-
-                                        const percentage = isEditingScores
-                                            ? totalFromForm
-                                            : (student.subjects?.find(
-                                                (s: Subject) =>
-                                                    s.subject?.name === selectedSubjectName
-                                            )?.assessments?.[0]?.scores || []).reduce(
-                                                (sum: number, s: AssessmentScore) => sum + (s.score || 0),
-                                                0
-                                            );
-
-                                        const grade = getGrade(percentage);
-                                        const remark = getRemark(grade);
-
-                                        return (
-                                            <tr key={student.id || index} className="hover:bg-muted">
-                                                <td className="border border-border p-3 font-medium text-foreground text-sm sm:text-base whitespace-nowrap sticky left-0 z-10 bg-card">
-                                                    {studentName}
-                                                </td>
-
-                                                {/* Dynamically render assessment type columns */}
-                                                {sortedAssessments.map((assessment) => {
-                                                    const assessmentType = assessment.type;
-                                                    const scoreIndex = sortedAssessments.findIndex(
-                                                        (as) => as.type === assessmentType
-                                                    );
-                                                    const fieldName = `students.${index}.scores.${scoreIndex}.score` as Path<TableFormData>;
-                                                    const scoreValue = isEditingScores
-                                                        ? formRow?.scores?.[scoreIndex]?.score ?? 0
-                                                        : (
-                                                            student.subjects?.find(
-                                                                (s: Subject) =>
-                                                                    s.subject?.name === selectedSubjectName
-                                                            )?.assessments?.[0]?.scores?.find(
-                                                                (s: AssessmentScore) => s.assessmentStructureId === assessment.id
-                                                            )?.score || 0
-                                                        );
-
-                                                    return (
-                                                        <td
-                                                            key={assessmentType}
-                                                            className="border border-border p-2 sm:p-3 text-center"
-                                                        >
-                                                            {isEditingScores ? (
-                                                                <FormField
-                                                                    control={form.control}
-                                                                    name={fieldName}
-                                                                    render={({ field }) => (
-                                                                        <FormItem className="mb-0">
-                                                                            <FormLabel className="sr-only">
-                                                                                {`${studentName} ${assessment.type}`}
-                                                                            </FormLabel>
-                                                                            <FormControl>
-                                                                                <Input
-                                                                                    type="number"
-                                                                                    value={(field.value as number) ?? 0}
-                                                                                    onChange={(e) => {
-                                                                                        const value = e.target.value === "" ? "" : Number(e.target.value);
-                                                                                        field.onChange(value as number);
-                                                                                    }}
-                                                                                    className="w-16 h-8 text-center text-sm border-border focus:border-input"
-                                                                                    disabled={isPending}
-                                                                                />
-                                                                            </FormControl>
-                                                                            <FormMessage />
-                                                                        </FormItem>
-                                                                    )}
-                                                                />
-                                                            ) : (
-                                                                <span className="text-foreground text-sm md:text-base">{scoreValue}</span>
-                                                            )}
-                                                        </td>
-                                                    );
-                                                })}
-
-                                                {/* Total score */}
-                                                <td className="border border-border p-2 sm:p-3 text-center font-semibold text-foreground text-sm md:text-base">
-                                                    {percentage}
-                                                </td>
-
-                                                {/* Grade */}
-                                                <td className="border border-border p-2 sm:p-3 text-center font-bold text-foreground text-sm md:text-base">
-                                                    {grade}
-                                                </td>
-
-                                                {/* Remark */}
-                                                <td className="border border-border p-2 sm:p-3 text-center text-foreground text-sm md:text-base">
-                                                    {remark}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
-                                ) : (
-                                    <tr>
-                                        <td colSpan={sortedAssessments.length + 4} className="border border-border p-2 sm:p-3 text-center text-muted-foreground text-sm md:text-base">
-                                            No students enrolled in this subject
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </form>
-            </Form>
+  return (
+    <div className="mb-8">
+      <div className="space-y-4">
+        {/* Academic performance heading (no edit controls until save flow returns) */}
+        <div className="flex items-center justify-between mb-1 md:mb-2">
+          <h3 className="text-base sm:text-lg font-bold text-foreground border-border">
+            ACADEMIC PERFORMANCE
+          </h3>
         </div>
-    )
+
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse border border-border">
+            {/* Table header: Assessment type, Total, Grade, Remark */}
+            <thead>
+              <tr className="bg-muted">
+                <th className="border border-border p-2 md:p-3 text-left font-semibold text-foreground text-sm sm:text-base sticky left-0 z-20 bg-muted">
+                  Student Name
+                </th>
+                {sortedAssessments.map((assessment) => (
+                  <th
+                    key={assessment.id}
+                    className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base"
+                  >
+                    {assessment.type} ({assessment.percentage}%)
+                  </th>
+                ))}
+                <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base">
+                  Total (100%)
+                </th>
+                <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base">
+                  Grade
+                </th>
+                <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base">
+                  Remark
+                </th>
+              </tr>
+            </thead>
+
+            {/* Table body: Student name, Assessment scores, Total, Grade, Remark */}
+            <tbody>
+              {enrolledStudents.length > 0 ? (
+                enrolledStudents.map((student, index) => {
+                  const studentName = [
+                    student.firstName,
+                    student.middleName || "",
+                    student.lastName,
+                  ]
+                    .filter(Boolean)
+                    .join(" ");
+
+                  const scores =
+                    student.subjects?.find(
+                      (s: Subject) => s.subject?.name === selectedSubjectName,
+                    )?.assessments?.[0]?.scores || [];
+
+                  const percentage = getScorePercentage(scores);
+                  const grade = getGrade(percentage);
+                  const remark = getRemark(grade);
+
+                  return (
+                    <tr key={student.id || index} className="hover:bg-muted">
+                      <td className="border border-border p-3 font-medium text-foreground text-sm sm:text-base whitespace-nowrap sticky left-0 z-10 bg-card">
+                        {studentName}
+                      </td>
+
+                      {sortedAssessments.map((assessment) => {
+                        const scoreValue =
+                          scores.find(
+                            (s: AssessmentScore) =>
+                              s.assessmentStructureId === assessment.id,
+                          )?.score ?? 0;
+
+                        return (
+                          <td
+                            key={assessment.id}
+                            className="border border-border p-1.5 md:p-3 text-center text-sm sm:text-base"
+                          >
+                            <span className="text-foreground">{scoreValue}</span>
+                          </td>
+                        );
+                      })}
+
+                      <td className="border border-border p-3 text-center font-semibold text-foreground text-sm sm:text-base">
+                        {percentage}
+                      </td>
+                      <td className="border border-border p-3 text-center font-bold text-foreground text-sm sm:text-base">
+                        {grade}
+                      </td>
+                      <td className="border border-border p-3 text-center text-foreground text-sm sm:text-base">
+                        {remark}
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td
+                    colSpan={sortedAssessments.length + 4}
+                    className="border border-border p-3 text-center text-muted-foreground text-sm sm:text-base"
+                  >
+                    No students enrolled in this subject
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
 }
+
+/*
+ * --- Commented: subject-wide score edit + save (restore when wiring /subject-view save) ---
+ *
+ * import { useEffect, useTransition } from "react";
+ * import { z } from "zod";
+ * import { useForm, type Path } from "react-hook-form";
+ * import { zodResolver } from "@hookform/resolvers/zod";
+ * import { toast } from "sonner";
+ * import { Button } from "@/shadcn/ui/button";
+ * import { Input } from "@/shadcn/ui/input";
+ * import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shadcn/ui/form";
+ * import { Edit3, Loader2, Save, X } from "lucide-react";
+ * import { useSaveSubjectScores, getErrorMessage } from "@/fetcher/mutations";
+ *
+ * // useSaveSubjectScores + form.reset + Save/Cancel toolbar + FormField inputs per cell
+ * // See git history before this read-only pass for the full implementation.
+ */

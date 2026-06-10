@@ -1,3 +1,5 @@
+// Home page: Simply redirects to the dashboard
+
 "use client";
 
 import { useEffect } from "react";

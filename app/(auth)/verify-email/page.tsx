@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { VerifyEmailForm } from "./verify-email-form";
 
 // Metadata for the verify email page
@@ -10,9 +11,13 @@ export const metadata = {
 export default async function VerifyEmailPage({
   searchParams,
 }: {
-  searchParams: { email?: string };
+  searchParams: Promise<{ email?: string }>;
 }) {
-  const email = searchParams.email ?? "";
+  const { email } = await searchParams;
+
+  if (!email) {
+    redirect("/sign-up");
+  }
 
   return (
     <main className="flex min-h-svh items-center justify-center px-4">

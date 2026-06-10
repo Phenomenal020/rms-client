@@ -28,21 +28,14 @@ export function ForgotPasswordForm() {
   });
 
   // on submit: send reset code
-  async function onSubmit(data) {
-    // send reset code
-    const { data, error } = await authClient.emailOtp.requestPasswordReset({
-      email: data.email,
+  async function onSubmit(formData) {
+    // Always fire the request but never reveal whether the email is registered.
+    // Prevent email enumeration by showing the same vague message and always redirecting.
+    await authClient.emailOtp.requestPasswordReset({
+      email: formData.email,
     });
-
-    // if error, show error toast and return
-    if (error) {
-      toast.error("Failed to send reset code. Please try again.");
-      return;
-    }
-
-    // Otherwise, show success toast and redirect to reset password page
-    toast.success("A reset code has been sent to your email.");
-    router.push(`/reset-password?email=${encodeURIComponent(data.email)}`);
+    toast.success("If your email is registered, you'll receive a reset code shortly.");
+    router.push(`/reset-password?email=${encodeURIComponent(formData.email || "")}`);
   }
 
   const loading = form.formState.isSubmitting;
@@ -61,7 +54,7 @@ export function ForgotPasswordForm() {
                   <Input
                     type="email"
                     placeholder="Your email"
-                    className="h-14 pl-12 pr-4 rounded-sm"
+                    className="h-12 pl-12 pr-4 rounded-sm"
                     {...field}
                   />
                 </div>
@@ -70,7 +63,7 @@ export function ForgotPasswordForm() {
             </FormItem>
           )}
         />
-        <LoadingButton type="submit" className="w-full h-14 rounded-sm" loading={loading}>
+        <LoadingButton type="submit" className="w-full h-10 md:h-12 rounded-sm" loading={loading}>
           Send Reset Code
         </LoadingButton>
       </form>

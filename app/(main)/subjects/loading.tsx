@@ -1,54 +1,40 @@
 import { Skeleton } from "@/shadcn/ui/skeleton";
 import { Card, CardContent } from "@/shadcn/ui/card";
+import { SubjectsLoadingTable } from "./subjects-loading-table";
 
-export default function Loading() {
-  return (
-    <div className="w-full">
-      {/* Tab Buttons Skeleton */}
-      <div className="flex flex-wrap justify-start gap-2 mb-4">
-        <Skeleton className="h-10 w-24" />
-        <Skeleton className="h-10 w-48" />
-      </div>
-
-      {/* Tab Content Skeleton */}
-      <div className="w-full">
-        <Card className="border shadow-md">
-          <CardContent className="pt-4">
-            <div className="space-y-6">
-              {/* Subjects Form Skeleton */}
-              <div className="space-y-6">
-                <div className="pb-2 border-b border-border">
-                  <Skeleton className="h-6 w-40" />
-                </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-                <Skeleton className="h-10 w-40" />
-                <div className="space-y-3">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="flex items-center gap-3 p-3 border rounded-lg">
-                      <Skeleton className="h-5 w-48" />
-                      <div className="ml-auto flex gap-2">
-                        <Skeleton className="h-8 w-8 rounded" />
-                        <Skeleton className="h-8 w-8 rounded" />
-                      </div>
+// Route-level + OrgAdminGate fallback — wrap in the same shell as page.tsx
+export default function SubjectsLoading() {
+    return (
+        <main className="min-h-screen w-full bg-background relative overflow-hidden px-4 py-6 md:px-6 md:py-10">
+            <div className="mx-auto w-full max-w-5xl space-y-10">
+                {/* Page Header skeleton */}
+                <section className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="space-y-1">
+                        <h1 className="text-3xl font-bold tracking-tight text-foreground">Subjects</h1>
+                        <Skeleton className="h-4 w-24" />
                     </div>
-                  ))}
-                </div>
-              </div>
+                </section>
 
-              {/* Submit Button Skeleton */}
-              <div className="pt-6 border-t border-border mt-6">
-                <div className="flex justify-center">
-                  <Skeleton className="h-10 w-40" />
-                </div>
-              </div>
+                {/* Main Card */}
+                <Card className="border shadow-md">
+                    <CardContent className="space-y-4">
+                        <section className="overflow-hidden rounded-sm bg-card">
+                            {/* Header: count + search + add */}
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <Skeleton className="h-6 w-36" />
+                                <div className="flex w-full gap-2 sm:w-auto sm:items-center">
+                                    <Skeleton className="h-6 w-full sm:max-w-xs" />
+                                    <Skeleton className="h-6 w-32" />
+                                </div>
+                            </div>
+
+                            <hr className="my-4" />
+
+                            <SubjectsLoadingTable />
+                        </section>
+                    </CardContent>
+                </Card>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
+        </main>
+    );
 }
-

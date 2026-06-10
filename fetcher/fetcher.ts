@@ -7,6 +7,5 @@ export const axiosInstance = axios.create({
 
 export const fetcher = async (url: string) => {
     const response = await axiosInstance.get(url)
-    console.log(response)
     return response.data
 }

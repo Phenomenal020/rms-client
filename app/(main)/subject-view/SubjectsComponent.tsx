@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent } from "@/shadcn/ui/card";
 import { toast } from "sonner";
 
@@ -10,233 +10,220 @@ import { SubjectSelection } from "./subjectSelection";
 import { SchoolHeader } from "../students-view/schoolHeader";
 import { SubjectInfo } from "./subjectInfo";
 import { SubjectResultTable } from "./subjectResultTable";
-import Loading from "./loading";
+import { ResultsSkeleton } from "../students-view/ResultsSkeleton";
+import { Signatures } from "../students-view/signatures";
+import { calculateSubjectStats, getEnrolledStudents } from "./helpers";
+import createGradingFunctions from "../students-view/utils/gradingFns";
+import { getAssessmentStructure, getClassRecord, getGradingSystem, getTeacherClasses } from "@/fetcher/queries";
+import type { AcademicTerm, School, Student } from "@/types/drizzle";
 
-// helpers and utils
-import { calculateSubjectStats, getStudentScores, getEnrolledStudents } from "./helpers";
-import createGradingFunctions from "./utils/gradingFns";
-import { useUser } from "@/contexts/user-context";
-import type { Student, AcademicTerm } from "@/types/drizzle";
+export default function SubjectsComponent({ school, academicTerm }: { school: School, academicTerm: AcademicTerm }) {
+  // Grading system for this term (grade / remark helpers)
+  const { data: gradingEntry, error: gradingError, isLoading: isGradingLoading } =
+    getGradingSystem(academicTerm.id);
 
-const SubjectsPage = () => {
-  // --------------------------------------------------------------------------------
-  // Get user information from context
-  const {
-    academicTerm: termData,
-    assessmentStructure,
-    gradingEntry,
-    students: userStudents,
-    subjects,
-    school,
-    isLoading,
-    error
-  } = useUser();
+  // Classes assigned to the form teacher
+  const { data: teacherClasses = [], error: teacherClassesError, isLoading: isTeacherClassesLoading } = getTeacherClasses(academicTerm.id);
 
-  // Pre-compute subject names (minimal shaping to avoid heavy transforms).
+  // For now, only the first class (TODO: class selection UI)
+  const firstClassId = teacherClasses[0]?.id ?? null;
+
+  // Use the chosen classId to get the class record
+  const { data: classRecord = null, error: classRecordError, isLoading: isClassRecordLoading } = getClassRecord(firstClassId, academicTerm.id);
+
+  // Students on the class record
+  const classStudents: Student[] = useMemo(() => {
+    if (!classRecord || !classRecord.students) return [];
+    const students = classRecord.students;
+    return Array.isArray(students) ? (students as Student[]) : [];
+  }, [classRecord]);
+
+  // Subject names from class assignments (drives subject dropdown / table)
   const subjectNames = useMemo(
-    () => (subjects || []).map((subject) => subject.name),
-    [subjects]
-  );  // Only recompute these if the subjects change
-
-  // Memoise the grading functions 
-  const { getGrade, getRemark } = useMemo(
-    () => createGradingFunctions(gradingEntry),
-    [gradingEntry]
-  );  // Only recompute these if the grading entry changes
-
-  // students state - all students from db
-  const [students, setStudents] = useState<Student[]>(userStudents || []);
-
-  // subjects state: gets enrolled students for the selected subject
-  const [selectedSubjectName, setSelectedSubjectName] = useState(subjectNames[0] || null);  // default as first subject
-  const [currentSubjectIndex, setCurrentSubjectIndex] = useState(0); // current subject index to track the current subject
-  const enrolledStudents = useMemo(
     () =>
-      selectedSubjectName ? getEnrolledStudents(selectedSubjectName, students) : [],
-    [selectedSubjectName, students]
-  );  // Memoise this operation to get enrolled students for the selected subject
-
-  // editing states: editing scores flag + data
-  const [isEditingScores, setIsEditingScores] = useState(false);
-  const [editingStudents, setEditingStudents] = useState<Student[]>([]);
-
-  // global editing state - to disable other component action buttons when editing in one component
-  const [isGlobalEditing, setIsGlobalEditing] = useState(false);
-
-  // Sync local state when data changes
-  useEffect(() => {
-    if (userStudents) {
-      setStudents(userStudents);
-    }
-
-    // Reset subject selection when subjects list changes
-    if (subjectNames.length > 0) {
-      setSelectedSubjectName(subjectNames[0]);
-      setCurrentSubjectIndex(0);
-    } else {
-      setSelectedSubjectName(null);
-      setCurrentSubjectIndex(0);
-    }
-  }, [userStudents, subjectNames]);
-  // -------------------------------------------------------------------------------------
-
-  // --------------------------------------------------------------------------------
-  // Navigation Functions - Previous and Next Subject Buttons
-  // These would trigger a re-evaluation of the enrolled students for the selected subject
-  // Previous subject - decrease the current subject index by 1 and set the selected subject to the new index
-  const goToPreviousSubject = (): void => {
-    if (currentSubjectIndex > 0 && subjectNames.length > 0) {
-      const newIndex = currentSubjectIndex - 1;
-      setCurrentSubjectIndex(newIndex);
-      setSelectedSubjectName(subjectNames[newIndex]);
-    }
-  };
-
-  // Next subject - increase the current subject index by 1 and set the selected subject to the new index
-  const goToNextSubject = (): void => {
-    if (currentSubjectIndex < subjectNames.length - 1 && subjectNames.length > 0) {
-      const newIndex = currentSubjectIndex + 1;
-      setCurrentSubjectIndex(newIndex);
-      setSelectedSubjectName(subjectNames[newIndex]);
-    }
-  };
-
-  // --------------------------------------------------------------------------------
-
-  // --------------------------------------------------------------------------------
-  // Subject Stats Functions - Calculate the subject stats
-  // Calculate the subject stats for the selected subject. Do this anytime 1) selected subject 2) enrolled students or 3) assessment structure changes
-  // Memoise the derived subject stats
-  const subjectStats = useMemo(
-    () =>
-      selectedSubjectName
-        ? calculateSubjectStats(selectedSubjectName, enrolledStudents, assessmentStructure || [])
-        : null,
-    [selectedSubjectName, enrolledStudents, assessmentStructure]
+      (classRecord?.assignments ?? [])
+        .map((a) => a.subjectName)
+        .filter(Boolean) as string[],
+    [classRecord],
   );
 
-  // --------------------------------------------------------------------------------
+  // `Get the assessment structure for the academic term`
+  const { data: assessmentStructure, error: assessmentError, isLoading: isAssessmentLoading } =
+    getAssessmentStructure(academicTerm.id)
+  const sortedAssessmentStructure = useMemo(
+    () =>
+      [...(assessmentStructure ?? [])].sort(
+        (a, b) => a.displayOrder - b.displayOrder,
+      ),
+    [assessmentStructure],
+  );
 
-  // --------------------------------------------------------------------------------
-  // Edit/Save Scores Functions
-  // Edit functions - start editing scores (copy the enrolled students into the editing students state) and update isEditingScores to true to render input fields (spans when not editing, input when editing)
-  const startEditingScores = (): void => {
-    setIsEditingScores(true);
-    setEditingStudents(enrolledStudents || []);
-    setIsGlobalEditing(true);
-  };
-
-  // Edit functions - cancel editing scores
-  const cancelEditingScores = (): void => {
-    setIsEditingScores(false);
-    setEditingStudents([]);
-    setIsGlobalEditing(false);
-  };
-
-  // --------------------------------------------------------------------------------
-
-  // --------------------------------------------------------------------------------
-  // Print and Export Functions
-  // Todo: Handle Print functionality
-  const handlePrint = (): void => {
-    window.print();
-  };
-
-  // Todo: Handle Export functionality
-  const handleExport = (): void => {
-    toast.success("Subject sheet exported successfully!");
-  };
-  // --------------------------------------------------------------------------------
-
-  // Loading state
-  if (isLoading) {
-    return <Loading />;
-  }
-
-  // Error state
+  // collect all errors and return the custom error component
+  const error =
+    gradingError || teacherClassesError || classRecordError || assessmentError;
   if (error) {
     return (
       <div className="min-h-screen bg-background p-6 flex items-center justify-center">
-        <p className="text-destructive text-sm md:text-base">
-          Failed to load data. Please try again later.
+        <p className="text-destructive">Error: {error.message}</p>
+      </div>
+    );
+  }
+
+  // handle export functionality
+  const handleExport = (): void => {
+    toast.info("Export functionality not available yet!");
+  };
+
+  // Grading helpers — rebuilt when grading entry changes
+  const { getGrade, getRemark } = useMemo(
+    () => createGradingFunctions(gradingEntry || []),
+    [gradingEntry],
+  );
+
+  // Selected subject + index (mirrors student selection in ResultsComponent)
+  const [selectedSubjectName, setSelectedSubjectName] = useState<string | null>(null);
+  const [currentSubjectIndex, setCurrentSubjectIndex] = useState(0);
+
+  // TODO: re-enable when subject-view score editing returns — wire to table + disable chrome while editing
+  const isGlobalEditing = false;
+
+  // Keep subject selection stable across refetches (same pattern as ResultsComponent / classStudents)
+  useEffect(() => {
+    if (subjectNames.length === 0) {
+      if (selectedSubjectName !== null) setSelectedSubjectName(null);
+      if (currentSubjectIndex !== 0) setCurrentSubjectIndex(0);
+      return;
+    }
+
+    const name = selectedSubjectName;
+    const nextIndex = name ? subjectNames.findIndex((n) => n === name) : 0;
+
+    if (nextIndex === -1) {
+      setSelectedSubjectName(subjectNames[0]);
+      setCurrentSubjectIndex(0);
+      return;
+    }
+
+    if (nextIndex !== currentSubjectIndex) setCurrentSubjectIndex(nextIndex);
+    if (subjectNames[nextIndex] !== selectedSubjectName) {
+      setSelectedSubjectName(subjectNames[nextIndex]);
+    }
+  }, [subjectNames, selectedSubjectName, currentSubjectIndex]);
+
+  const enrolledStudents = useMemo(
+    () =>
+      selectedSubjectName
+        ? getEnrolledStudents(selectedSubjectName, classStudents)
+        : [],
+    [selectedSubjectName, classStudents],
+  );
+
+  const subjectStats = useMemo(
+    () =>
+      selectedSubjectName
+        ? calculateSubjectStats(
+          selectedSubjectName,
+          enrolledStudents,
+          sortedAssessmentStructure,
+        )
+        : null,
+    [selectedSubjectName, enrolledStudents, sortedAssessmentStructure],
+  );
+
+  // go to previous subject
+  const goToPreviousSubject = (): void => {
+    if (subjectNames.length === 0 || currentSubjectIndex <= 0) return;
+    const newIndex = currentSubjectIndex - 1;
+    setCurrentSubjectIndex(newIndex);
+    setSelectedSubjectName(subjectNames[newIndex]);
+  };
+
+  // go to next subject
+  const goToNextSubject = (): void => {
+    if (
+      subjectNames.length === 0 ||
+      currentSubjectIndex >= subjectNames.length - 1
+    ) {
+      return;
+    }
+    const newIndex = currentSubjectIndex + 1;
+    setCurrentSubjectIndex(newIndex);
+    setSelectedSubjectName(subjectNames[newIndex]);
+  };
+
+  // if any of the loading states are true, return the results skeleton
+  if (isGradingLoading || isTeacherClassesLoading || isClassRecordLoading || isAssessmentLoading) {
+    return <ResultsSkeleton />;
+  }
+
+  // TODO: nicer empty state
+  if (!firstClassId) {
+    return (
+      <div className="min-h-screen bg-background p-6 flex items-center justify-center">
+        <p className="text-muted-foreground text-center max-w-md">
+          You are not assigned as form teacher to any class for this term. Please contact your
+          administrator.
         </p>
       </div>
     );
   }
 
-  // if there are no subjects, show a message
-  if (!selectedSubjectName) {
+  if (subjectNames.length === 0) {
     return (
       <div className="min-h-screen bg-background p-6 flex items-center justify-center">
-        <p className="text-muted-foreground text-sm md:text-base">No subjects available</p>
+        <p className="text-muted-foreground">
+          No subjects are assigned to this class for the current term.
+        </p>
       </div>
     );
   }
-  // --------------------------------------------------------------------------------
 
-
-
-  // if there are subjects, show the subjects page
   return (
     <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-5xl mx-auto">
+        <PrintExportHeader
+          handleExport={handleExport}
+          isGlobalEditing={isGlobalEditing}
+          className={teacherClasses.length > 0 ? teacherClasses[0].name : null}
+        />
 
-        {/* Header - contains print and export buttons */}
-        <PrintExportHeader handlePrint={handlePrint} handleExport={handleExport} isGlobalEditing={isGlobalEditing} />
-
-        {/* Subject Selection - name and <- -> buttons to navigate through the subjects */}
+        {/* Subject selection — dropdown and prev/next (parallel to StudentSelection) */}
         <SubjectSelection
           goToPreviousSubject={goToPreviousSubject}
           goToNextSubject={goToNextSubject}
           currentSubjectIndex={currentSubjectIndex}
-          setCurrentSubjectIndex={setCurrentSubjectIndex} // update the current subject index based on the select dropdown
+          setCurrentSubjectIndex={setCurrentSubjectIndex}
           subjectNames={subjectNames}
           setSelectedSubjectName={setSelectedSubjectName}
           selectedSubjectName={selectedSubjectName}
           isGlobalEditing={isGlobalEditing}
         />
 
-        {/* Subject Sheet */}
-        <Card className="print:shadow-none print:border-0">
+        {/* Subject sheet */}
+        <Card>
           <CardContent className="p-3 md:p-8">
-            {/* School Header - display only */}
-            {termData && school && (
-              <SchoolHeader
-                school={school}
-                academicTerm={termData}
-              />
-            )}
+            {/* School header — shared with students-view */}
+            <SchoolHeader school={school} academicTerm={academicTerm} />
 
-            {/* Subject Information + Stats */}
+            {/* Subject summary block */}
             <SubjectInfo
-              selectedSubject={subjects?.find(subject => subject.name === selectedSubjectName)?.name || ""}
+              selectedSubject={selectedSubjectName}
               enrolledStudentsCount={enrolledStudents.length}
-              term={termData?.term}
-              academicYear={termData?.academicYear}
+              academicTerm={academicTerm}
               subjectStats={subjectStats}
             />
 
-            {/* Academic Performance */}
+            {/* Scores table — read-only until subject-wide save is implemented */}
             <SubjectResultTable
-              isEditingScores={isEditingScores}
-              startEditingScores={startEditingScores}
-              cancelEditingScores={cancelEditingScores}
-              editingStudents={editingStudents}
               enrolledStudents={enrolledStudents}
               selectedSubjectName={selectedSubjectName}
-              getStudentScores={getStudentScores}
               getGrade={getGrade}
               getRemark={getRemark}
-              assessmentStructure={assessmentStructure || []}
-              isGlobalEditing={isGlobalEditing}
-              academicTermId={termData?.id}
-              setIsGlobalEditing={setIsGlobalEditing}
+              assessmentStructure={sortedAssessmentStructure}
             />
           </CardContent>
         </Card>
       </div>
     </div>
   );
-};
-
-export default SubjectsPage;
+}

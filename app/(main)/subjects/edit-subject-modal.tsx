@@ -3,38 +3,29 @@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shadcn/ui/form";
 import { Input } from "@/shadcn/ui/input";
 import { Button } from "@/shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/shadcn/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shadcn/ui/select";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/shadcn/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shadcn/ui/select";
 import type { UseFormReturn } from "react-hook-form";
-import type { AddSubjectValues } from "./subjects-form";
+import type { EditSubjectValues } from "./subjects-form";
+import { LoadingButton } from "@/shared-components/loading-button";
 
 type EditSubjectModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  form: UseFormReturn<AddSubjectValues>;
-  onSubmit: (values: AddSubjectValues) => void;
+  editForm: UseFormReturn<EditSubjectValues>;
+  onSubmit: (values: EditSubjectValues) => void;
   loading: boolean;
+  readOnly?: boolean;
   departmentOptions: string[];
 };
 
 export function EditSubjectModal({
   open,
   onOpenChange,
-  form,
+  editForm,
   onSubmit,
   loading,
+  readOnly = false,
   departmentOptions,
 }: EditSubjectModalProps) {
   return (
@@ -45,18 +36,20 @@ export function EditSubjectModal({
           <hr className="my-2" />
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <div className="space-y-4">
+        <Form {...editForm}>
+          <form onSubmit={editForm.handleSubmit(onSubmit)}>
+            <div className="space-y-6">
+
+              {/* Subject Name */}
               <div className="grid grid-cols-1 gap-3">
                 <FormField
-                  control={form.control}
-                  name="subjectName"
+                  control={editForm.control}
+                  name="name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="font-semibold text-muted-foreground">Subject Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="Mathematics" {...field} className="h-12 md:h-14" />
+                        <Input placeholder="Mathematics" {...field} className="h-10 md:h-12" disabled={readOnly || loading} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -64,9 +57,10 @@ export function EditSubjectModal({
                 />
               </div>
 
+              {/* Department */}
               <div className="grid grid-cols-1 gap-3">
                 <FormField
-                  control={form.control}
+                  control={editForm.control}
                   name="department"
                   render={({ field }) => (
                     <FormItem>
@@ -75,8 +69,9 @@ export function EditSubjectModal({
                         <Select
                           value={field.value || "none"}
                           onValueChange={field.onChange}
+                          disabled={readOnly || loading}
                         >
-                          <SelectTrigger className="h-12 md:h-14 w-full">
+                          <SelectTrigger className="h-10 md:h-12 w-full">
                             <SelectValue placeholder="Select department" />
                           </SelectTrigger>
                           <SelectContent>
@@ -95,21 +90,31 @@ export function EditSubjectModal({
               </div>
             </div>
 
-            <hr className="my-4" />
+            {/* Dialog Footer: Save Changes and Cancel Buttons */}
+            <DialogFooter className="mt-4">
+              <div className="grid grid-cols-2 justify-between gap-2">
+                {/* Cancel Button */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={loading || !editForm.formState.isDirty}
+                  className="cursor-pointer h-10 md:h-12"
+                >
+                  Cancel
+                </Button>
 
-            <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                className="cursor-pointer h-12 md:h-14"
-              >
-                Cancel
-              </Button>
-
-              <Button type="submit" disabled={loading} className="cursor-pointer h-12 md:h-14">
-                Save Changes
-              </Button>
+                {/* Save Changes Button */}
+                {!readOnly && (
+                  <LoadingButton
+                    type="submit"
+                    disabled={loading || !editForm.formState.isDirty}
+                    loading={loading}
+                    className="cursor-pointer h-10 md:h-12">
+                    Save Changes
+                  </LoadingButton>
+                )}
+              </div>
             </DialogFooter>
           </form>
         </Form>

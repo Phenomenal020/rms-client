@@ -1,18 +1,10 @@
 "use client";
 
-import { authClient } from '@/src/auth-client';  // use the auth client to interact with the auth server
-
+// Use auth client to interact with the auth server
+import { authClient } from '@/src/auth-client';
 import { LoadingButton } from "@/shared-components/loading-button";
 import { PasswordInput } from "@/shared-components/password-input";
-import { Button } from "@/shadcn/ui/button";
-import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
-} from "@/shadcn/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shadcn/ui/form";
 import { Input } from '@/shadcn/ui/input';
 import { Checkbox } from "@/shadcn/ui/checkbox";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,7 +15,6 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Mail, Key } from "lucide-react";
-import Image from "next/image";
 
 // use zod schema to validate the signin form
 const signInSchema = z.object({
@@ -33,9 +24,13 @@ const signInSchema = z.object({
 });
 
 export function SignInForm() {
+    // loading state
     const [loading, setLoading] = useState(false);
+
+    // error state
     const [error, setError] = useState<string | null>(null);
 
+    // router for redirects
     const router = useRouter();
 
     // use the useForm hook to create the form state and validation
@@ -49,43 +44,51 @@ export function SignInForm() {
     });
 
     // when the user submits the form
-    async function onSubmit(data: z.infer<typeof signInSchema>) {
+    async function onSubmit(formData: z.infer<typeof signInSchema>) {
         // on submit, clear the error state
-        setError(null);  
+        setError(null);
 
         // set the loading state to true
         setLoading(true);
 
         // Extract data from the form
-        const { email, password, rememberMe } = data;
+        const { email, password, rememberMe } = formData;
 
         // use the authClient to sign in the user
-        const { error } = await authClient.signIn.email({
-            email,
-            password,
-            rememberMe,
-        });
+        const { data, error } = await authClient.signIn.email(
+            { email, password, rememberMe },
+            {
+                async onSuccess(context) {
+                    // If the user has 2FA enabled, redirect to the verification page
+                    if (context.data.twoFactorRedirect) {
+                        router.push(`/verify-2fa?email=${encodeURIComponent(email)}`);
+                    } else {
+                        // No 2FA required — go straight to dashboard
+                        toast.success("Sign in successful");
+                        router.push("/dashboard");
+                    }
+                },
+            }
+        );
 
         // set the loading state to false
         setLoading(false);
 
         // if there is an error, set the error state and show a toast error message
         if (error) {
-            const errorMessage = "Unable to sign in. Please check inputs and try again.";
+            const errorMessage = error.message || "Unable to sign in. Please check inputs and try again.";
             setError(errorMessage);
             toast.error(errorMessage);
-        } else {
-            // if no error, show a success toast message and redirect to the dashboard
-            toast.success("Sign in successful");
-            router.push(`${process.env.NEXT_PUBLIC_CLIENT_URL!}/dashboard`); 
         }
     }
+
+    const formLoading = form.formState.isSubmitting;
 
     return (
         <div className="flex h-screen min-h-[640px] w-full max-w-[1280px] overflow-y-auto mx-auto">
 
             {/* Left Side - Login Form */}
-            <div className="w-full lg:w-[40%] h-full flex flex-col items-center justify-center px-4 sm:px-6 md:px-12 py-8 md:py-0 relative">
+            <div className="w-full max-w-[776px] h-full flex flex-col items-center justify-center p-4 relative mx-auto">
                 <div className="w-full max-w-md space-y-8">
                     {/* Title */}
                     <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-left">Sign In</h1>
@@ -105,7 +108,7 @@ export function SignInForm() {
                                                 <Input
                                                     type="email"
                                                     placeholder="Your email"
-                                                    className="h-14 pl-12 pr-4 rounded-sm border-border focus:border-primary focus:ring-primary text-base font-[600] text-muted-foreground"
+                                                    className="h-14 pl-12 pr-4 rounded-sm border-border focus:border-primary focus:ring-primary text-base font-medium text-muted-foreground"
                                                     {...field}
                                                 />
                                             </div>
@@ -127,7 +130,7 @@ export function SignInForm() {
                                                 <PasswordInput
                                                     autoComplete="current-password"
                                                     placeholder="Password"
-                                                    className="h-14 pl-12 pr-12 rounded-sm border-border focus:border-primary focus:ring-primary text-base font-[600] text-muted-foreground"
+                                                    className="h-14 pl-12 pr-12 rounded-sm border-border focus:border-primary focus:ring-primary text-base font-medium text-muted-foreground"
                                                     {...field}
                                                 />
                                             </div>
@@ -138,23 +141,26 @@ export function SignInForm() {
                             />
 
                             {/* Remember Me Checkbox */}
-                            <FormField
-                                control={form.control}
-                                name="rememberMe"
-                                render={({ field }) => (
-                                    <FormItem className="flex items-center gap-2">
-                                        <FormControl>
-                                            <Checkbox
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
-                                            />
-                                        </FormControl>
-                                        <FormLabel className="text-sm font-normal cursor-pointer">
-                                            Remember me
-                                        </FormLabel>
-                                    </FormItem>
-                                )}
-                            />
+                            <div className="flex items-center justify-end">
+                                <FormField
+                                    control={form.control}
+                                    name="rememberMe"
+                                    render={({ field }) => (
+                                        <FormItem className="flex items-center gap-2 cursor-pointer">
+                                            <FormControl>
+                                                <Checkbox
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                />
+                                            </FormControl>
+                                            <FormLabel className="text-sm font-normal cursor-pointer">
+                                                Remember me
+                                            </FormLabel>
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+
 
                             {/* Error Message */}
                             {error && (
@@ -171,7 +177,7 @@ export function SignInForm() {
                                 <LoadingButton
                                     type="submit"
                                     className="w-full h-14 rounded-sm bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-base"
-                                    loading={loading}
+                                    loading={formLoading || loading}
                                 >
                                     Sign In
                                 </LoadingButton>
@@ -206,36 +212,6 @@ export function SignInForm() {
                         >
                             Sign Up
                         </Link>
-                    </div>
-                </div>
-            </div>
-
-            {/* Right Side - Image with Quote */}
-            <div className="hidden lg:flex w-[60%] h-full bg-muted items-center justify-center">
-                {/* Quote Overlay */}
-                <div className="flex flex-col items-center justify-center px-8 md:px-16 w-full h-full my-auto">
-                    {/* Quote at top */}
-                    <div className="space-y-2">
-                        <p className="text-lg sm:text-xl lg:text-2xl font-light text-foreground leading-relaxed mt-12 text-center">
-                            The future belongs to those who{" "}
-                            <span className="text-primary font-semibold">believe</span>{" "}
-                            in the{" "}
-                            <span className="text-primary font-semibold">beauty of their dreams.</span>
-                        </p>
-                        <p className="text-lg text-muted-foreground italic text-right">
-                            - Eleanor Roosevelt
-                        </p>
-                    </div>
-
-                    {/* Image taking remaining space */}
-                    <div className="flex-1 flex items-center justify-center w-full min-h-[400px] overflow-hidden relative">
-                        <Image
-                            src="/Login-amico.svg"
-                            alt="Login Image"
-                            fill={true}
-                            className="w-full h-full max-w-full max-h-full object-contain"
-                            priority
-                        />
                     </div>
                 </div>
             </div>

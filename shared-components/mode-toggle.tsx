@@ -10,6 +10,7 @@ import {
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 
+// Toggle theme: light, dark, system
 export function ModeToggle() {
   const { setTheme } = useTheme();
 

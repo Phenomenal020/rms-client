@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/src/auth-client";
 import { toast } from "sonner";
@@ -22,6 +22,23 @@ export function VerifyEmailForm({ email }: { email: string }) {
     const [isVerifying, setIsVerifying] = useState(false);
     const [isResending, setIsResending] = useState(false);
 
+    // Resend cooldown: tracks remaining seconds; 0 means the button is available
+    const [resendCooldown, setResendCooldown] = useState(0);
+    const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    function startCooldown() {
+        setResendCooldown(60);
+        cooldownRef.current = setInterval(() => {
+            setResendCooldown((prev) => {
+                if (prev <= 1) {
+                    clearInterval(cooldownRef.current!);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    }
+
     // On click verify email button
     async function handleVerify() {
         // Reject OTP not 6 digits
@@ -33,8 +50,8 @@ export function VerifyEmailForm({ email }: { email: string }) {
         // For loading indicator
         setIsVerifying(true);
 
-        // Verify email
-        const { error } = await authClient.emailOtp.verifyEmail({
+        // Verify email (validates and consumes the OTP in one step)
+        const { error: verifyEmailError } = await authClient.emailOtp.verifyEmail({
             email,
             otp,
         });
@@ -42,14 +59,14 @@ export function VerifyEmailForm({ email }: { email: string }) {
         // Update loading indicator
         setIsVerifying(false);
 
-        // If error, show error toast and reset OTP
-        if (error) {
+        // If invalid, expired, or any other error
+        if (verifyEmailError) {
             toast.error("Invalid or expired code. Please try again.");
             setOtp("");
             return;
         }
 
-        // Otherwise, Redirect to dashboard
+        // Redirect to dashboard
         toast.success("Email verified! Redirecting to dashboard...");
         router.push("/dashboard");
     }
@@ -60,7 +77,7 @@ export function VerifyEmailForm({ email }: { email: string }) {
         setIsResending(true);
 
         // Resend otp for email verification
-        const { error } = await authClient.emailOtp.sendVerificationOtp({
+        const { error: resendError } = await authClient.emailOtp.sendVerificationOtp({
             email,
             type: "email-verification",
         });
@@ -68,13 +85,14 @@ export function VerifyEmailForm({ email }: { email: string }) {
         // Update loading indicator
         setIsResending(false);
 
-        // If error, show error toast and reset OTP
-        if (error) {
-            toast.error("Failed to resend code. Please try again.");
+        // If error, show error toast
+        if (resendError) {
+            toast.error("Something went wrong. Please try again later.");
             return;
         }
 
-        // Otherwise, show success toast and reset OTP
+        // Start cooldown, show success toast, and reset OTP
+        startCooldown();
         toast.success("A new verification code has been sent.");
         setOtp("");
     }
@@ -114,27 +132,26 @@ export function VerifyEmailForm({ email }: { email: string }) {
             {/* Content */}
             <CardContent className="space-y-6">
                 {/* OTP Input Field */}
-                <div className="flex justify-center">
-                    <InputOTP
-                        maxLength={6}
-                        value={otp}
-                        onChange={setOtp}
-                        onComplete={handleVerify}
-                    >
-                        <InputOTPGroup>
-                            <InputOTPSlot index={0} className="w-12 h-12 mr-1" />
-                            <InputOTPSlot index={1} className="w-12 h-12 mr-1" />
-                            <InputOTPSlot index={2} className="w-12 h-12 mr-1" />
-                            <InputOTPSlot index={3} className="w-12 h-12 mr-1" />
-                            <InputOTPSlot index={4} className="w-12 h-12 mr-1" />
-                            <InputOTPSlot index={5} className="w-12 h-12 mr-1" />
-                        </InputOTPGroup>
-                    </InputOTP>
-                </div>
+                <InputOTP
+                    maxLength={6}
+                    value={otp}
+                    onChange={setOtp}
+                    onComplete={handleVerify}
+                    className="w-full"
+                >
+                    <InputOTPGroup className="w-full gap-2">
+                        <InputOTPSlot index={0} className="flex-1 h-12" />
+                        <InputOTPSlot index={1} className="flex-1 h-12" />
+                        <InputOTPSlot index={2} className="flex-1 h-12" />
+                        <InputOTPSlot index={3} className="flex-1 h-12" />
+                        <InputOTPSlot index={4} className="flex-1 h-12" />
+                        <InputOTPSlot index={5} className="flex-1 h-12" />
+                    </InputOTPGroup>
+                </InputOTP>
 
                 {/* Verify Button */}
                 <LoadingButton
-                    className="w-full h-14 rounded-sm"
+                    className="w-full h-10 md:h-12 rounded-sm"
                     loading={isVerifying}
                     onClick={handleVerify}
                 >
@@ -146,11 +163,12 @@ export function VerifyEmailForm({ email }: { email: string }) {
                     Didn't receive a code?{" "}
                     <LoadingButton
                         variant="link"
-                        className="p-0 h-auto font-semibold text-primary"
+                        className="p-0 h-auto font-semibold text-primary disabled:opacity-50"
                         loading={isResending}
+                        disabled={resendCooldown > 0}
                         onClick={handleResend}
                     >
-                        Resend
+                        {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend"}
                     </LoadingButton>
                 </div>
             </CardContent>

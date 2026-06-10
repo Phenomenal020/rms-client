@@ -15,29 +15,29 @@ export const SchoolHeader = ({
         <div className="text-center mb-3 border-b-2 border-border pb-3 space-y-1">
             {/* School Name */}
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
-                {school?.schoolName}
+                {school.name}
             </h1>
 
             {/* School Motto */}
-            {school?.schoolMotto && (
+            {school.metadata?.motto && (
                 <p className="text-base sm:text-lg md:text-xl text-foreground italic">
-                    {school.schoolMotto}
+                    {school.metadata?.motto}
                 </p>
             )}
 
             {/* School Address */}
-            {school?.schoolAddress && (
+            {school.metadata?.address && (
                 <p className="text-sm sm:text-base md:text-lg text-muted-foreground">
-                    {school.schoolAddress}
+                    {school.metadata?.address}
                 </p>
             )}
 
             {/* School Telephone and Email */}
-            {(school?.schoolTelephone || school?.schoolEmail) && (
+            {(school.metadata?.telephone || school.metadata?.email) && (
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                    {school?.schoolTelephone ? `Tel: ${school.schoolTelephone}` : null}
-                    {school?.schoolTelephone && school?.schoolEmail ? " | " : null}
-                    {school?.schoolEmail ? `Email: ${school.schoolEmail}` : null}
+                    {school.metadata?.telephone ? `Tel: ${school.metadata?.telephone}` : null}
+                    {school.metadata?.telephone && school.metadata?.email ? " | " : null}
+                    {school.metadata?.email ? `Email: ${school.metadata?.email}` : null}
                 </p>
             )}
 
@@ -48,7 +48,7 @@ export const SchoolHeader = ({
 
             {/* Academic Year and Term */}
             <p className="text-sm md:text-base text-muted-foreground">
-                Session: {academicTerm?.academicYear} | Term: {academicTerm?.term}
+                Session: {academicTerm?.academicYear} | Term: {academicTerm.term}
             </p>
         </div>
     );

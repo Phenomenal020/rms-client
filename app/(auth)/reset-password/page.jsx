@@ -5,8 +5,8 @@ import { redirect } from "next/navigation";
 export const metadata = { title: "Reset Password" };
 
 export default async function ResetPasswordPage({ searchParams }) {
-  const email = searchParams?.email;
-  if (!email) redirect("/forgot-password");
+  const email = searchParams?.email
+  // if (!email) redirect("/forgot-password");
 
   return (
     <main className="flex min-h-svh items-center justify-center px-4">

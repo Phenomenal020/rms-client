@@ -1,3 +1,4 @@
+// User is not authenticated and trying to access a protected resource
 "use client";
 
 import { Button } from "@/shadcn/ui/button";

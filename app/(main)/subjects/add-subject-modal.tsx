@@ -3,60 +3,56 @@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shadcn/ui/form";
 import { Input } from "@/shadcn/ui/input";
 import { Button } from "@/shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/shadcn/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shadcn/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/shadcn/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shadcn/ui/select";
 import type { UseFormReturn } from "react-hook-form";
 import type { AddSubjectValues } from "./subjects-form";
+import { LoadingButton } from "@/shared-components/loading-button";
 
 type AddSubjectModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  form: UseFormReturn<AddSubjectValues>;
+  addForm: UseFormReturn<AddSubjectValues>;
   onSubmit: (values: AddSubjectValues) => Promise<void>;
   loading: boolean;
+  readOnly?: boolean;
   departmentOptions: string[];
 };
 
 export function AddSubjectModal({
   open,
   onOpenChange,
-  form,
+  addForm,
   onSubmit,
   loading,
+  readOnly = false,
   departmentOptions,
 }: AddSubjectModalProps) {
   return (
+
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
+        {/* Dialog Header */}
         <DialogHeader>
-          <DialogTitle>Add Subject</DialogTitle>
+          <DialogTitle className="text-left">Add Subject</DialogTitle>
           <hr className="my-2" />
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <div className="space-y-4">
+        {/* Form */}
+        <Form {...addForm}>
+          <form onSubmit={addForm.handleSubmit(onSubmit)}>
+            <div className="space-y-6">
+
+              {/* Subject Name */}
               <div className="grid grid-cols-1 gap-3">
                 <FormField
-                  control={form.control}
-                  name="subjectName"
+                  control={addForm.control}
+                  name="name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="font-semibold text-muted-foreground">Subject Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="Mathematics" {...field} className="h-12 md:h-14" />
+                        <Input placeholder="Mathematics" {...field} className="h-10 md:h-12" disabled={readOnly || loading} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -64,9 +60,10 @@ export function AddSubjectModal({
                 />
               </div>
 
+              {/* Department */}
               <div className="grid grid-cols-1 gap-3">
                 <FormField
-                  control={form.control}
+                  control={addForm.control}
                   name="department"
                   render={({ field }) => (
                     <FormItem>
@@ -75,8 +72,9 @@ export function AddSubjectModal({
                         <Select
                           value={field.value || "none"}
                           onValueChange={field.onChange}
+                          disabled={readOnly || loading}
                         >
-                          <SelectTrigger className="h-12 md:h-14 w-full">
+                          <SelectTrigger className="h-10 md:h-12 w-full">
                             <SelectValue placeholder="Select department" />
                           </SelectTrigger>
                           <SelectContent>
@@ -95,21 +93,31 @@ export function AddSubjectModal({
               </div>
             </div>
 
-            <hr className="my-4" />
+            <DialogFooter className="mt-4">
+              <div className="grid grid-cols-2 justify-between gap-2">
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                className="cursor-pointer h-12 md:h-14"
-              >
-                Cancel
-              </Button>
+                {/* Cancel Button */}
+                <Button
+                  disabled={loading || !addForm.formState.isDirty}
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  className="cursor-pointer h-10 md:h-12"
+                >
+                  Cancel
+                </Button>
 
-              <Button type="submit" disabled={loading} className="cursor-pointer h-12 md:h-14">
-                Add Subject
-              </Button>
+                {/* Add Subject Button */}
+                {!readOnly && (
+                  <LoadingButton
+                    loading={loading}
+                    type="submit"
+                    disabled={!addForm.formState.isDirty}
+                    className="cursor-pointer h-10 md:h-12">
+                    Add Subject
+                  </LoadingButton>
+                )}
+              </div>
             </DialogFooter>
           </form>
         </Form>

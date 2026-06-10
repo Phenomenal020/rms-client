@@ -1,133 +1,81 @@
 import { Skeleton } from "@/shadcn/ui/skeleton";
 import { Card, CardContent } from "@/shadcn/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shadcn/ui/tabs";
 
-export default function Loading(): React.ReactElement {
+const labelClassName = "text-sm md:text-base text-muted-foreground font-semibold";
+
+// In-component card skeleton — labels shown; only inputs skeletonised
+export function SchoolFormCardSkeleton(): React.ReactElement {
   return (
-    <Tabs defaultValue="school" className="w-full">
-      {/* Tabs List */}
-      <TabsList className="flex justify-center w-full mx-auto bg-card/60 backdrop-blur-sm rounded-lg p-1 gap-1 mb-8 shadow-sm border border-border/50">
-        {/* School Tab Skeleton */}
-        <Skeleton className="h-10 w-20 rounded-md" />
+    <Card className="border shadow-md">
+      <CardContent className="pt-6">
+        <div className="space-y-6">
+          {/* School Information Section */}
+          <section className="space-y-4">
+            <div className="space-y-2">
+              <p className={labelClassName}>
+                School Name<span className="text-destructive text-base">*</span>
+              </p>
+              <Skeleton className="h-6 w-full" />
+            </div>
 
-        {/* Term Tab Skeleton */}
-        <Skeleton className="h-10 w-20 rounded-md" />
-      </TabsList>
+            <div className="space-y-2">
+              <p className={labelClassName}>Address</p>
+              <Skeleton className="h-6 w-full" />
+            </div>
 
-      {/* Tabs Content - School and Term Forms */}
-      <div className="w-full">
-        {/* School Tab Content Skeleton - Renders school form */}
-        <TabsContent value="school" className="mt-0">
-          <Card className="border shadow-md">
-            <CardContent className="pt-4">
-              <div className="space-y-6">
-                {/* School Information Section */}
-                <div className="space-y-6">
-                  <div className="pb-2 border-b border-border">
-                    <Skeleton className="h-7 w-48" />
-                  </div>
-                  <div className="space-y-2">
-                    <Skeleton className="h-5 w-28" />
-                    <Skeleton className="h-12 w-full" />
-                  </div>
-                  <div className="space-y-2">
-                    <Skeleton className="h-5 w-32" />
-                    <Skeleton className="h-12 w-full" />
-                  </div>
-                  <div className="space-y-2">
-                    <Skeleton className="h-5 w-24" />
-                    <Skeleton className="h-24 w-full" />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div className="space-y-2">
-                      <Skeleton className="h-5 w-32" />
-                      <Skeleton className="h-12 w-full" />
-                    </div>
-                    <div className="space-y-2">
-                      <Skeleton className="h-5 w-24" />
-                      <Skeleton className="h-12 w-full" />
-                    </div>
-                  </div>
-                </div>
+            <div className="space-y-2">
+              <p className={labelClassName}>Motto</p>
+              <Skeleton className="min-h-6 md:min-h-8 w-full" />
+            </div>
 
-                {/* Submit Button Skeleton */}
-                <div className="pt-6 border-t border-border mt-6">
-                  <div className="flex justify-center">
-                    <Skeleton className="h-12 w-40" />
-                  </div>
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <p className={labelClassName}>Telephone</p>
+                <Skeleton className="h-6 w-full" />
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Term Tab Content Skeleton - Renders term form */}
-        <TabsContent value="term" className="mt-0">
-          <Card className="border shadow-md">
-            <CardContent className="pt-4">
-              <div className="space-y-6">
-                {/* Term Information Section */}
-                <div className="space-y-6">
-                  <div className="pb-2 border-b border-border">
-                    <Skeleton className="h-7 w-48" />
-                  </div>
-
-                  {/* Term and Academic Year Row */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                    <div className="space-y-2">
-                      <Skeleton className="h-5 w-32" />
-                      <Skeleton className="h-14 w-full" />
-                    </div>
-                    <div className="space-y-2">
-                      <Skeleton className="h-5 w-28" />
-                      <Skeleton className="h-14 w-full" />
-                    </div>
-                    <div className="space-y-2">
-                      <Skeleton className="h-5 w-20" />
-                      <Skeleton className="h-14 w-full" />
-                    </div>
-                  </div>
-
-                  {/* Term Start and End Dates Row */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <div className="space-y-2">
-                      <Skeleton className="h-5 w-40" />
-                      <Skeleton className="h-14 w-full" />
-                    </div>
-                    <div className="space-y-2">
-                      <Skeleton className="h-5 w-40" />
-                      <Skeleton className="h-14 w-full" />
-                    </div>
-                    <div className="space-y-2">
-                      <Skeleton className="h-5 w-32" />
-                      <Skeleton className="h-14 w-full" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Grading System Section Skeleton */}
-                <div className="space-y-6">
-                  <div className="pb-2 border-b border-border">
-                    <Skeleton className="h-7 w-48" />
-                  </div>
-                  <div className="space-y-4">
-                    <Skeleton className="h-20 w-full" />
-                    <Skeleton className="h-20 w-full" />
-                    <Skeleton className="h-20 w-full" />
-                  </div>
-                </div>
-
-                {/* Submit Button Skeleton */}
-                <div className="pt-6 border-t border-border mt-6">
-                  <div className="flex justify-center">
-                    <Skeleton className="h-12 w-40" />
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <p className={labelClassName}>Email</p>
+                <Skeleton className="h-6 w-full" />
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
+          </section>
+
+          {/* Registration ID section — label + helper text shown; input skeletonised */}
+          <section className="space-y-2 pt-4 border-t border-border">
+            <div>
+              <p className={labelClassName}>School Registration ID</p>
+            </div>
+            <Skeleton className="h-6 w-full" />
+          </section>
+
+          {/* Submit / Discard Buttons */}
+          <div className="pt-4 border-t border-border mt-4">
+            <div className="flex justify-center gap-3">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-6 w-32" />
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Route-level + OrgAdminGate fallback — wrap in the same shell as page.tsx
+export default function SchoolLoading(): React.ReactElement {
+  return (
+    <main className="min-h-screen w-full bg-background relative overflow-hidden px-4 py-6 md:px-6 md:py-10">
+      <div className="mx-auto w-full max-w-5xl space-y-10">
+        <div className="space-y-6">
+          {/* Page Header */}
+          <section className="space-y-2">
+            <Skeleton className="h-6 w-64" />
+          </section>
+
+          {/* school form (would be reused for post-hydration loading) */}
+          <SchoolFormCardSkeleton />
+        </div>
       </div>
-    </Tabs>
+    </main>
   );
 }

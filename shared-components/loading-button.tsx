@@ -1,4 +1,5 @@
-import * as React from "react";
+// Reusable Loading Button component
+import React from "react";
 
 import { Button } from "@/shadcn/ui/button";
 import { Loader2 } from "lucide-react";

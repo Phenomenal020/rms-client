@@ -7,22 +7,19 @@ import { Button } from "@/shadcn/ui/button";
 import { Input } from "@/shadcn/ui/input";
 import { Calendar } from "@/shadcn/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shadcn/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shadcn/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shadcn/ui/form";
-import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/shadcn/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/shadcn/ui/dialog";
 import type { UseFormReturn } from "react-hook-form";
 import type { AddTermValues } from "./term-setup-card";
+import { ACADEMIC_YEAR_OPTIONS } from "./term-setup-card";
+import { LoadingButton } from "@/shared-components/loading-button";
 
 type AddTermModalProps = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     form: UseFormReturn<AddTermValues>;
-    onSubmit: (values: AddTermValues) => void;
+    onSubmit: (values: AddTermValues) => void;  // termId is not known yet — assigned by the API response in the parent
     loading: boolean;
 };
 
@@ -40,38 +37,60 @@ export function AddTermModal({ open, onOpenChange, form, onSubmit, loading }: Ad
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
 
-                        {/* Term Name */}
-                        <FormField
-                            control={form.control}
-                            name="termName"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="font-semibold text-muted-foreground">Term Name</FormLabel>
-                                    <FormControl>
-                                        <Input {...field} placeholder="First Term" className="h-10 md:h-12" />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                        <div className="grid grid-cols-2 gap-1">
+                            {/* Term — enum select (FIRST / SECOND / THIRD) */}
+                            <FormField
+                                control={form.control}
+                                name="term"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="font-semibold text-muted-foreground">Term</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger className="h-10 w-full md:h-12">
+                                                    <SelectValue placeholder="Select term" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="FIRST">First Term</SelectItem>
+                                                <SelectItem value="SECOND">Second Term</SelectItem>
+                                                <SelectItem value="THIRD">Third Term</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
 
-                        {/* Academic Year */}
-                        <FormField
-                            control={form.control}
-                            name="academicYear"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="font-semibold text-muted-foreground">Academic Year (Session)</FormLabel>
-                                    <FormControl>
-                                        <Input {...field} placeholder="2024/2025" className="h-10 md:h-12" />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                            {/* Academic Year */}
+                            <FormField
+                                control={form.control}
+                                name="academicYear"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="font-semibold text-muted-foreground">Academic Year</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value ?? undefined}>
+                                            <FormControl>
+                                                <SelectTrigger className="h-10 w-full cursor-pointer md:h-12">
+                                                    <SelectValue placeholder="Academic year" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {ACADEMIC_YEAR_OPTIONS.map((year) => (
+                                                    <SelectItem key={year} value={year} className="cursor-pointer">
+                                                        {year}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
 
                         {/* Start Date and End Date */}
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
 
                             {/* Start Date */}
                             <FormField
@@ -176,22 +195,26 @@ export function AddTermModal({ open, onOpenChange, form, onSubmit, loading }: Ad
                             )}
                         />
 
-                        <hr className="my-2" />
-
                         {/* Footer */}
                         <DialogFooter>
+                            {/* Cancel Button */}
                             <Button
                                 type="button"
                                 variant="outline"
                                 onClick={() => onOpenChange(false)}
-                                disabled={loading}
-                                className="cursor-pointer h-10 md:h-12"
+                                disabled={loading || !form.formState.isDirty}
+                                className="cursor-pointer h-10 md:h-12 cursor-pointer"
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={loading} className="cursor-pointer h-10 md:h-12">
+                            {/* Add Term Button */}
+                            <LoadingButton
+                                type="submit"
+                                loading={loading}
+                                disabled={!form.formState.isDirty}
+                                className="cursor-pointer h-10 md:h-12 cursor-pointer">
                                 Add Term
-                            </Button>
+                            </LoadingButton>
                         </DialogFooter>
 
                     </form>

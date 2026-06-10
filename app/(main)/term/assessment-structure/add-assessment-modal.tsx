@@ -3,25 +3,20 @@
 import { Button } from "@/shadcn/ui/button";
 import { Input } from "@/shadcn/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shadcn/ui/form";
-import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/shadcn/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/shadcn/ui/dialog";
 import type { UseFormReturn } from "react-hook-form";
-import type { AssessmentValues } from "./assessment-structure-card";
+import type { AssessmentStructureValues } from "./assessment-structure-card";
+import { LoadingButton } from "@/shared-components/loading-button";
+
 
 type AddAssessmentModalProps = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    form: UseFormReturn<AssessmentValues>;
-    onSubmit: (values: AssessmentValues) => void;
+    form: UseFormReturn<AssessmentStructureValues>;
+    onSubmit: (values: AssessmentStructureValues) => void;
     loading: boolean;
     remainingPercentage: number;
 };
-
 export function AddAssessmentModal({ open, onOpenChange, form, onSubmit, loading, remainingPercentage }: AddAssessmentModalProps) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -51,7 +46,7 @@ export function AddAssessmentModal({ open, onOpenChange, form, onSubmit, loading
                                     <FormItem>
                                         <FormLabel className="font-semibold text-muted-foreground">Type</FormLabel>
                                         <FormControl>
-                                            <Input {...field} placeholder="CA 1" className="h-10 md:h-12" />
+                                            <Input {...field} placeholder="Eg, CA" className="h-10 md:h-12" />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -68,6 +63,8 @@ export function AddAssessmentModal({ open, onOpenChange, form, onSubmit, loading
                                         <FormControl>
                                             <Input
                                                 type="number"
+                                                min={1}
+                                                max={100}
                                                 {...field}
                                                 onChange={(e) => field.onChange(Number(e.target.value))}
                                                 className="h-10 md:h-12"
@@ -81,7 +78,7 @@ export function AddAssessmentModal({ open, onOpenChange, form, onSubmit, loading
                             {/* Order */}
                             <FormField
                                 control={form.control}
-                                name="order"
+                                name="displayOrder"
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel className="font-semibold text-muted-foreground">Order</FormLabel>
@@ -89,6 +86,7 @@ export function AddAssessmentModal({ open, onOpenChange, form, onSubmit, loading
                                             <Input
                                                 type="number"
                                                 min={1}
+                                                max={100}
                                                 {...field}
                                                 onChange={(e) => field.onChange(Number(e.target.value))}
                                                 className="h-10 md:h-12"
@@ -100,7 +98,7 @@ export function AddAssessmentModal({ open, onOpenChange, form, onSubmit, loading
                             />
                         </div>
 
-                        <hr className="my-2" />
+                        {/* <hr className="my-2" /> */}
 
                         {/* Footer */}
                         <DialogFooter>
@@ -109,13 +107,17 @@ export function AddAssessmentModal({ open, onOpenChange, form, onSubmit, loading
                                 variant="outline"
                                 onClick={() => onOpenChange(false)}
                                 disabled={loading}
-                                className="cursor-pointer h-10 md:h-12"
+                                className="cursor-pointer h-10 md:h-12 mt-2"
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={loading} className="cursor-pointer h-10 md:h-12">
+                            <LoadingButton
+                                type="submit"
+                                loading={loading}
+                                disabled={loading || !form.formState.isDirty}
+                                className="cursor-pointer h-10 md:h-12">
                                 Add Assessment
-                            </Button>
+                            </LoadingButton>
                         </DialogFooter>
 
                     </form>

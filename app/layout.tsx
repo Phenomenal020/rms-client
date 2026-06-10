@@ -5,6 +5,7 @@ import { Metadata } from "next";
 import { ThemeProvider } from "next-themes";
 import Providers from "@/fetcher/Providers";
 import { UserProvider } from "@/contexts/user-context";
+import { TooltipProvider } from "@/shadcn/ui/tooltip";
 
 // Geist font
 const geistSans = Geist({
@@ -21,7 +22,7 @@ const geistMono = Geist_Mono({
 // Metadata
 export const metadata: Metadata = {
   title: "Result Management System",
-  description: "Result Management System developed for easy result management and analysis.",
+  description: "Result Management System developed primarily for Nigerian schools."
 };
 
 // RootLayout component > return jsx
@@ -37,7 +38,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
         <Providers>
           <UserProvider>
+            <TooltipProvider>
             {children}
+            </TooltipProvider>
             <Toaster position="top-right" richColors />
           </UserProvider>
         </Providers>

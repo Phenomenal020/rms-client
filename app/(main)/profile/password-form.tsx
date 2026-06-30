@@ -1,0 +1,280 @@
+"use client";
+
+import { LoadingButton } from "@/shared-components/loading-button";
+import { PasswordInput } from "@/shared-components/password-input";
+import { Card, CardContent } from "@/shadcn/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/shadcn/ui/form";
+import { authClient } from "@/src/auth-client";
+import { passwordSchema } from "@/src/passwordSchema";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm, type ControllerRenderProps, type Control } from "react-hook-form";
+import { z } from "zod";
+import { toast } from "sonner";
+import { useState } from "react";
+
+// Props interface for PasswordForm
+interface PasswordFormProps {
+  hasPasswordAccount: boolean;
+}
+
+// password change form component
+export function PasswordForm({ hasPasswordAccount }: PasswordFormProps) {
+
+  // Dynamic schema based on whether user has a password account
+  // If hasPasswordAccount is true, currentPassword is required
+  // If false, currentPassword is not needed (using oath)
+  const updatePasswordSchema = hasPasswordAccount
+    ? z.object({
+        currentPassword: z
+          .string()
+          .min(1, { message: "Current password is required" }),
+        newPassword: passwordSchema,
+      })  // schema for a user that logged in with a password
+    : z.object({
+        newPassword: passwordSchema,
+      }); // new password schema for a user that logged in with OAuth
+
+  // Type for form values - union type to handle both schemas
+  type PasswordFormValues = z.infer<typeof updatePasswordSchema>;
+
+  // useform hook for the password change form
+  const form = useForm({
+    resolver: zodResolver(updatePasswordSchema),
+    defaultValues: hasPasswordAccount
+      ? {
+          currentPassword: "",
+          newPassword: "",
+        }
+      : {
+          newPassword: "",
+        },
+  });
+
+  // state for the password change form: allowPasswordChange is false by default (so the password input is disabled)
+  const [allowPasswordChange, setAllowPasswordChange] = useState(false);
+
+  // on submit the password change form, send the current password and the new password to the server and reset the form
+  async function onSubmit(data: PasswordFormValues) {
+    if (!allowPasswordChange) {
+      toast.error("You are not allowed to change your password");
+      return;
+    }
+
+    try {
+      // If user doesn't have a password account, use setPassword (no current password required)
+      if (!hasPasswordAccount) {
+        const { newPassword } = data as { newPassword: string };
+        // TODO: Verify ouath flow
+        // await authClient.requestPasswordReset({
+        //   email: user.email,
+        //   redirectTo: "/reset-password",
+        // },
+          // {
+          //   password: newPassword,
+          //   revokeOtherSessions: true,
+          // },
+          // {
+          //   onError: (error) => {
+          //     toast.error("Failed to set password");
+          //   },
+          //   onSuccess: () => {
+          //     toast.success("Password successfully set");
+          //     form.reset();
+          //     setAllowPasswordChange(false);
+          //   },
+          // }
+        // );
+        toast.info("Password change request for oauth users is not implemented yet");
+      } else {
+        // User has password account, use changePassword (requires current password)
+        const { currentPassword, newPassword } = data as { currentPassword: string; newPassword: string };
+        if (!currentPassword) {
+          toast.error("Current password is required");
+          form.reset()
+          form.clearErrors();
+          return;
+        }
+        await authClient.changePassword(
+          {
+            currentPassword,
+            newPassword,
+            revokeOtherSessions: true,
+          },
+          {
+            onError: (error: unknown) => {
+              toast.error("Failed to change password");
+            },
+            onSuccess: () => {
+              toast.success("Password successfully changed");
+              // TODO: password changes but user is not logged out
+              form.reset();
+              setAllowPasswordChange(false);
+            },
+          }
+        );
+      }
+    } catch (error) {
+      toast.error(hasPasswordAccount ? "Failed to change password" : "Failed to set password");
+    }
+  }
+
+  // handle change password button click - toggles allowPasswordChange
+  function handleChangePasswordClick(e: React.MouseEvent<HTMLButtonElement>) {
+    e.preventDefault();
+    // When cancelling, reset form values and clear any validation errors
+    if (allowPasswordChange) {
+      form.reset();
+      form.clearErrors();
+    }
+    setAllowPasswordChange(!allowPasswordChange);
+  }
+
+  // set loading to true when the form is submitting (disables the change password button and shows a loading spinner)
+  const loading = form.formState.isSubmitting;
+
+  return (
+    <Card className="border shadow-md">
+      {/* Card Content */}
+      <CardContent className="pt-4">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+
+            {/* Password Section */}
+            <div className="space-y-4">
+
+              {/* Password Section subheading (h4) */}
+              <div className="pb-2 border-b border-border">
+                <h4 className="text-lg sm:text-xl font-bold text-foreground uppercase tracking-wide">Password</h4>
+              </div>
+
+            {/* Current Password Field - Only show if user has a password account and editing is enabled */}
+            {hasPasswordAccount && (
+              // if the user has a password account, show the current password field
+              <FormField
+                control={form.control as Control<{ currentPassword: string; newPassword: string }>}
+                name="currentPassword"
+                render={({ field }: { field: ControllerRenderProps<{ currentPassword: string; newPassword: string }, "currentPassword"> }) => (
+
+                  // current password field
+                  <FormItem>
+                    <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">Current Password</FormLabel>
+                    <div className="flex flex-col sm:flex-row gap-3 mt-2 w-full">
+                      <div className="flex-1">
+                        <FormControl>
+                          <PasswordInput
+                            {...field}
+                            placeholder="Enter current password"
+                            className="w-full h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary bg-muted"
+                            disabled={!allowPasswordChange}
+                          />
+                        </FormControl>
+                      </div>
+
+                      {/* if the user is not allowed to change the password, show the change password button */}
+                      {!allowPasswordChange ? (
+                        <LoadingButton
+                          type="button"
+                          onClick={handleChangePasswordClick}
+                          loading={false}
+                          disabled={false}
+                          className="h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer whitespace-nowrap w-full sm:w-auto"
+                        >
+                          Change Password
+                        </LoadingButton>
+                      ) : (
+                        // if the user is allowed to change the password, show the cancel button
+                        <LoadingButton
+                          type="button"
+                          onClick={handleChangePasswordClick}
+                          loading={false}
+                          disabled={false}
+                          className="h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer whitespace-nowrap w-full sm:w-auto"
+                        >
+                          Cancel
+                        </LoadingButton>
+                      )}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* For OAuth users without password, show a button to set password */}
+            {!hasPasswordAccount && !allowPasswordChange && (
+              <div>
+                <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">Password</FormLabel>
+                <div className="mt-2">
+                  <LoadingButton
+                    type="button"
+                    onClick={handleChangePasswordClick}
+                    loading={false}
+                    disabled={false}
+                    className="w-full h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                  >
+                    Set Password
+                  </LoadingButton>
+                </div>
+              </div>
+            )}
+
+
+            {/* New Password Field - Only show when editing is enabled */}
+            {allowPasswordChange && (
+              <FormField
+                control={form.control}
+                name="newPassword"
+                render={({ field }: { field: ControllerRenderProps<PasswordFormValues, "newPassword"> }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm md:text-base text-muted-foreground font-semibold">
+                      {hasPasswordAccount ? "New Password" : "Password"}
+                    </FormLabel>
+                    <FormControl>
+                      <PasswordInput
+                        {...field}
+                        placeholder={hasPasswordAccount ? "Enter new password" : "Enter password"}
+                        className="w-full h-10 md:h-14 text-sm md:text-base transition-colors hover:border-input focus:border-primary"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                    <p className="text-sm font-bold mt-1 text-muted-foreground">
+                      {hasPasswordAccount 
+                        ? "Changing your password will log you out from all other devices for security."
+                        : "Setting a password will log you out from all other devices for security."}
+                    </p>
+                  </FormItem>
+                )}
+              />
+            )}
+
+            </div>
+
+            {/* Submit Button - Only show when editing is enabled */}
+            {allowPasswordChange && (
+              <div className="pt-4 md:pt-6 border-t border-border mt-4 md:mt-6">
+                <div className="flex justify-center">
+                  <LoadingButton
+                    type="submit"
+                    loading={loading}
+                    disabled={!allowPasswordChange}
+                    className="w-full sm:w-auto min-w-[160px] h-10 md:h-14 text-sm md:text-base font-medium shadow-sm hover:shadow transition-shadow cursor-pointer"
+                  >
+                    {hasPasswordAccount ? "Change Password" : "Set Password"}
+                  </LoadingButton>
+                </div>
+              </div>
+            )}
+
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
+}

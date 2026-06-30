@@ -1,0 +1,159 @@
+Here is an organised list of all the organisation methods from the Better Auth Organisation plugin documentation, grouped by category, with a brief explanation and school result management system relevance for each.
+
+---
+
+## Organisation Management
+
+**`organization.create`** — Creates a new organisation with a name, slug, and optional logo/metadata. In a school system, this could be used to spin up a new school or department entity that houses all its members and results data.
+
+**`organization.checkSlug`** — Checks whether a given organisation slug is already taken. Useful when setting up new school branches or departments to ensure unique identifiers before committing to creation.
+
+**`organization.list`** — Returns a list of all organisations the current user belongs to. A teacher or admin working across multiple schools or departments could use this to see all their affiliated institutions at a glance.
+
+**`organization.getFullOrganization`** — Fetches complete details of an organisation, including its members. Useful for loading a full school profile with all enrolled staff, teachers, and the member limit for that institution.
+
+**`organization.update`** — Updates an organisation's name, slug, logo, or metadata. A school administrator could use this to update the school's profile information or attach custom metadata (e.g., academic year, term dates).
+
+**`organization.delete`** — Permanently removes an organisation and all its members and invitations. Could be used to decommission a school or department, though it should be handled with care in a results management context to avoid data loss.
+
+---
+
+## Active Organisation
+
+**`organization.setActive`** — Sets (or unsets) the currently active organisation in the user's session. An admin managing results for multiple schools could switch between them, much like switching between active workspaces.
+
+**`organization.useActiveOrganization`** — A reactive hook that returns the currently active organisation, re-evaluating whenever it changes. This would drive the UI to always display results and members relative to the school currently "in focus."
+
+---
+
+## Invitations
+
+**`organization.inviteMember`** — Sends an invitation email to a user with a specified role. A school admin could use this to onboard new teachers, students, or parents into the system with the appropriate access level.
+
+**`organization.acceptInvitation`** — Accepts a pending invitation, adding the user to the organisation. This would complete the enrolment flow for a teacher or student after they receive their invite link.
+
+**`organization.rejectInvitation`** — Allows a user to decline an invitation they have received. Relevant for cases where a prospective member decides not to join a particular school's system.
+
+**`organization.cancelInvitation`** — Lets an admin cancel an outstanding invitation that has not yet been accepted. Useful if a staff member's position changes before they've joined the system.
+
+**`organization.getInvitation`** — Retrieves the details of a specific invitation by its ID. Can be used to display invitation metadata (role, organisation, expiry) on the invitation acceptance page.
+
+**`organization.listInvitations`** — Lists all pending invitations for an organisation. Gives school admins an overview of who has been invited but not yet joined.
+
+**`organization.listUserInvitations`** — Lists all invitations directed at a specific user. Useful for a user's dashboard to show them any outstanding school/department join requests awaiting their response.
+
+---
+
+## Member Management
+
+**`organization.listMembers`** — Lists all members of an organisation, with sorting and filtering options. A school admin could use this to browse all enrolled teachers and students, filtered by join date or role.
+
+**`organization.addMember`** — Directly adds a user to an organisation without the invitation flow (server-only). Useful for bulk-importing existing students or staff into the results management system programmatically.
+
+**`organization.removeMember`** — Removes a member from an organisation. Could be used to unenroll a student who has left the school or revoke a teacher's access.
+
+**`organization.updateMemberRole`** — Changes the role(s) assigned to a member. In a school context, this allows promoting a teacher to an admin, or changing a student's access level (e.g., granting a student leader additional permissions).
+
+**`organization.getActiveMember`** — Returns the current user's member record within the active organisation. Used to load the logged-in user's specific profile details and settings within a school.
+
+**`organization.getActiveMemberRole`** — Returns just the role of the current user in the active organisation. Enables the UI to conditionally show or hide features (e.g., only showing result-entry forms to teachers).
+
+**`organization.leave`** — Allows a user to remove themselves from an organisation. A student who transfers schools or a teacher who resigns could use this to exit the relevant school's system.
+
+---
+
+## Access Control
+
+**`organization.hasPermission`** — Checks whether the current user has a specific permission (e.g., can they create or edit a result entry). Ideal for guarding sensitive actions like publishing results or modifying student records.
+
+**`organization.checkRolePermission`** — Synchronously checks if a given role has a specific permission without a server call. Useful for instantly showing or hiding UI elements (like an "Edit Results" button) based on the user's role.
+
+---
+
+## Dynamic Roles (Dynamic Access Control)
+
+**`organization.createRole`** — Creates a new custom role at runtime for an organisation. A school could define bespoke roles like "Head of Department" or "Exam Officer" with tailored permissions beyond the default owner/admin/member set.
+
+**`organization.deleteRole`** — Deletes a previously created dynamic role from an organisation. Useful when a custom role (e.g., "Invigilator") is no longer needed after an exam period ends.
+
+**`organization.listRoles`** — Lists all roles defined for an organisation. An admin can review all role types available in the school system to manage access consistently.
+
+**`organization.getRole`** — Retrieves a specific role's details and permissions by name or ID. Useful for displaying the permission set of a role before assigning it to a member.
+
+**`organization.updateRole`** — Updates the name or permissions of an existing dynamic role. Allows a school to refine what a role like "Class Teacher" can do as the system's requirements evolve.
+
+---
+
+## Teams
+
+**`organization.createTeam`** — Creates a sub-group (team) within an organisation. A school could use this to represent individual classes, year groups, or subject departments within a broader school organisation.
+
+**`organization.listTeams`** — Lists all teams in an organisation. Gives an overview of all classes or departments within a school.
+
+**`organization.updateTeam`** — Updates a team's name or details. Useful for renaming a class group or correcting a department name.
+
+**`organization.removeTeam`** — Deletes a team from an organisation. Could be used to dissolve a class group at the end of an academic year.
+
+**`organization.setActiveTeam`** — Sets (or unsets) the currently active team in the session. Allows a teacher to switch between the different classes they teach to view and manage results for each one.
+
+**`organization.listUserTeams`** — Lists all teams the current user belongs to. A student could see all their class groups, and a teacher could see all the classes they are assigned to.
+
+**`organization.listTeamMembers`** — Lists all members of a specific team. Essential for a teacher to see the roster of students in a particular class before entering or reviewing results.
+
+**`organization.addTeamMember`** — Adds a user to a team directly. Enables bulk assignment of students to a class group programmatically.
+
+**`organization.removeTeamMember`** — Removes a user from a team without removing them from the wider organisation. Useful when a student changes class mid-term while remaining enrolled at the school.
+
+
+
+
+
+
+
+
+
+
+Admin plugin
+Here's a grouped summary of the Better Auth Admin plugin methods, organised into operations relevant to a school result management system:
+
+---
+
+**1. User Account Management**
+*Methods: `createUser`, `updateUser`, `removeUser`*
+
+These methods handle the full lifecycle of a user account — creating new accounts for students, teachers, or staff; updating their profile details (e.g. name, custom fields like class or department); and permanently deleting an account when a user leaves the school.
+
+---
+
+**2. User Lookup & Listing**
+*Methods: `listUsers`, `getUser`*
+
+These allow the admin to search, filter, sort, and paginate through all registered users, or fetch a single user's full details by their ID. Useful for finding a specific student's account or browsing all users in the system.
+
+---
+
+**3. Role & Permission Management**
+*Methods: `setRole`, `hasPermission`, `checkRolePermission`*
+
+These control what each user is allowed to do in the system — for example, assigning a teacher the `admin` role so they can enter results, or verifying whether a particular role has permission to perform a given action before showing a feature.
+
+---
+
+**4. Account Security & Access Control**
+*Methods: `setUserPassword`, `banUser`, `unbanUser`*
+
+These methods let the admin reset a user's password (e.g. for a student who is locked out), or ban/unban a user to immediately block or restore their access to the system — useful for handling misconduct or account misuse.
+
+---
+
+**5. Session Management**
+*Methods: `listUserSessions`, `revokeUserSession`, `revokeUserSessions`*
+
+These give the admin visibility into active login sessions for any user, and the ability to forcibly log them out of a specific session or all sessions at once — important for security when a device is lost or an account is compromised.
+
+---
+
+**6. User Impersonation**
+*Methods: `impersonateUser`, `stopImpersonating`*
+
+This lets an admin temporarily log in as another user to see exactly what they see in the system, which is helpful for debugging access issues or verifying that a student's results are displaying correctly — without needing their password.

@@ -186,5 +186,9 @@
   body {
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
+    min-width: 360px;
+  }
+  html {
+    min-width: 360px;
   }
 }

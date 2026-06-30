@@ -1,22 +1,26 @@
 import type { Student, AssessmentStructure, Subject, AssessmentScore } from "@/types/drizzle";
 
-type SubjectRow = Subject & { enrolled?: boolean };
+type SubjectRow = Subject & { enrolled?: boolean; subjectId?: string };
+
+function matchesSubjectId(row: SubjectRow, subjectId: string): boolean {
+  const rowSubjectId = row.subjectId ?? row.subject?.subjectId;
+  return rowSubjectId === subjectId;
+}
 
 // ---------------------------------------------------------------------------
 // Subject-view helpers (parallel role to students-view utils/scoreFns)
 // ---------------------------------------------------------------------------
 
-// Students enrolled in the named subject (respects `enrolled` on the junction when present)
+// Students enrolled in the subject (respects `enrolled` on the junction when present)
 export const getEnrolledStudents = (
-  subjectName: string | null,
+  subjectId: string | null,
   students: Student[],
 ): Student[] => {
-  if (!subjectName) return [];
+  if (!subjectId) return [];
 
   return (students || []).filter((student) =>
     student.subjects?.some((s: SubjectRow) => {
-      const nameMatch = s.subject?.name === subjectName;
-      if (!nameMatch) return false;
+      if (!matchesSubjectId(s, subjectId)) return false;
       if (typeof s.enrolled === "boolean") return s.enrolled;
       return true;
     }),
@@ -25,7 +29,7 @@ export const getEnrolledStudents = (
 
 // Scores for one student in the selected subject, keyed by assessment type + total
 export const getStudentScores = (
-  subjectName: string | null,
+  subjectId: string | null,
   student: Student | null,
   assessmentStructure: AssessmentStructure[] = [],
 ): Record<string, number> => {
@@ -37,12 +41,12 @@ export const getStudentScores = (
     return result;
   };
 
-  if (!subjectName || !student || !student.subjects) {
+  if (!subjectId || !student || !student.subjects) {
     return emptyScores();
   }
 
-  const studentSubject = student.subjects.find(
-    (s: Subject) => s.subject?.name === subjectName,
+  const studentSubject = student.subjects.find((s: SubjectRow) =>
+    matchesSubjectId(s, subjectId),
   );
   const assessment = studentSubject?.assessments?.[0];
   if (!studentSubject || !assessment) return emptyScores();
@@ -66,7 +70,7 @@ export const getStudentScores = (
 
 // Aggregate stats for the subject column (enrolled students only)
 export const calculateSubjectStats = (
-  subjectName: string | null,
+  subjectId: string | null,
   enrolledStudents: Student[],
   assessmentStructure: AssessmentStructure[] = [],
 ): {
@@ -75,12 +79,12 @@ export const calculateSubjectStats = (
   maximum: number;
   classAverage: number;
 } | null => {
-  if (!subjectName || !enrolledStudents || enrolledStudents.length === 0) {
+  if (!subjectId || !enrolledStudents || enrolledStudents.length === 0) {
     return null;
   }
 
   const totals = enrolledStudents.map((student) => {
-    const score = getStudentScores(subjectName, student, assessmentStructure);
+    const score = getStudentScores(subjectId, student, assessmentStructure);
     return score.total;
   });
 

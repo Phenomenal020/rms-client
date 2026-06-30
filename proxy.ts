@@ -32,10 +32,12 @@ const protectedRoutes = [
     "/spreadsheet-view",
     "/students",
     "/subjects",
+    "/subject-view",
     "/teachers",
     "/templates",
     "/term",
-    "/upload-requests"
+    "/upload-requests",
+    "/students-view"
 ]
 
 // run for every request

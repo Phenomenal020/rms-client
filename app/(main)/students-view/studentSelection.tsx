@@ -1,12 +1,6 @@
 import { Button } from "@/shadcn/ui/button";
 import { Card, CardContent } from "@/shadcn/ui/card";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/shadcn/ui/select";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/shadcn/ui/select";
 import { User, ArrowLeft, ArrowRight } from "lucide-react";
 import type { Student } from "@/types/drizzle";
 
@@ -58,18 +52,13 @@ export function StudentSelection({
 
                         {/* Student Selection Dropdown - Show student names in a dropdown */}
                         <Select
-                            value={getName(selectedStudent)}
-                            onValueChange={(value) => {
-                                // find the student with the given name
-                                const student = students.find(
-                                    (s) => getName(s) === value
-                                );
-                                // if the student is found, update the selected student and the current student index
+                            value={selectedStudent?.id ?? ""}
+                            onValueChange={(studentId) => {
+                                const index = students.findIndex((s) => s.id === studentId);
+                                const student = students[index];
                                 if (student) {
                                     setSelectedStudent(student);
-                                    setCurrentStudentIndex(
-                                        students.findIndex((s) => getName(s) === value)
-                                    );
+                                    setCurrentStudentIndex(index);
                                 }
                             }}
                         >
@@ -81,13 +70,12 @@ export function StudentSelection({
                             {/* Select Dropdown Content */}
                             <SelectContent>
                                 {students && students.length > 0 ? (
-                                    students.map((student, index) => (
+                                    students.map((student) => (
                                         <SelectItem
                                             disabled={isGlobalEditing}
-                                            key={index}
-                                            value={getName(student)}
+                                            key={student.id}
+                                            value={student.id}
                                         >
-                                            {/* Render the student name  */}
                                             {getName(student)}
                                         </SelectItem>
                                     ))

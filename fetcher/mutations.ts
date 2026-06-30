@@ -515,29 +515,19 @@ export function useRejectRequest() {
 
 // save student assessment scores (student-view)
 export function useSaveStudentScores() {
-    const { mutate } = useSWRConfig();
-
     const { trigger, isMutating, error, data } = useSWRMutation(
-        '/api/v1/student-view/save-scores',  // key - used by SWR for cache identification
+        '/api/v1/student-view/save-scores',
         async (url, { arg }: { arg: SaveStudentScoresPayload }) => {
-            // SWR automatically passes the key as the 'url' parameter
-            console.log("arg from useSaveStudentScores", arg);
             const response = await axiosInstance.post(url, arg);
             return response.data;
         },
-        {
-            onSuccess: () => {
-                // invalidate cache to fetch fresh data for the class record and specific student
-            }
-        }
     );
-
     return {
         saveStudentScores: trigger,
         isMutating,
         error,
         data,
-    };
+    };  // refetch manually triggered in ResultsComponent.tsx
 }
 
 

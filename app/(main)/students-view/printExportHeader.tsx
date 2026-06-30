@@ -7,9 +7,16 @@ interface PrintExportHeaderProps {
     /** True while the export / save-record mutation is in flight. */
     isExporting?: boolean;
     className: string | null;
+    canEdit?: boolean;
 }
 
-export function PrintExportHeader({ handleExport, isGlobalEditing, isExporting = false, className }: PrintExportHeaderProps) {
+export function PrintExportHeader({
+    handleExport,
+    isGlobalEditing,
+    isExporting = false,
+    className,
+    canEdit = true,
+}: PrintExportHeaderProps) {
     const title = className ? `${className} Result Sheet` : "Result Sheet";
 
     return (
@@ -19,6 +26,7 @@ export function PrintExportHeader({ handleExport, isGlobalEditing, isExporting =
                     {title}
                 </h1>
 
+                {canEdit && (
                 <Button
                     type="button"
                     onClick={handleExport}
@@ -29,6 +37,7 @@ export function PrintExportHeader({ handleExport, isGlobalEditing, isExporting =
                     <FileDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span className="sr-only min-[400px]:not-sr-only">Export</span>
                 </Button>
+                )}
             </div>
         </div>
     );

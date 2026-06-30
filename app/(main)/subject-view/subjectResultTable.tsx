@@ -1,33 +1,25 @@
 'use client';
 
-/**
- * Subject-wide results table (one column per student for each assessment type).
- *
- * ---------------------------------------------------------------------------
- * TODO: Re-enable editing + persistence via useSaveSubjectScores / subject API.
- * Previous flow: react-hook-form, Edit / Save / Cancel, onSubmit → saveSubjectScores.
- * Until then this table is read-only to match the students-view display pattern.
- * ---------------------------------------------------------------------------
- */
-
 import type { Student, AssessmentStructure, Subject, AssessmentScore } from "@/types/drizzle";
 import { getScorePercentage } from "../students-view/utils/scoreFns";
 
 // Component props (parallel to students-view ResultTable, without edit/save handlers)
 interface SubjectResultTableProps {
   enrolledStudents: Student[];
-  selectedSubjectName: string | null;
+  selectedSubjectId: string | null;
   getGrade: (percentage: number) => string | null;
   getRemark: (grade: string | null) => string | null;
   assessmentStructure: AssessmentStructure[];
+  readOnly?: boolean;
 }
 
 export function SubjectResultTable({
   enrolledStudents,
-  selectedSubjectName,
+  selectedSubjectId,
   getGrade,
   getRemark,
   assessmentStructure,
+  readOnly = false,
 }: SubjectResultTableProps) {
   const sortedAssessments = assessmentStructure ?? [];
 
@@ -83,7 +75,8 @@ export function SubjectResultTable({
 
                   const scores =
                     student.subjects?.find(
-                      (s: Subject) => s.subject?.name === selectedSubjectName,
+                      (s: Subject) =>
+                        (s.subjectId ?? s.subject?.subjectId) === selectedSubjectId,
                     )?.assessments?.[0]?.scores || [];
 
                   const percentage = getScorePercentage(scores);
@@ -142,21 +135,3 @@ export function SubjectResultTable({
     </div>
   );
 }
-
-/*
- * --- Commented: subject-wide score edit + save (restore when wiring /subject-view save) ---
- *
- * import { useEffect, useTransition } from "react";
- * import { z } from "zod";
- * import { useForm, type Path } from "react-hook-form";
- * import { zodResolver } from "@hookform/resolvers/zod";
- * import { toast } from "sonner";
- * import { Button } from "@/shadcn/ui/button";
- * import { Input } from "@/shadcn/ui/input";
- * import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shadcn/ui/form";
- * import { Edit3, Loader2, Save, X } from "lucide-react";
- * import { useSaveSubjectScores, getErrorMessage } from "@/fetcher/mutations";
- *
- * // useSaveSubjectScores + form.reset + Save/Cancel toolbar + FormField inputs per cell
- * // See git history before this read-only pass for the full implementation.
- */

@@ -21,9 +21,14 @@ interface AssessmentStructure {
 
 interface StudentSubject extends SubjectWithAssessment {
   subjectId: string;
+  enrolled?: boolean;
   subject?: {
     name: string;
   };
+}
+
+function isSubjectEnrolled(subject: StudentSubject): boolean {
+  return subject.enrolled !== false;
 }
 
 interface Student {
@@ -74,13 +79,15 @@ export const calculateStudentStats = (
   if (!student || !student.subjects || student.subjects.length === 0)
     return null;
 
-  const subjectScores = student.subjects.map((subject) =>
+  const enrolledSubjects = student.subjects.filter(isSubjectEnrolled);
+  const subjectScores = enrolledSubjects.map((subject) =>
     getSubjectScores(subject, assessmentStructure)
   );
   const totals = subjectScores.map((score) => score.total);
   const totalMarks = totals.reduce((sum, score) => sum + score, 0);
-  const maxPossibleMarks = student.subjects.length * 100;
-  const average = totalMarks / student.subjects.length;
+  const maxPossibleMarks = enrolledSubjects.length * 100;
+  const average =
+    enrolledSubjects.length > 0 ? totalMarks / enrolledSubjects.length : 0;
   const overallGrade = getOverallGrade(average);
   const overallRemark = getOverallRemark(overallGrade);
 

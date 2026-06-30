@@ -1,38 +1,38 @@
-'use client';
+"use client";
 
 import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { useSWRConfig } from "swr";
-import type { AcademicTerm } from "@/types/drizzle";
-import SubjectsComponent from "./SubjectsComponent";
+import ResultsComponent from "@/app/(main)/students-view/ResultsComponent";
+import { ResultsSkeleton } from "@/app/(main)/students-view/ResultsSkeleton";
+import { ErrorBanner } from "@/shared-components/error-banner";
 import { getTerms } from "@/fetcher/queries";
 import { getApiErrorMessage, getHttpStatus } from "@/fetcher/mutations";
 import { authClient } from "@/src/auth-client";
-import { ResultsSkeleton } from "../students-view/ResultsSkeleton";
-import { ErrorBanner } from "@/shared-components/error-banner";
+import type { AcademicTerm } from "@/types/drizzle";
 
-const SubjectsPage = () => {
-  // Routing and manual mutation for retries
+export function ReviewPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const { mutate } = useSWRConfig();
+  const { id } = useParams();
 
-  // Retrieve the active academic term
+  const requestId = typeof id === "string" ? id : null;
+
+  const { data: school, error: schoolError, isPending: isSchoolPending } =
+    authClient.useActiveOrganization() ?? { data: null, error: null, isPending: false };
+
   const { data: terms, error: termsError, isLoading: isTermsLoading } = getTerms();
-  const academicTerm: AcademicTerm | null = terms?.find((term: AcademicTerm) => term?.status === "ACTIVE") ?? null;
-  // Retrieve the active school
-  const { data: school, error: schoolError, isPending: isSchoolPending } = authClient.useActiveOrganization() ?? { data: null, error: null, isPending: false };
+  const academicTerm: AcademicTerm | null =
+    terms?.find((term: AcademicTerm) => term?.status === "ACTIVE") ?? null;
 
-  // Aggregate loading and error states
   const shellLoadError = termsError ?? schoolError ?? null;
   const isShellLoading = isTermsLoading || isSchoolPending;
 
-  // Retry the shell fetches (terms only)
   function retryShellFetches() {
     void mutate("/api/v1/terms");
   }
 
-  // Handle 401 or 403 errors by redirecting to sign-in or forbidden page
   useEffect(() => {
     if (!shellLoadError) return;
     const status = getHttpStatus(shellLoadError);
@@ -43,18 +43,24 @@ const SubjectsPage = () => {
     }
   }, [shellLoadError, router, pathname]);
 
-  // Show loading skeleton while fetching data
+  if (!requestId) {
+    return (
+      <div className="min-h-screen bg-background p-6 flex items-center justify-center">
+        <p className="text-muted-foreground text-center max-w-md">Invalid request.</p>
+      </div>
+    );
+  }
+
   if (isShellLoading) {
     return <ResultsSkeleton />;
   }
 
-  // Show error banner if there is an error
   if (shellLoadError) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-5xl mx-auto">
           <ErrorBanner
-            title="Could not load subject sheet"
+            title="Could not load review"
             message={getApiErrorMessage(
               shellLoadError,
               "Failed to load school or academic term. Please try again.",
@@ -66,7 +72,20 @@ const SubjectsPage = () => {
     );
   }
 
-  // Show error banner if no academic term is found
+  if (!school) {
+    return (
+      <div className="min-h-screen bg-background p-4 md:p-6">
+        <div className="max-w-5xl mx-auto">
+          <ErrorBanner
+            title="No school selected"
+            message="No active school. Select a school and try again."
+            onRetry={retryShellFetches}
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (!academicTerm) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
@@ -81,22 +100,12 @@ const SubjectsPage = () => {
     );
   }
 
-  // Show error banner if no school is found
-  if (!school) {
-    return (
-      <div className="min-h-screen bg-background p-4 md:p-6">
-        <div className="max-w-5xl mx-auto">
-          <ErrorBanner
-            title="No school selected"
-            message="No school record found. Select or set up your school and try again."
-            onRetry={retryShellFetches}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  return <SubjectsComponent school={school} academicTerm={academicTerm} />;
-};
-
-export default SubjectsPage;
+  return (
+    <ResultsComponent
+      school={school}
+      academicTerm={academicTerm}
+      mode="review"
+      requestId={requestId}
+    />
+  );
+}

@@ -22,23 +22,23 @@ export default function SettingsPage() {
         <VerifyEmailButton />
 
         {/* Header Section - Profile Settings + paragraph */}
-        <div className="text-center mb-10 sm:mb-12">
+        <div className="mb-6">
 
           {/* Profile Settings > header */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground tracking-tight mb-1">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             Profile Settings
           </h1>
 
           {/* Profile Settings > description */}
-          <h3 className="text-lg sm:text-xl lg:text-2xl text-muted-foreground font-medium mx-auto mb-4">
+          <p className="text-base text-muted-foreground font-medium mx-auto mb-4">
             Manage your account information, update email, and password.
-          </h3>
+          </p>
 
         </div>
 
-        {/* Profile Sections - Organised in tabs layout */}
+        {/* Profile sections — continuous scroll */}
         <div className="w-full mx-auto">
-          <TeacherProfileTabs />
+          <TeacherProfileTabs /> {/* Used to be tabs, now continuous scroll */}
         </div>
 
       </div>

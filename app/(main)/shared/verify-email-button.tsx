@@ -35,7 +35,7 @@ export default function VerifyEmailButton() {
             </span>
           </div>
           <Button size="sm" asChild>
-            <Link href="/verify-email">Verify Email</Link>
+            <Link href={`/verify-email?email=${encodeURIComponent(user.email)}`}>Verify Email</Link>
           </Button>
         </div>
       </div>

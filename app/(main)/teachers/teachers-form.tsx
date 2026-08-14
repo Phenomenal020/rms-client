@@ -40,7 +40,7 @@ export function TeachersForm() {
 
     // fetch the user's role (gate orgadmin)
     const { user } = useUser();
-    const canManage = user?.role === "orgadmin";
+    const canManage = user?.role === "orgadmin" && user?.twoFactorEnabled === true && user?.emailVerified === true;
 
     // state for the dialog and search query
     const [isTeacherDialogOpen, setIsTeacherDialogOpen] = useState(false);
@@ -53,14 +53,13 @@ export function TeachersForm() {
     const { teachers, error: membersError, isLoading: isLoadingMembers } = getOrgMembers();
     const teacherList = (teachers ?? []) as teacherOption[];
     // add a teacher mutation hook
-    const { addMemberClient, isMutating } = useAddMember();
+    const { addMemberClient, isMutating: isAddingMember } = useAddMember();
 
     // add a form hook
     const addForm = useForm<AddTeacherValues>({
         resolver: zodResolver(addTeacherSchema),
         defaultValues: { email: "" },
     });
-
     // loading and error state
     const loadError = membersError;
     const showTeacherCount = !membersError && teachers !== undefined;
@@ -71,7 +70,7 @@ export function TeachersForm() {
         void mutate(ORG_MEMBERS_KEY);
     }
 
-    // handle authentication redirects based on the error status code
+    // handle authentication redirects based on the error status code (on page load)
     useEffect(() => {
         if (!membersError) return;
         const status = getHttpStatus(membersError);
@@ -87,8 +86,8 @@ export function TeachersForm() {
         const query = searchQuery.trim().toLowerCase();
         if (!query) return teacherList;
         return teacherList.filter((teacher) =>
-            teacher.name.toLowerCase().includes(query) ||
-            teacher.email.toLowerCase().includes(query),
+            (teacher.name ?? "").toLowerCase().includes(query) ||
+            (teacher.email ?? "").toLowerCase().includes(query),
         );
     }, [teacherList, searchQuery]);
 
@@ -113,9 +112,10 @@ export function TeachersForm() {
         if (teacherList.some((teacher) => teacher.email.toLowerCase() === normalisedEmail)) {
             addForm.setError("email", { message: "A teacher with this email already exists" });
             return;
-        }
+        }  // check local state first 
         try {
-            await addMemberClient({ email: normalisedEmail });
+            // Then, make the api call to add the member
+            await addMemberClient({ email: normalisedEmail });  // on success in the mutation hook automatically invalidates the org members key to refetch the org members
             toast.success(`${normalisedEmail} added to the organisation.`);
             setIsTeacherDialogOpen(false);
             addForm.reset();
@@ -129,23 +129,25 @@ export function TeachersForm() {
     // remove member handler
     async function removeMember(email: string) {
         if (!canManage) return;   // orgadmin gate
-        const { error } = await authClient.organization.removeMember({
-            memberIdOrEmail: email,
-        });
-        if (error) {
-            if (!handleAuthRedirect(error, { router, pathname })) {
-                toast.error(getApiErrorMessage(error, "Failed to remove member. Please try again."));
+        try {
+            const { error } = await authClient.organization.removeMember({
+                memberIdOrEmail: email,
+            });
+            // If there is a remove error, throw it and handle the error in the catch block
+            if (error) throw error;
+            setIsEditDialogOpen(false);
+            setEditingTeacher(null);
+            // await mutate(ORG_MEMBERS_KEY);
+            toast.success("Member removed from organisation.");
+        } catch (err) {
+            if (!handleAuthRedirect(err, { router, pathname })) {
+                toast.error(getApiErrorMessage(err, "Failed to remove member. Please try again."));
             }
-            return;
         }
-        setIsEditDialogOpen(false);
-        setEditingTeacher(null);
-        await mutate(ORG_MEMBERS_KEY);
-        toast.success("Member removed from organisation.");
     }
 
     // add loading state
-    const addLoading = isMutating || addForm.formState.isSubmitting;
+    const addLoading = isAddingMember || addForm.formState.isSubmitting;
 
     return (
         <>
@@ -176,16 +178,19 @@ export function TeachersForm() {
                 teacher={editingTeacher}
                 removeMember={removeMember}
                 canManage={canManage}
+                user={user}
             />
 
             <Card className="border shadow-md">
                 <CardContent>
                     <section className="overflow-hidden rounded-sm bg-card">
+                        {/* Teacher Header: Count, Input, and Query*/}
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <h4 className="text-base font-semibold text-foreground md:text-lg">
                                 All Teachers{showTeacherCount ? ` (${teacherList.length})` : ""}
                             </h4>
                             <div className="flex items-center gap-2">
+                                {/* Search Teacher Input */}
                                 <Input
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -193,7 +198,7 @@ export function TeachersForm() {
                                     className="h-10 md:h-12 w-full sm:max-w-xs"
                                     disabled={addLoading || loadError !== undefined || isComponentLoading}
                                 />
-
+                                {/* Add Teacher Button */}
                                 {canManage && (
                                     <Button
                                         type="button"
@@ -211,13 +216,16 @@ export function TeachersForm() {
 
                         <hr className="my-4" />
 
+                        {/* Load error */}
                         {loadError ? (
                             <ErrorBanner
                                 title="Could not load teachers"
                                 message={getApiErrorMessage(loadError, "Failed to load organisation members. Please try again.")}
                                 onRetry={retryAllFetches}
                             />
+                            // {/* Load error. Error banner */}
                         ) : isComponentLoading ? (
+                            // {/* Loading Table Skeleton */}
                             <TeachersLoadingTable />
                         ) : teacherList.length === 0 ? (
                             <div className="w-full rounded-md border-2 border-dashed border-border/80 py-16 text-center">
@@ -226,13 +234,15 @@ export function TeachersForm() {
                                     {canManage ? " Use the Add Teacher button to add a teacher." : ""}
                                 </p>
                             </div>
+                            // {/* No teachers found. Empty state */}
                         ) : filteredTeachers.length === 0 ? (
                             <div className="py-4 text-center text-sm text-muted-foreground">
                                 No teachers match your search.
                             </div>
+                            // {/* No teachers match your search. Empty state */}
                         ) : (
                             <div className="overflow-x-auto py-3">
-                                <table className="min-w-[300px] w-full table-fixed border-collapse text-sm md:text-base text-left">
+                                <table className="min-w-[300px] w-full table-fixed border-collapse text-sm text-left">
                                     <colgroup>
                                         <col className="w-[40%]" />
                                         <col className="w-[48%]" />
@@ -253,24 +263,29 @@ export function TeachersForm() {
                                                 key={teacher.id}
                                                 className="border-b border-border last:border-b-0 transition-colors hover:bg-primary/5"
                                             >
+                                                {/* Name Column */}
                                                 <td className="p-2 whitespace-nowrap">
                                                     <span className="inline-flex py-1 font-medium text-foreground">
                                                         {teacher.name}
                                                     </span>
                                                 </td>
+                                                {/* Email Column */}
                                                 <td className="p-2 mr-1">
                                                     <span className="block truncate text-muted-foreground">
                                                         {teacher.email}
                                                     </span>
                                                 </td>
+                                                {/* Actions Column */}
                                                 <td className="p-2">
-                                                    {canManage && (
+                                                    {(canManage) && (teacher.id !== user?.id ? (
                                                         <div className="flex items-center justify-end gap-1">
+                                                            {/* View Teacher Button */}
                                                             <Button
                                                                 type="button"
                                                                 variant="secondary"
                                                                 size="sm"
                                                                 onClick={() => openEditTeacherDialog(teacher)}
+                                                                disabled={addLoading || loadError !== undefined || isComponentLoading}
                                                                 className="cursor-pointer border border-blue-500/25 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300 text-sm"
                                                                 aria-label="View teacher"
                                                             >
@@ -278,7 +293,13 @@ export function TeachersForm() {
                                                                 <span className="hidden sm:inline">View</span>
                                                             </Button>
                                                         </div>
-                                                    )}
+                                                    ) : (
+                                                        <div className="flex items-center justify-end">
+                                                            <span className="inline-flex h-8 items-center bg-secondary/60 px-2.5 text-sm font-medium text-muted-foreground">
+                                                                You
+                                                            </span>
+                                                        </div>
+                                                    ))}
                                                 </td>
                                             </tr>
                                         ))}

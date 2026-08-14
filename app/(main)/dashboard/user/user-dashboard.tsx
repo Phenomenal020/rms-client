@@ -1,6 +1,8 @@
 "use client";
 
-import { StatusBadge } from "./dashboard-badge";
+import { StatusBadge } from "../helpers/dashboard-badge";
+import { DashboardSessions } from "../helpers/dashboard-sessions";
+import { DashboardRequestsTableRowsSkeleton } from "../helpers/dashboard-loading";
 import { getRecentRequests, getTerms } from "@/fetcher/queries";
 import type { singleTermPayload } from "@/types/term";
 import { Button } from "@/shadcn/ui/button";
@@ -21,10 +23,8 @@ export function UserDashboard() {
     // Regular users receive only their own record requests from this endpoint.
     const { data: recentRequests, error, isLoading, isValidating } = getRecentRequests(activeTermId);
 
-    console.log("recentRequests", recentRequests);
-
     return (
-        <section className="space-y-2 pb-6">
+        <section className="space-y-10 pb-6">
             <h4 className="text-xl font-semibold tracking-tight text-foreground">
                 My Requests
             </h4>
@@ -57,18 +57,14 @@ export function UserDashboard() {
                                 </td>
                             </tr>
                         ) : isLoading || isValidating ? (
-                            <tr>
-                                <td colSpan={4} className="p-4">
-                                    <p className="text-center text-muted-foreground">Loading requests...</p>
-                                </td>
-                            </tr>
+                            <DashboardRequestsTableRowsSkeleton columns={4} rows={3} />
                         ) : error ? (
                             <tr>
                                 <td colSpan={4} className="p-4">
                                     <p className="text-center text-destructive">Could not load requests.</p>
                                 </td>
                             </tr>
-                        ) : recentRequests.length > 0 ? (
+                        ) : recentRequests && recentRequests.length > 0 ? (
                             recentRequests.map((row) => (
                                 <tr
                                     key={row.id}
@@ -132,6 +128,8 @@ export function UserDashboard() {
                     </tbody>
                 </table>
             </div>
+
+            <DashboardSessions />
         </section>
     );
 }

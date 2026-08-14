@@ -10,12 +10,14 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Mail } from "lucide-react";
+import { Mail, ChevronLeft } from "lucide-react";
+import { Button } from "@/shadcn/ui/button";
 
 // forgot password schema
 const forgotPasswordSchema = z.object({
   email: z.email({ message: "Please enter a valid email" }),
 });
+type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 
 export function ForgotPasswordForm() {
   // for navigation
@@ -28,19 +30,40 @@ export function ForgotPasswordForm() {
   });
 
   // on submit: send reset code
-  async function onSubmit(formData) {
+  async function onSubmit(formData: ForgotPasswordFormData) {
     // Always fire the request but never reveal whether the email is registered.
-    // Prevent email enumeration by showing the same vague message and always redirecting.
-    await authClient.emailOtp.requestPasswordReset({
+    const { error: requestPasswordResetError } = await authClient.emailOtp.sendVerificationOtp({
+      type: "forget-password",
       email: formData.email,
     });
+    if (requestPasswordResetError) {
+      toast.error("Unable to send reset code. Please check your email and try again.");
+      return;
+    }
     toast.success("If your email is registered, you'll receive a reset code shortly.");
     router.push(`/reset-password?email=${encodeURIComponent(formData.email || "")}`);
   }
 
   const loading = form.formState.isSubmitting;
 
-  return (
+  return (<div className="relative w-full max-w-md space-y-6">
+    {/* Back — same idea as verify-email (to sign-in) */}
+    <Button
+      variant="link"
+      size="icon"
+      onClick={() => router.back()}
+      className="absolute top-0 left-0 -translate-y-12 w-fit cursor-pointer"
+    >
+      <ChevronLeft className="h-4 w-4" /> Back
+    </Button>
+
+    {/* Title and Description */}
+    <div className="space-y-2 text-center">
+      <h1 className="text-2xl font-semibold">Forgot password?</h1>
+      <p className="text-muted-foreground">
+        Enter your email and we&apos;ll send you a reset code.
+      </p>
+    </div>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
@@ -54,7 +77,7 @@ export function ForgotPasswordForm() {
                   <Input
                     type="email"
                     placeholder="Your email"
-                    className="h-12 pl-12 pr-4 rounded-sm"
+                    className="h-14 pl-12 pr-4 rounded-sm"
                     {...field}
                   />
                 </div>
@@ -68,5 +91,5 @@ export function ForgotPasswordForm() {
         </LoadingButton>
       </form>
     </Form>
-  );
+  </div>);
 }

@@ -7,7 +7,7 @@ import { Button } from "@/shadcn/ui/button";
 import { LoadingButton } from "@/shared-components/loading-button";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/shadcn/ui/dialog";
 import { PasswordInput } from "@/shared-components/password-input";
-import { ShieldCheck, ChevronLeft, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 type Step =
@@ -52,7 +52,7 @@ export function SecuritySetupModal() {
 
         // enable 2FA
         const { error } = await authClient.twoFactor.enable({ password });
-        
+
         // Disable loading state
         setEnabling2FA(false);
 
@@ -79,31 +79,29 @@ export function SecuritySetupModal() {
     return (
         <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); else setOpen(true); }}>
 
-            {/* Badge trigger — shown on the web pages when 2FA is not yet enabled */}
-            <DialogTrigger asChild>
-                <Button className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-300 cursor-pointer">
-                    <ShieldCheck className="h-4 w-4" />
-                    Enable 2FA Login
-                </Button>
-            </DialogTrigger>
+            {/* Full-width alert banner — same layout as email verification alert */}
+            <div className="w-full rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800/50 dark:bg-yellow-950/30">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-3">
+                        <ShieldCheck className="size-5 shrink-0 text-yellow-600 dark:text-yellow-400" />
+                        <span className="text-yellow-800 dark:text-yellow-200">
+                            Please enable two-factor authentication to save changes.
+                        </span>
+                    </div>
+                    <DialogTrigger asChild>
+                        <Button size="sm" className="shrink-0 self-start sm:self-auto">
+                            Enable 2FA
+                        </Button>
+                    </DialogTrigger>
+                </div>
+            </div>
 
             <DialogContent className="sm:max-w-md">
-
-                {/* Back button — visible on the "enable-2fa" step only */}
-                {step === "enable-2fa" && (
-                    <Button
-                        onClick={() => setStep("enable-2fa")}
-                        className="absolute top-4 left-4 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    >
-                        <ChevronLeft className="h-4 w-4" />
-                        Back
-                    </Button>
-                )}
 
                 {/* Step: Enable 2FA with password confirmation */}
                 {step === "enable-2fa" && (
                     <>
-                        <DialogHeader className="pt-6">
+                        <DialogHeader>
                             <DialogTitle>Enable Two-factor Authentication</DialogTitle>
                             <DialogDescription>
                                 Enter your current password to confirm. Once enabled, you will need to verify your identity with a code at each sign-in.
@@ -123,7 +121,7 @@ export function SecuritySetupModal() {
                             <LoadingButton
                                 loading={enabling2FA}
                                 onClick={handleEnable2FA}
-                                className="w-full h-10 md:h-12"
+                                className="w-full h-10 md:h-12 cursor-pointer"
                             >
                                 Enable 2FA
                             </LoadingButton>

@@ -60,8 +60,10 @@ export function TeacherModal({
 
                         {/* Cancel/Add Teacher Buttons */}
                         <DialogFooter className="pt-4">
+                            {/* Cancel Button */}
                             <LoadingButton
-                                loading={loading}
+                                loading={false}
+                                disabled={loading || form.formState.isSubmitting}
                                 type="button"
                                 variant="outline"
                                 onClick={() => onOpenChange(false)}
@@ -70,6 +72,7 @@ export function TeacherModal({
                                 Cancel
                             </LoadingButton>
 
+                            {/* Add Teacher Button */}
                             {!readOnly && (
                                 <LoadingButton
                                     loading={loading || form.formState.isSubmitting}

@@ -25,7 +25,7 @@ import type { singleGetSubjectPayload } from "@/types/subjects";
 import { singleTermPayload } from "@/types/term";
 import { useUser } from "@/contexts/user-context";
 
-// single subject schema (fetched from db)
+// single subject schema (empty first time or fetched from db)
 const singleSubjectSchema = z.object({
     id: z.string().trim().min(1, { message: "Subject id is required" }),
     name: z.string().trim().min(1, { message: "Subject name is required" }),
@@ -58,7 +58,7 @@ export function ClassesForm() {
 
     // Org admin gate
     const { user } = useUser();
-    const canManage = user?.role === "orgadmin";   // disable management features (add/edit) for non-orgadmin users
+    const canManage = user?.role === "orgadmin" && user?.twoFactorEnabled === true;   // disable management features (add/edit) for non-orgadmin users
 
     //  Add dialog: Toggle, resolver, and defaults
     const [isAddOpen, setIsAddOpen] = useState(false);
@@ -76,15 +76,15 @@ export function ClassesForm() {
     });
 
     // fetch subjects and terms from API (subjects load in parallel with terms)
-    const { data: subjects, error: subjectsError, isLoading: isLoadingSubjects } = getSubjects();
-    const { data: termsData, error: termsError, isLoading: isLoadingTerms } = getTerms();
+    const { data: subjects, error: subjectsError, isLoading: isLoadingSubjects, statusCode: subjectsStatusCode } = getSubjects();
+    const { data: termsData, error: termsError, isLoading: isLoadingTerms, statusCode: termsStatusCode } = getTerms();
     const termsReady = !isLoadingTerms;
     const activeTermId = (termsData as singleTermPayload[] | undefined)?.find((term) => term.status === "ACTIVE")?.id ?? null;
     // Wait for terms before fetching classes — avoids a redundant request without termId. 
-    let { data: classes, error: classesError, isLoading: isLoadingClasses, isValidating: isValidatingClasses } = getClasses(
+    let { data: classes, error: classesError, isLoading: isLoadingClasses, statusCode: classesStatusCode } = getClasses(
         termsReady ? activeTermId : undefined,
-    );  // When undefined, getClasses does not run
-    const { teachers, error: teachersError, isLoading: isLoadingTeachers } = getOrgMembers();
+    );  // When undefined, getClasses does not run. A clever workaround react hooks and conditional rendering
+    const { teachers, error: teachersError, isLoading: isLoadingTeachers, statusCode: teachersStatusCode } = getOrgMembers();
 
     // Error handling: split critical (table) vs auxiliary (modals) fetch failures
     const classList = (classes ?? []) as getClassPayload[];
@@ -93,7 +93,7 @@ export function ClassesForm() {
     const loadError = criticalLoadError ?? auxiliaryLoadError;  // aggregation
     const showClassCount = !classesError && classes !== undefined;  // hide/show class count
 
-    // Handle authentication redirects: use the status code to determine the redirect (401, 403)
+    // MUTATIONS: Handle authentication redirects: use the status code to determine the redirect (401, 403)
     function handleAuthRedirect(err: unknown): boolean {
         const status = getHttpStatus(err);
         if (status === 401) {
@@ -117,16 +117,22 @@ export function ClassesForm() {
         void mutate((key) => typeof key === "string" && key.startsWith("/api/v1/classes"));
     }
 
+    // QUERIES: Look for redirection errors and redirect to the appropriate page
     useEffect(() => {
         const fetchError = termsError ?? classesError ?? subjectsError ?? teachersError;
         if (!fetchError) return;
-        const status = getHttpStatus(fetchError);
+        const status = [
+            termsError ? termsStatusCode : null,
+            classesError ? classesStatusCode : null,
+            subjectsError ? subjectsStatusCode : null,
+            teachersError ? teachersStatusCode : null,
+        ].find((code) => code === 401 || code === 403);
         if (status === 401) {
             router.replace(`/sign-in?redirect=${pathname}`);
         } else if (status === 403) {
             router.replace("/forbidden");
         }
-    }, [termsError, classesError, subjectsError, teachersError, router, pathname]);
+    }, [termsError, classesError, subjectsError, teachersError, termsStatusCode, classesStatusCode, subjectsStatusCode, teachersStatusCode, router, pathname]);
 
     // mutations
     const { trigger: createClass, isMutating: isCreating, error: createClassError, data: createClassData } = useCreateClass();
@@ -165,10 +171,10 @@ export function ClassesForm() {
     }
 
     // Make api call to create new class + assign subjects to it (why we need active term)
-    async function addClassHandler(values: CreateClassValues) {
+    async function addClassHandler() {
         if (!canManage) return; // return early if the user is not an org admin
         // Validate the class name is not already in use locally before hitting the API
-        const name = values.name.trim();
+        const name = addForm.getValues().name.trim();
         if (classList.some((cls) => cls.name.toLowerCase() === name.toLowerCase())) {
             toast.error(`Class "${name}" already exists`);
             return;
@@ -178,13 +184,13 @@ export function ClassesForm() {
         const createClassPayload: createClassPayload = {
             activeTermId: activeTermId ?? null,
             name,
-            formTeacherId: values.formTeacherId || null,
-            subjectIds: values.subjects?.map((subject) => subject.id) ?? [],
+            formTeacherId: addForm.getValues().formTeacherId || null,
+            subjectIds: addForm.getValues().subjects?.map((subject) => subject.id) ?? [],
         };
 
         // Now, make the api call to create the class
         try {
-            await createClass(createClassPayload);  // No need to get the data back, just trigger the mutation
+            await createClass(createClassPayload);  // No need to get the data back, just wait for the mutation to complete
             // resets and success toast
             setIsAddOpen(false);
             addForm.reset();
@@ -335,102 +341,102 @@ export function ClassesForm() {
                                     />
                                 )}
                                 {classList.length === 0 ? (
-                            <div className="w-full rounded-md border-2 border-dashed border-border/80 py-16 text-center">
-                                <p className="text-base font-medium text-muted-foreground">
-                                    No classes yet. Please add a class to get started.
-                                </p>
-                            </div>
-                        ) : filteredClasses.length === 0 ? (
-                            <div className="py-4 text-center text-sm text-muted-foreground">
-                                No classes match your search.
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto py-2">
-                                <table className="table-fixed min-w-[480px] w-full border-collapse text-sm md:text-base text-left">
-                                    {/* Table columns */}
-                                    <colgroup>
-                                        <col className="w-[10%]" />
-                                        <col className="w-[20%]" />
-                                        <col className="w-[35%]" />
-                                        <col className="w-[25%]" />
-                                        <col className="w-[10%]" />
-                                    </colgroup>
-                                    {/* Table header */}
-                                    <thead>
-                                        <tr className="bg-muted/50 border-b border-border">
-                                            <th className="p-2 font-semibold text-muted-foreground">S/N</th>
-                                            <th className="p-2 font-semibold text-muted-foreground">Class</th>
-                                            <th className="p-2 font-semibold text-muted-foreground">Class Teacher</th>
-                                            <th className="p-2 font-semibold text-muted-foreground">Subjects</th>
-                                            <th className="p-2 font-semibold text-muted-foreground" />
-                                        </tr>
-                                    </thead>
-                                    {/* Table body */}
-                                    <tbody>
-                                        {filteredClasses.map((entry: getClassPayload, index: number) => {
-                                            const teacherName = entry.formTeacher?.name ?? null;
-                                            return (
-                                                <React.Fragment key={entry.id}>
-                                                    {/* Table row */}
-                                                    <tr className="border-b border-border last:border-b-0 hover:bg-muted/40 transition-colors">
-                                                        {/* S/N */}
-                                                        <td className="p-2 font-medium text-foreground">
-                                                            {index + 1}
-                                                        </td>
-                                                        {/* Class name */}
-                                                        <td className="max-w-0 p-2 font-medium text-foreground">
-                                                            <span className="block truncate" title={entry.name}>
-                                                                {entry.name}
-                                                            </span>
-                                                        </td>
-                                                        {/* Class teacher */}
-                                                        <td className="max-w-0 p-2">
-                                                            <span
-                                                                className="block truncate text-muted-foreground"
-                                                                title={teacherName ?? undefined}
-                                                            >
-                                                                {teacherName ?? (
-                                                                    <span className="italic">Not assigned</span>
+                                    <div className="w-full rounded-md border-2 border-dashed border-border/80 py-16 text-center">
+                                        <p className="text-base font-medium text-muted-foreground">
+                                            No classes yet. Please add a class to get started.
+                                        </p>
+                                    </div>
+                                ) : filteredClasses.length === 0 ? (
+                                    <div className="py-4 text-center text-sm text-muted-foreground">
+                                        No classes match your search.
+                                    </div>
+                                ) : (
+                                    <div className="overflow-x-auto py-2">
+                                        <table className="table-fixed min-w-[480px] w-full border-collapse text-sm md:text-base text-left">
+                                            {/* Table columns */}
+                                            <colgroup>
+                                                <col className="w-[10%]" />
+                                                <col className="w-[20%]" />
+                                                <col className="w-[35%]" />
+                                                <col className="w-[25%]" />
+                                                <col className="w-[10%]" />
+                                            </colgroup>
+                                            {/* Table header */}
+                                            <thead>
+                                                <tr className="bg-muted/50 border-b border-border">
+                                                    <th className="p-2 font-semibold text-muted-foreground">S/N</th>
+                                                    <th className="p-2 font-semibold text-muted-foreground">Class</th>
+                                                    <th className="p-2 font-semibold text-muted-foreground">Class Teacher</th>
+                                                    <th className="p-2 font-semibold text-muted-foreground">Subjects</th>
+                                                    <th className="p-2 font-semibold text-muted-foreground" />
+                                                </tr>
+                                            </thead>
+                                            {/* Table body */}
+                                            <tbody>
+                                                {filteredClasses.map((entry: getClassPayload, index: number) => {
+                                                    const teacherName = entry.formTeacher?.name ?? null;
+                                                    return (
+                                                        <React.Fragment key={entry.id}>
+                                                            {/* Table row */}
+                                                            <tr className="border-b border-border last:border-b-0 hover:bg-muted/40 transition-colors">
+                                                                {/* S/N */}
+                                                                <td className="p-2 font-medium text-foreground">
+                                                                    {index + 1}
+                                                                </td>
+                                                                {/* Class name */}
+                                                                <td className="max-w-0 p-2 font-medium text-foreground">
+                                                                    <span className="block truncate" title={entry.name}>
+                                                                        {entry.name}
+                                                                    </span>
+                                                                </td>
+                                                                {/* Class teacher */}
+                                                                <td className="max-w-0 p-2">
+                                                                    <span
+                                                                        className="block truncate text-muted-foreground"
+                                                                        title={teacherName ?? undefined}
+                                                                    >
+                                                                        {teacherName ?? (
+                                                                            <span className="italic">Not assigned</span>
+                                                                        )}
+                                                                    </span>
+                                                                </td>
+                                                                {/* Num Subjects badge */}
+                                                                <td className="p-2">
+                                                                    {entry.subjects.length === 0 ? (
+                                                                        <span className="italic text-xs text-muted-foreground">
+                                                                            None assigned
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                                                                            <BookOpen className="h-3 w-3" />
+                                                                            {entry.subjects.length} subject{entry.subjects.length !== 1 ? "s" : ""}
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                                {canManage && (
+                                                                    <td className="p-2">
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            onClick={() => openEditDialog(index)}
+                                                                            disabled={addLoading || editLoading || loadError !== undefined || isComponentLoading}
+                                                                            className="cursor-pointer border border-blue-500/25 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300"
+                                                                            aria-label="Edit class"
+                                                                        >
+                                                                            <Pencil className="h-3 w-3" />
+                                                                            <span className="hidden md:inline">Edit</span>
+                                                                        </Button>
+                                                                    </td>
                                                                 )}
-                                                            </span>
-                                                        </td>
-                                                        {/* Num Subjects badge */}
-                                                        <td className="p-2">
-                                                            {entry.subjects.length === 0 ? (
-                                                                <span className="italic text-xs text-muted-foreground">
-                                                                    None assigned
-                                                                </span>
-                                                            ) : (
-                                                                <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                                                                    <BookOpen className="h-3 w-3" />
-                                                                    {entry.subjects.length} subject{entry.subjects.length !== 1 ? "s" : ""}
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                        {canManage && (
-                                                            <td className="p-2">
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => openEditDialog(index)}
-                                                                    disabled={addLoading || editLoading || loadError !== undefined || isComponentLoading}
-                                                                    className="cursor-pointer border border-blue-500/25 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300"
-                                                                    aria-label="Edit class"
-                                                                >
-                                                                    <Pencil className="h-3 w-3" />
-                                                                    <span className="hidden md:inline">Edit</span>
-                                                                </Button>
-                                                            </td>
-                                                        )}
-                                                    </tr>
-                                                </React.Fragment>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
+                                                            </tr>
+                                                        </React.Fragment>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </section>

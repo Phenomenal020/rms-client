@@ -55,7 +55,7 @@ export function SubjectsForm() {
 
   // fetch the user's role (gate orgadmin)
   const { user } = useUser();
-  const canManage = user?.role === "orgadmin";
+  const canManage = user?.role === "orgadmin" && user?.twoFactorEnabled === true;
 
   // Fetcher hooks
   const { data: subjects, isLoading: isLoadingSubjects, error: subjectsError, isValidating: isValidatingSubjects } = getSubjects();
@@ -364,6 +364,7 @@ export function SubjectsForm() {
                                 variant="secondary"
                                 size="sm"
                                 onClick={() => openEditSubjectDialog(entry)}
+                                disabled={addLoading || editLoading || loadError !== undefined || isComponentLoading || isRefreshing}
                                 className="cursor-pointer border border-blue-500/25 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300 text-sm md:text-base"
                               >
                                 <Pencil className="h-3 w-3" />

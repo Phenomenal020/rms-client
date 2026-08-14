@@ -18,16 +18,14 @@ export default function SmallTermText() {
     }
 
     const renderTermName = (name: string) => {
-        console.log("name", name)
-        return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()
+        return (" · " + name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()) + " term,"
     }
 
-    console.log("currentTerm", currentTerm)
 
     // Return the component
     return activeOrganization && (
         <p className="text-sm text-muted-foreground">
-            {(activeOrganization?.name)} · {renderTermName(currentTerm?.term)} term, {" "}{currentTerm?.academicYear}
+            {(activeOrganization?.name)} {currentTerm && renderTermName(currentTerm?.term)} {" "}{currentTerm?.academicYear}
         </p>
     )
 }

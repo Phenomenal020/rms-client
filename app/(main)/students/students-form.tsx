@@ -66,7 +66,7 @@ export function StudentsForm() {
 
     // Org admin gate — disable management features for non-orgadmin users
     const { user } = useUser();
-    const canManage = user?.role === "orgadmin";
+    const canManage = user?.role === "orgadmin" && user?.twoFactorEnabled === true;
 
     // Data fetchers
     const {data: students, error: studentsError, isLoading: isLoadingStudents} = getStudents();

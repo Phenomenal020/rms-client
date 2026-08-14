@@ -99,7 +99,7 @@ Critical / high
     auth-setup.ts allows create when user.role === "orgadmin" but does not check
     whether the user already owns/belongs to an organisation. An orgadmin could
     create multiple schools unless BA enforces one-org-per-user elsewhere.
-    [ToDo... backend] 📌
+    FIX: Changed this to only allow the platform admin create a school ✅
 
   [No active org on session — TODO in code]
     Comment: “Set active organisation on session creation as db hook”. Until that

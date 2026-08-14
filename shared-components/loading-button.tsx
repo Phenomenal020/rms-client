@@ -1,3 +1,5 @@
+"use client";
+
 // Reusable Loading Button component
 import React from "react";
 

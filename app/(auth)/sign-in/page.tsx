@@ -2,7 +2,7 @@ import { SignInForm } from "./sign-in-form";
 
 export const metadata = {
   title: "Sign in",
-  description: "Sign in to your teacher account",
+  description: "Sign in to your RMS account as an administrator or a teacher",
 };
 
 export default async function SignIn() {

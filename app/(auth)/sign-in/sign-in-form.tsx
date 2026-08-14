@@ -9,8 +9,9 @@ import { Input } from '@/shadcn/ui/input';
 import { Checkbox } from "@/shadcn/ui/checkbox";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -24,11 +25,12 @@ const signInSchema = z.object({
 });
 
 export function SignInForm() {
-    // loading state
-    const [loading, setLoading] = useState(false);
-
     // error state
     const [error, setError] = useState<string | null>(null);
+
+    // search params for the email
+    const searchParams = useSearchParams();
+    const redirectTo = searchParams.get("redirect");
 
     // router for redirects
     const router = useRouter();
@@ -48,41 +50,52 @@ export function SignInForm() {
         // on submit, clear the error state
         setError(null);
 
-        // set the loading state to true
-        setLoading(true);
-
         // Extract data from the form
         const { email, password, rememberMe } = formData;
 
         // use the authClient to sign in the user
-        const { data, error } = await authClient.signIn.email(
+        const { data, error: signInError } = await authClient.signIn.email(
             { email, password, rememberMe },
             {
                 async onSuccess(context) {
+                    toast.success("Sign in successful");
                     // If the user has 2FA enabled, redirect to the verification page
                     if (context.data.twoFactorRedirect) {
                         router.push(`/verify-2fa?email=${encodeURIComponent(email)}`);
-                    } else {
+                    }
+                    // if the user's email is not verified, redirect to the verify email page
+                    else if (!context.data.user?.emailVerified) {
+                        router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+                    }
+                    // // If the user has not been onboarded, redirect to the onboarding page
+                    else if (context.data.user?.onboardingStatus !== "APPROVED") {
+                        router.push("/onboarding");
+                    }
+                    // if there is a redirectTo parameter, redirect to the redirectTo URL
+                    else if (redirectTo?.startsWith("/") && !redirectTo.startsWith("//")) {
+                        router.push(redirectTo);
+                    }
+                    // finally, redirect to the dashboard (iff those 3 conditions are met)
+                    else {
                         // No 2FA required — go straight to dashboard
-                        toast.success("Sign in successful");
                         router.push("/dashboard");
                     }
                 },
             }
         );
 
-        // set the loading state to false
-        setLoading(false);
-
         // if there is an error, set the error state and show a toast error message
-        if (error) {
-            const errorMessage = error.message || "Unable to sign in. Please check inputs and try again.";
-            setError(errorMessage);
-            toast.error(errorMessage);
+        if (signInError) {
+            toast.error("Unable to sign in. Please check your input and try again.");
         }
     }
 
+    // Track form loading state
     const formLoading = form.formState.isSubmitting;
+    const emailValue = form.watch("email").trim();
+    const verifyEmailHref = emailValue
+        ? `/verify-email?email=${encodeURIComponent(emailValue)}`
+        : null;
 
     return (
         <div className="flex h-screen min-h-[640px] w-full max-w-[1280px] overflow-y-auto mx-auto">
@@ -172,32 +185,42 @@ export function SignInForm() {
                                 </div>
                             )}
 
-                            {/* Login Button and Forgot Password Link */}
+                            {/* Login Button and recovery links */}
                             <div className="flex flex-col gap-2">
                                 <LoadingButton
                                     type="submit"
                                     className="w-full h-14 rounded-sm bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-base"
-                                    loading={formLoading || loading}
+                                    loading={formLoading}
                                 >
                                     Sign In
                                 </LoadingButton>
-                                <Link
-                                    href="/forgot-password"
-                                    className="text-base font-semibold text-primary hover:underline text-right cursor-pointer w-fit"
-                                >
-                                    Forgot password?
-                                </Link>
-                            </div>
-
-                            {/* Divider with "or" */}
-                            <div className="relative my-6">
-                                <div className="absolute inset-0 flex items-center">
-                                    <span className="w-full border-t border-border" />
-                                </div>
-                                <div className="relative flex justify-center text-base">
-                                    <span className="bg-background px-4 text-muted-foreground">
-                                        or
-                                    </span>
+                                {/* Forgot password */}
+                                <div className="flex items-center justify-between gap-4 text-sm">
+                                    <Link
+                                        href="/forgot-password"
+                                        className="font-semibold text-primary hover:underline cursor-pointer"
+                                    >
+                                        Forgot password?
+                                    </Link>
+                                    {/* Need to verify your email (for signup success but no otp verfication before landing on this page) */}
+                                    {verifyEmailHref ? (
+                                        <Link
+                                            href={verifyEmailHref}
+                                            className="font-semibold text-primary hover:underline cursor-pointer text-right"
+                                        >
+                                            Need to verify your email?
+                                        </Link>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            className="font-semibold text-primary hover:underline cursor-pointer text-right"
+                                            onClick={() =>
+                                                toast.error("Enter your email above first.")
+                                            }
+                                        >
+                                            Need to verify your email?
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </form>

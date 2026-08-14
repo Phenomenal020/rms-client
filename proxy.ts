@@ -27,6 +27,7 @@ const protectedRoutes = [
     "/dashboard",
     "/enrollment",
     "/merge-requests",
+    "/onboarding",
     "/profile",
     "/school",
     "/spreadsheet-view",

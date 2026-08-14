@@ -39,7 +39,7 @@ export function EnrollmentForm() {
 
     // Org admin gate — disable management features for non-orgadmin users
     const { user } = useUser();
-    const canManage = user?.role === "orgadmin";
+    const canManage = user?.role === "orgadmin" && user?.twoFactorEnabled === true;
 
     // Active term — required for class assignments and enrollments
     const { data: termsData, error: termsError, isLoading: isLoadingTerms } = getTerms();

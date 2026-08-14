@@ -1,10 +1,12 @@
 // The client-side library helps you interact with the auth server from client components.
-
 import { createAuthClient } from "better-auth/react";
 import { emailOTPClient, inferAdditionalFields, twoFactorClient } from "better-auth/client/plugins"
 import { organizationClient } from "better-auth/client/plugins"
 import { adminClient } from "better-auth/client/plugins"
 import { ac, orgadmin, admin, user } from "./permissions";
+
+const onboardingStatusEnum = ["NONE", "PENDING", "APPROVED", "REJECTED", "CANCELLED"];
+
 
 export const authClient = createAuthClient({
     baseURL: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth`,
@@ -15,8 +17,8 @@ export const authClient = createAuthClient({
             user: {
                 firstName: { type: "string", required: true },
                 lastName: { type: "string", required: true },
-                // role: { type: "string", required: false, input: false },
-                // subscription: { type: "string", required: false },
+                signUpRole: { type: "string", required: true },
+                onboardingStatus: { type: onboardingStatusEnum, required: true, defaultValue: "NONE", input: false },
             }
         }),
         twoFactorClient({}),

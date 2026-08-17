@@ -5,7 +5,7 @@ const LOADING_ROW_COUNT = 6;
 export function EnrollmentLoadingTable() {
     return (
         <div className="overflow-x-auto py-2">
-            <table className="table-fixed min-w-[360px] w-full border-collapse text-sm md:text-base text-left">
+            <table className="table-fixed min-w-[360px] w-full border-collapse text-sm lg:text-base text-left">
                 <colgroup>
                     <col className="w-[10%]" />
                     <col className="w-[46%]" />
@@ -17,7 +17,7 @@ export function EnrollmentLoadingTable() {
                         <th className="p-2 font-semibold text-muted-foreground">S/N</th>
                         <th className="p-2 font-semibold text-muted-foreground">Student</th>
                         <th className="p-2 font-semibold text-muted-foreground">Enrolled Subjects</th>
-                        <th className="p-2 font-semibold text-muted-foreground" />
+                        <th className="p-2 font-semibold text-muted-foreground text-right" />
                     </tr>
                 </thead>
                 <tbody>

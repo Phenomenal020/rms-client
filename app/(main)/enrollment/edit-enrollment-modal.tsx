@@ -33,13 +33,18 @@ export function EditEnrollmentModal({
     // create a set of checked subject ids to track enrollment changes.
     // Call checkedIds.has(subjectId) to check if a student is enrolled in a subject.
     const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+    const initialIds = student?.enrolledSubjectIds ?? [];
+    const isDirty =
+        checkedIds.size !== initialIds.length ||
+        initialIds.some((id) => !checkedIds.has(id));
 
-    // Pre-populate checkboxes from the student's current enrollments when the dialog opens
+    // Pre-populate checkboxes from enrollments that belong to this class
     useEffect(() => {
         if (student) {
-            setCheckedIds(new Set(student.enrolledSubjectIds));
+            const allowed = new Set(classAssignments.map((a) => a.assignmentId));
+            setCheckedIds(new Set(student.enrolledSubjectIds.filter((id) => allowed.has(id))));
         }
-    }, [student, open]);
+    }, [student, open, classAssignments]);
 
     // Toggle enrollment
     function toggle(id: string) {
@@ -107,6 +112,7 @@ export function EditEnrollmentModal({
                     <Button
                         type="button"
                         variant="outline"
+                        disabled={isSavingEnrollment}
                         onClick={() => onOpenChange(false)}
                         className="cursor-pointer h-10 md:h-12"
                     >
@@ -117,7 +123,7 @@ export function EditEnrollmentModal({
                             loading={isSavingEnrollment}
                             onClick={handleSave}
                             className="cursor-pointer h-10 md:h-12"
-                            disabled={classAssignments.length === 0 || isSavingEnrollment}
+                            disabled={isSavingEnrollment || !isDirty}
                         >
                             Save Enrollment
                         </LoadingButton>

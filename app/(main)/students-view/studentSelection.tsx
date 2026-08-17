@@ -45,7 +45,7 @@ export function StudentSelection({
                 <div className="flex items-center justify-between">
 
                     {/* Student Selection Dropdown - updates the selected student and the current student index */}
-                    <div className="flex items-center gap-1 sm:gap-2 md:gap-4 w-[70%] text-sm md:text-base">
+                    <div className="flex items-center gap-1 sm:gap-2 md:gap-4 w-[70%] text-sm lg:text-base">
 
                         {/* Student Icon */}
                         {/* <User className="w-5 h-5 text-muted-foreground" /> */}

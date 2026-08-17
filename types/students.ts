@@ -4,7 +4,7 @@ export type getSingleStudent = {
     firstName: string;
     middleName?: string | null;
     lastName: string;
-    gender: "NONE" | "MALE" | "FEMALE";
+    gender: "MALE" | "FEMALE";
     status: "ACTIVE" | "INACTIVE";
     classId: string | null;
     // className?: string | null;
@@ -22,7 +22,7 @@ export type updateSingleStudent = {
     firstName?: string;
     middleName?: string;
     lastName?: string;
-    gender?: "NONE" | "MALE" | "FEMALE";
+    gender?: "MALE" | "FEMALE";
     status?: "ACTIVE" | "INACTIVE";
     // Pass a UUID to assign, null to remove from class, omit to leave unchanged
     classId?: string | null;
@@ -33,10 +33,15 @@ export type createSingleStudent = {
     firstName: string;
     middleName?: string;
     lastName: string;
-    gender: "NONE" | "MALE" | "FEMALE";
+    gender: "MALE" | "FEMALE";
     classId: string | null;
     // status is active by default
 }
+
+// Payload for deleting a single student
+export type deleteSingleStudent = {
+    id: string;
+};
 
 /////////////////////////////////////////////
 export type enrollmentAssignment = {

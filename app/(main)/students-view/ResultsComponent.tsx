@@ -5,15 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSWRConfig } from "swr";
 import { Card, CardContent } from "@/shadcn/ui/card";
 import { toast } from "sonner";
-
-// components
 import { PrintExportHeader } from "./printExportHeader";
 import { StudentStats } from "./studentStats";
 import { SchoolHeader } from "./schoolHeader";
 import { ResultTable } from "./resultTable";
 import { StudentSelection } from "./studentSelection";
 import { ResultsContentSkeleton, StudentSelectionSkeleton } from "./ResultsSkeleton";
-import { Signatures } from "./signatures";
 import { AcceptRejectButtons } from "./AcceptRejectButtons";
 import { calculateStudentStats } from "./utils/scoreFns";
 import createGradingFunctions from "./utils/gradingFns";
@@ -24,6 +21,13 @@ import { useUser } from "@/contexts/user-context";
 import type { AcademicTerm, AssessmentStructure, School, Student } from "@/types/drizzle";
 import type { SaveClassRecordExportPayload } from "@/types/view";
 import { ErrorBanner } from "@/shared-components/error-banner";
+import {
+  readResultsClassSelection,
+  readResultsStudentSelection,
+  writeResultsStudentSelection,
+} from "./utils/selection-cookie";
+
+type TeacherClassRow = { id: string; name: string };
 
 type ResultsComponentProps = {
   school: School | null;
@@ -31,7 +35,6 @@ type ResultsComponentProps = {
   requestId: string | null;
   mode: "view" | "review";
 }
-
 // Mode is view by default
 export default function ResultsComponent({ school, academicTerm, requestId, mode }: ResultsComponentProps) {
 
@@ -41,7 +44,14 @@ export default function ResultsComponent({ school, academicTerm, requestId, mode
   const isViewMode = mode === "view";
   const isReviewMode = mode === "review";
   const { user } = useUser();
-  const canEdit = user?.role === "user";
+  const canEdit =
+    user?.role === "user" &&
+    !(user?.twoFactorEnabled === true) &&
+    user?.emailVerified === true;
+  const canManage =
+    user?.role === "orgadmin" &&
+    !(user?.twoFactorEnabled === true) &&
+    user?.emailVerified === true;
   const isReadOnly = !canEdit || isReviewMode;
 
   // Data hooks (always called; use `enabled` / null keys to suspend per mode)
@@ -56,13 +66,34 @@ export default function ResultsComponent({ school, academicTerm, requestId, mode
     isLoading: isTeacherClassesLoading,
   } = getTeacherClasses(academicTerm.id, isViewMode);
 
-  // Get the class record for the selected class id if in "view" mode
-  const firstClassId = isViewMode ? (teacherClasses?.[0]?.id ?? null) : null;
+  const ownedClasses = (teacherClasses ?? []) as TeacherClassRow[];
+
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+
+  // Restore the last class for this term, otherwise the first class the teacher owns.
+  useEffect(() => {
+    if (!isViewMode) return;
+    if (isTeacherClassesLoading) return;
+    if (ownedClasses.length === 0) {
+      setSelectedClassId(null);
+      return;
+    }
+    setSelectedClassId((prev) => {
+      if (prev && ownedClasses.some((cls) => cls.id === prev)) return prev;
+      const savedClassId = readResultsClassSelection(academicTerm.id);
+      if (savedClassId && ownedClasses.some((cls) => cls.id === savedClassId)) {
+        return savedClassId;
+      }
+      return ownedClasses[0].id;
+    });
+  }, [isViewMode, isTeacherClassesLoading, ownedClasses, academicTerm.id]);
+
+  // Get the class record for the selected class + term in "view" mode
   const {
     data: viewClassRecord,
     error: viewClassRecordError,
     isLoading: isClassRecordLoading,
-  } = getClassRecord(firstClassId, academicTerm.id, isViewMode);   // if mode is view, get the class record for the (first) class id
+  } = getClassRecord(selectedClassId, academicTerm.id, isViewMode);
   // Get the (class) record for the request id if in "review" mode
   const {
     data: reviewClassRecord,
@@ -73,8 +104,14 @@ export default function ResultsComponent({ school, academicTerm, requestId, mode
   // collect data, errors, and loading states based on mode
   const classRecord = isViewMode ? viewClassRecord : reviewClassRecord;  // class record to use based on mode
   const classRecordError = isViewMode ? viewClassRecordError : reviewClassRecordError;  // class record error to use based on mode
-  const modeLoading = isViewMode ? (isTeacherClassesLoading || isClassRecordLoading) : isReviewRecordLoading;  // mode loading to use based on mode
-  const reportLoadError = gradingError ?? assessmentError ?? (isViewMode ? (teacherClassesError ?? classRecordError) : classRecordError);  // aggregated report load error to use based on mode
+  const waitingForClassPick =
+    isViewMode && !isTeacherClassesLoading && (teacherClasses?.length ?? 0) > 0 && !selectedClassId;
+  const modeLoading = isViewMode
+    ? (isTeacherClassesLoading || waitingForClassPick || (!!selectedClassId && isClassRecordLoading))
+    : isReviewRecordLoading;
+  const reportLoadError =
+    (gradingError ?? assessmentError ?? (isViewMode ? (teacherClassesError ?? classRecordError) : classRecordError)) ??
+    null;
 
   // Mutation hooks
   const { saveStudentScores } = useSaveStudentScores();
@@ -112,9 +149,8 @@ export default function ResultsComponent({ school, academicTerm, requestId, mode
   const [isGlobalEditing, setIsGlobalEditing] = useState(false);
   const selectionLocked = isGlobalEditing || !canEdit;
 
-  // Keep selection/index stable across student refreshes.
-  // If the selected student no longer exists, fall back to the first student.
-  // TODO: Use a cookie to save the selected student index across sessions.
+  // Keep selection/index stable across student refreshes and class switches.
+  // Restore the cookie student for this class+term, else fall back to the first student.
   useEffect(() => {
     if (classStudents.length === 0) {
       if (selectedStudent) setSelectedStudent(null);
@@ -122,28 +158,39 @@ export default function ResultsComponent({ school, academicTerm, requestId, mode
       return;
     }
 
-    const selectedId = selectedStudent?.id;
-    const nextIndex = selectedId
-      ? classStudents.findIndex((s) => s.id === selectedId)
-      : 0;
+    let nextIndex = selectedStudent
+      ? classStudents.findIndex((s) => s.id === selectedStudent.id)
+      : -1;
 
-    if (nextIndex === -1) {
-      setSelectedStudent(classStudents[0]);
-      setCurrentStudentIndex(0);
-      return;
+    if (nextIndex === -1 && selectedClassId) {
+      const savedStudentId = readResultsStudentSelection(selectedClassId, academicTerm.id);
+      nextIndex = savedStudentId
+        ? classStudents.findIndex((s) => s.id === savedStudentId)
+        : -1;
     }
+
+    if (nextIndex === -1) nextIndex = 0;
 
     if (nextIndex !== currentStudentIndex) setCurrentStudentIndex(nextIndex);
     if (selectedStudent !== classStudents[nextIndex]) setSelectedStudent(classStudents[nextIndex]);
-  }, [classStudents, selectedStudent, currentStudentIndex]);
+  }, [classStudents, selectedStudent, currentStudentIndex, selectedClassId, academicTerm.id]);
 
-  // Refresh the class record - refresh the class record if the first class id is present
+  useEffect(() => {
+    if (!isViewMode || !selectedClassId || !academicTerm.id || !selectedStudent?.id) return;
+    writeResultsStudentSelection({
+      classId: selectedClassId,
+      termId: academicTerm.id,
+      studentId: selectedStudent.id,
+    });
+  }, [isViewMode, selectedClassId, academicTerm.id, selectedStudent?.id]);
+
+  // Refresh the class record for the selected class + term
   const refreshClassRecord = useCallback(() => {
-    if (!firstClassId) return;
+    if (!selectedClassId) return;
     void mutate(
-      `/api/v1/student-view/class-record?classId=${encodeURIComponent(firstClassId)}&termId=${encodeURIComponent(academicTerm.id)}`,
+      `/api/v1/student-view/class-record?classId=${encodeURIComponent(selectedClassId)}&termId=${encodeURIComponent(academicTerm.id)}`,
     );
-  }, [firstClassId, academicTerm.id, mutate]);
+  }, [selectedClassId, academicTerm.id, mutate]);
 
   // Retry report fetches - retry the report fetches if the report load error is present
   const retryReportFetches = useCallback(() => {
@@ -221,8 +268,7 @@ export default function ResultsComponent({ school, academicTerm, requestId, mode
     }>
   ): Promise<void> => {
     if (!canEdit) return;
-    // if there is no selected student or academic term, return
-    if (!selectedStudent.id || !academicTerm.id) return;
+    if (!selectedStudent?.id || !academicTerm.id) return;
     // if the academic term is not active, return
     if (academicTerm.status !== "ACTIVE") {
       toast.error("Cannot save scores for this term. Please contact your administrator.");
@@ -251,9 +297,18 @@ export default function ResultsComponent({ school, academicTerm, requestId, mode
     }
   };
 
+  const handleClassChange = (classId: string): void => {
+    if (classId === selectedClassId) return;
+    setIsEditingScores(false);
+    setIsGlobalEditing(false);
+    setSelectedStudent(null);
+    setCurrentStudentIndex(0);
+    setSelectedClassId(classId);
+  };
+
   const handleExport = useCallback(async (): Promise<void> => {
     if (!canEdit) return;
-    if (!firstClassId || !academicTerm.id) {
+    if (!selectedClassId || !academicTerm.id) {
       toast.error("Class record is not ready to export yet.");
       return;
     }
@@ -263,7 +318,7 @@ export default function ResultsComponent({ school, academicTerm, requestId, mode
     }
     const payload: SaveClassRecordExportPayload = {
       comment: "Class record export",
-      classId: firstClassId,
+      classId: selectedClassId,
       academicTermId: academicTerm.id,
     };
     try {
@@ -276,11 +331,11 @@ export default function ResultsComponent({ school, academicTerm, requestId, mode
         });
       }
     }
-  }, [canEdit, academicTerm.id, firstClassId, isGlobalEditing, saveRecord, router, pathname]);
+  }, [canEdit, academicTerm.id, selectedClassId, isGlobalEditing, saveRecord, router, pathname]);
 
   // Handle accept button click (org admin)
   const handleAccept = async (): Promise<void> => {
-    // if the record request is missing, return
+    if (!canManage) return;
     if (!requestId) {
       toast.error("Record request is missing.");
       return;
@@ -300,7 +355,7 @@ export default function ResultsComponent({ school, academicTerm, requestId, mode
   }
   // Handle reject button click (org admin)
   const handleReject = async (rejectionReason: string): Promise<void> => {
-    // if the record request is missing, return
+    if (!canManage) return;
     if (!requestId) {
       toast.error("Record request is missing.");
       return;
@@ -322,11 +377,16 @@ export default function ResultsComponent({ school, academicTerm, requestId, mode
 
   // Handle auxiliary loading states: grading, assessment, mode loading
   const isReportDataLoading = isGradingLoading || isAssessmentLoading || modeLoading;
-  const headerClassName =
+  const selectedClassName =
     classRecord?.className ??
-    (teacherClasses && teacherClasses.length > 0 ? teacherClasses[0].name : null);
+    teacherClasses?.find((cls: TeacherClassRow) => cls.id === selectedClassId)?.name ??
+    null;
+  const teacherClassOptions = ownedClasses.map((cls) => ({
+    id: cls.id,
+    name: cls.name,
+  }));
 
-  if (reportLoadError) {
+  if (reportLoadError !== null) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-5xl mx-auto">
@@ -353,16 +413,20 @@ export default function ResultsComponent({ school, academicTerm, requestId, mode
               handleExport={handleExport}
               isGlobalEditing
               isExporting={isExportingRecord}
-              className={headerClassName}
+              className={selectedClassName}
               canEdit={canEdit}
+              teacherClasses={teacherClassOptions}
+              selectedClassId={selectedClassId}
+              onSelectedClassChange={handleClassChange}
             />
           )}
           {mode === "review" && (
             <AcceptRejectButtons
               isGlobalEditing
-              className={headerClassName}
+              className={selectedClassName}
               onAccept={handleAccept}
               onReject={handleReject}
+              canManage={canManage}
             />
           )}
           <StudentSelectionSkeleton />
@@ -377,14 +441,36 @@ export default function ResultsComponent({ school, academicTerm, requestId, mode
     );
   }
 
-  // Handle no class assigned state (successful fetch, empty list). TODO: Style this.
-  if (isViewMode && teacherClasses !== undefined && !firstClassId) {
+  // TODO: Style the "not assigned as form teacher" empty state (bare ErrorBanner + no-op retry).
+  if (isViewMode && !isTeacherClassesLoading && (teacherClasses?.length ?? 0) === 0) {
     return <ErrorBanner title="Error" message="You are not assigned as form teacher to any class for this term. Please contact your administrator." onRetry={() => { }} />;
   }
 
-  // Handle no student selected state (students array is empty). TODO: Style this to be more visually appealing.
-  if (!selectedStudent) {
+  // TODO: Style the "no students in this class" empty state (bare ErrorBanner + no-op retry).
+  if (classStudents.length === 0) {
     return <ErrorBanner title="Error" message="No students available for this class at this time. Please contact your administrator to enroll students" onRetry={() => { }} />;
+  }
+
+  if (!selectedStudent) {
+    return (
+      <div className="min-h-screen bg-background p-4 md:p-6">
+        <div className="max-w-5xl mx-auto">
+          {mode === "view" && (
+            <PrintExportHeader
+              handleExport={handleExport}
+              isGlobalEditing={isGlobalEditing}
+              isExporting={isExportingRecord}
+              className={selectedClassName}
+              canEdit={canEdit}
+              teacherClasses={teacherClassOptions}
+              selectedClassId={selectedClassId}
+              onSelectedClassChange={handleClassChange}
+            />
+          )}
+          <StudentSelectionSkeleton />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -396,8 +482,11 @@ export default function ResultsComponent({ school, academicTerm, requestId, mode
             handleExport={handleExport}
             isGlobalEditing={isGlobalEditing}
             isExporting={isExportingRecord}
-            className={teacherClasses && teacherClasses.length > 0 ? teacherClasses[0].name : null}
+            className={selectedClassName}
             canEdit={canEdit}
+            teacherClasses={teacherClassOptions}
+            selectedClassId={selectedClassId}
+            onSelectedClassChange={handleClassChange}
           />)}
 
         {mode === "review" && (
@@ -406,6 +495,7 @@ export default function ResultsComponent({ school, academicTerm, requestId, mode
             className={classRecord?.className ?? null}
             onAccept={handleAccept}
             onReject={handleReject}
+            canManage={canManage}
           />)}
 
         {/* Student Selection - name and <- -> buttons to navigate through the students */}
@@ -435,7 +525,7 @@ export default function ResultsComponent({ school, academicTerm, requestId, mode
               <StudentStats
                 studentStats={studentStats}
                 studentName={[selectedStudent?.firstName, selectedStudent?.middleName, selectedStudent?.lastName].filter(Boolean).join(" ")}
-                className={classRecord?.className ?? teacherClasses?.[0]?.name}
+                className={selectedClassName ?? undefined}
               />
             )}
 
@@ -452,10 +542,6 @@ export default function ResultsComponent({ school, academicTerm, requestId, mode
               isGlobalEditing={isGlobalEditing}
               readOnly={isReadOnly}
             />
-
-
-            {/* Signatures */}
-            <Signatures />
           </CardContent>
         </Card>
       </div>

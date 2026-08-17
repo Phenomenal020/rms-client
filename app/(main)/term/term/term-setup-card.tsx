@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useSWRConfig } from "swr";
 import { Card, CardContent } from "@/shadcn/ui/card";
 import { Button } from "@/shadcn/ui/button";
@@ -15,11 +15,12 @@ import SmallTermText from "@/shared-components/small-term-text";
 import { ErrorBanner } from "@/shared-components/error-banner";
 import { AddTermModal } from "./add-term-modal";
 import { EditTermModal } from "./edit-term-modal";
-import { useCreateTerm, useUpdateTerm, getApiErrorMessage } from "@/fetcher/mutations";
+import { useCreateTerm, useUpdateTerm, useDeleteTerm, getApiErrorMessage } from "@/fetcher/mutations";
 import type { singleTermPayload } from "@/types/term";
 import { SecuritySetupModal } from "@/shared-components/security-setup-modal";
 import { handleAuthRedirect } from "@/utils/auth-redirect";
 import { TermSetupTableSkeleton } from "../term-loading-skeletons";
+import { ConfirmDialog } from "@/shared-components/confirm-dialog";
 
 // Academic session options for the add-term dropdown (2023/2024 … 2035/2036)
 export const ACADEMIC_YEAR_OPTIONS = [
@@ -70,14 +71,7 @@ type TermSetupCardProps = {
     onRetry: () => void;
 };
 
-export function TermSetupCard({
-    terms,
-    activeTerm,
-    canManage,
-    termsError,
-    isLoadingTerms,
-    onRetry,
-}: TermSetupCardProps) {
+export function TermSetupCard({ terms, activeTerm, canManage, termsError, isLoadingTerms, onRetry }: TermSetupCardProps) {
     // hooks for redirection
     const router = useRouter();
     const pathname = usePathname();
@@ -86,19 +80,21 @@ export function TermSetupCard({
 
     // error state and show term count
     const loadError = termsError;
-    const showTermCount = !termsError && terms !== undefined;
+    const showTermCount = !termsError && terms !== null;
 
-    // Add/edit modal open state
+    // Add/edit/delete dialog state
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [termToDelete, setTermToDelete] = useState<singleTermPayload | null>(null);
 
     // Track term being edited (default is active term)
     const [editedTerm, setEditedTerm] = useState<singleTermPayload | null>(activeTerm);
 
-    // SWR mutations: create term (POST /term) and update term (PATCH /term)
-    const { trigger: createTerm, isMutating: isCreating, error: createTermError } = useCreateTerm();
-    const { trigger: updateTerm, isMutating: isUpdating, error: updateTermError } = useUpdateTerm();
-    const isMutating = isCreating || isUpdating;
+    // SWR mutations: create term (POST /terms), update term (PATCH /terms/:id), delete term (DELETE /terms/:id)
+    const { trigger: createTerm, isMutating: isCreating } = useCreateTerm();
+    const { trigger: updateTerm, isMutating: isUpdating } = useUpdateTerm();
+    const { trigger: deleteTerm, isMutating: isDeleting, error: deleteTermError } = useDeleteTerm();
+    const isMutating = isCreating || isUpdating || isDeleting;
 
     // Add form: Empty at first
     const addForm = useForm<AddTermValues>({
@@ -111,7 +107,6 @@ export function TermSetupCard({
             endDate: undefined,
         },
     });
-
     // edit form: Empty at first 'cept for term (name) and academic year
     const editForm = useForm<EditTermValues>({
         resolver: zodResolver(editTermSchema),
@@ -129,7 +124,6 @@ export function TermSetupCard({
         addForm.reset();
         setIsAddDialogOpen(true);
     }
-
     // Open editor for a specific row (draft / active / archived)
     function openEditDialog(row: singleTermPayload) {
         if (!canManage) return;  // orgadmin gate
@@ -162,9 +156,8 @@ export function TermSetupCard({
             // show a success toast
             toast.success(`Added "${TERM_LABELS[values.term]}"`);
         } catch (err) {
-            const mutationErr = createTermError || err;
-            if (!handleAuthRedirect(mutationErr, { router, pathname })) {
-                toast.error(getApiErrorMessage(mutationErr, `Failed to add "${TERM_LABELS[values.term]}" term`));
+            if (!handleAuthRedirect(err, { router, pathname })) {
+                toast.error(getApiErrorMessage(err, `Failed to add "${TERM_LABELS[values.term]}" term`));
             }
         }
     }
@@ -190,9 +183,23 @@ export function TermSetupCard({
             // show a success toast
             toast.success(`Updated "${TERM_LABELS[editedTerm?.term ?? "FIRST"]} term"`);
         } catch (err) {
-            const mutationErr = updateTermError || err;
-            if (!handleAuthRedirect(mutationErr, { router, pathname })) {
-                toast.error(getApiErrorMessage(mutationErr, `Failed to update "${TERM_LABELS[editedTerm?.term ?? "FIRST"]}" term`));
+            if (!handleAuthRedirect(err, { router, pathname })) {
+                toast.error(getApiErrorMessage(err, `Failed to update "${TERM_LABELS[editedTerm?.term ?? "FIRST"]}" term`));
+            }
+        }
+    }
+
+    // Delete a term handler
+    async function handleDeleteTerm() {
+        if (!canManage || !termToDelete?.id) return;
+        const label = TERM_LABELS[termToDelete.term];
+        try {
+            await deleteTerm({ id: termToDelete.id });
+            setTermToDelete(null);
+            toast.success(`Deleted "${label}" term`);
+        } catch (err) {
+            if (!handleAuthRedirect(err, { router, pathname })) {
+                toast.error(getApiErrorMessage(err, `Failed to delete "${label}" term`));
             }
         }
     }
@@ -229,6 +236,24 @@ export function TermSetupCard({
                 term={editedTerm}
             />
 
+            {/* Confirm Dialog for deleting a term */}
+            <ConfirmDialog
+                open={termToDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open && !isDeleting) setTermToDelete(null);
+                }}
+                title="Delete term?"
+                description={
+                    termToDelete
+                        ? `Delete "${TERM_LABELS[termToDelete.term]}" (${termToDelete.academicYear})? This cannot be undone. Terms with a grading system, assessment structure, class assignments, or enrollments cannot be deleted until those are removed.`
+                        : "Delete this term? This cannot be undone."
+                }
+                confirmLabel="Delete Term"
+                loading={isDeleting}
+                disabled={!termToDelete}
+                onConfirm={handleDeleteTerm}
+            />
+
             {/* Term Setup Card */}
             <Card className="border shadow-md">
                 <CardContent className="space-y-4">
@@ -239,12 +264,13 @@ export function TermSetupCard({
                             <h4 className="text-base md:text-lg font-semibold text-foreground">
                                 Term{showTermCount ? ` (${terms?.length ?? 0})` : ""}
                             </h4>
+                            {/* Add Term Button */}
                             {canManage && (
                                 <Button
                                     type="button"
                                     onClick={openAddDialog}
                                     className="h-10 md:h-12 cursor-pointer"
-                                    disabled={isMutating || loadError !== undefined || isLoadingTerms}
+                                    disabled={isMutating || loadError !== null || isLoadingTerms}
                                 >
                                     <Plus className="h-3 w-3" />
                                     Add Term
@@ -259,26 +285,27 @@ export function TermSetupCard({
                                 title="Could not load terms"
                                 message={getApiErrorMessage(loadError, "Failed to load terms. Please try again.")}
                                 onRetry={onRetry}
-                            />
+                            />  // Todo: Replace with custom error component
                         ) : isLoadingTerms ? (
-                            <TermSetupTableSkeleton />
+                            <TermSetupTableSkeleton />  //Loading skeleton component
                         ) : !terms || terms.length === 0 ? (
                             <div className="w-full rounded-md border-2 border-dashed border-border/80 py-16 text-center my-3">
                                 <p className="text-base font-medium text-muted-foreground">
                                     No Term Created. Please add a term to get started.
                                 </p>
-                            </div>
+                            </div>   // Todo: Replace with custom empty state component
                         ) : (
                             <div className="overflow-x-auto py-3">
-                                <table className="min-w-[480px] w-full table-fixed border-collapse text-sm md:text-base text-left">
+                                <table className="min-w-[560px] w-full table-fixed border-collapse text-sm md:text-base text-left">
+                                    {/* Table header */}
                                     <thead>
                                         <tr className="bg-muted/50 border-b border-border cursor-pointer">
-                                            <th className="py-2 pr-1 w-[20%] md:w-[18%] font-semibold text-muted-foreground">Session</th>
-                                            <th className="py-2 pr-1 w-[20%] md:w-[18%] font-semibold text-muted-foreground">Term</th>
-                                            <th className="py-2 pr-1 w-[20%] md:w-[18%] font-semibold text-muted-foreground">Start Date</th>
-                                            <th className="py-2 pr-1 w-[20%] md:w-[18%] font-semibold text-muted-foreground">End Date</th>
-                                            <th className="py-2 pr-1 w-[10%] md:w-[18%] font-semibold text-muted-foreground">Days</th>
-                                            {canManage && <th className="py-2 w-[10%] md:w-[10%]"></th>}
+                                            <th className="py-2 pr-1 w-[18%] md:w-[16%] font-semibold text-muted-foreground">Session</th>
+                                            <th className="py-2 pr-1 w-[18%] md:w-[16%] font-semibold text-muted-foreground">Term</th>
+                                            <th className="py-2 pr-1 w-[18%] md:w-[18%] font-semibold text-muted-foreground">Start Date</th>
+                                            <th className="py-2 pr-1 w-[18%] md:w-[18%] font-semibold text-muted-foreground">End Date</th>
+                                            <th className="py-2 pr-1 w-[10%] md:w-[12%] font-semibold text-muted-foreground">Days</th>
+                                            <th className="py-2 w-[18%] md:w-[20%]"></th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -287,7 +314,9 @@ export function TermSetupCard({
                                                 key={term.id}
                                                 className={`border-b border-border last:border-b-0 transition-colors hover:bg-muted/40 ${term.status === 'ACTIVE' ? 'bg-green-500/5' : ''}`}
                                             >
+                                                {/* Academic Year */}
                                                 <td className={`py-2 pr-1 font-medium truncate ${term.status === 'ACTIVE' ? 'border-l-2 border-green-500 pl-2' : 'pl-0'}`}>{term.academicYear}</td>
+                                                {/* Term */}
                                                 <td className="py-2 pr-1 font-medium truncate">
                                                     <span>{TERM_LABELS[term.term]}</span>
                                                     {term.status === 'ACTIVE' && (
@@ -296,28 +325,46 @@ export function TermSetupCard({
                                                         </span>
                                                     )}
                                                 </td>
+                                                {/* Start Date */}
                                                 <td className="py-2 pr-1 text-muted-foreground truncate">
                                                     {term.termStart ? format(new Date(term.termStart), "MMM d, yyyy") : "—"}
                                                 </td>
+                                                {/* End Date */}
                                                 <td className="py-2 pr-1 text-muted-foreground truncate">
                                                     {term.termEnd ? format(new Date(term.termEnd), "MMM d, yyyy") : "—"}
                                                 </td>
+                                                {/* Days */}
                                                 <td className="py-2 pr-1 truncate">{term.termDays ?? "—"}</td>
-                                                {canManage && (
-                                                    <td className="py-2 text-right">
-                                                        <Button
-                                                            type="button"
-                                                            variant="secondary"
-                                                            size="sm"
-                                                            onClick={() => openEditDialog(term)}
-                                                            disabled={isMutating || loadError !== undefined || isLoadingTerms}
-                                                            className="cursor-pointer border border-blue-500/25 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300 text-sm md:text-base"
-                                                        >
-                                                            <Pencil className="h-3 w-3" />
-                                                            <span className="hidden sm:inline">Edit</span>
-                                                        </Button>
-                                                    </td>
-                                                )}
+                                                <td className="py-2 text-right">
+                                                    {canManage && (
+                                                        <div className="flex items-center justify-end gap-1">
+                                                            {/* Edit Button */}
+                                                            <Button
+                                                                type="button"
+                                                                variant="secondary"
+                                                                size="sm"
+                                                                onClick={() => openEditDialog(term)}
+                                                                disabled={isMutating || loadError !== null || isLoadingTerms}
+                                                                className="cursor-pointer border border-blue-500/25 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300 text-sm md:text-base"
+                                                            >
+                                                                <Pencil className="h-3 w-3" />
+                                                                <span className="hidden sm:inline">Edit</span>
+                                                            </Button>
+                                                            {/* Delete Button */}
+                                                            <Button
+                                                                type="button"
+                                                                variant="secondary"
+                                                                size="sm"
+                                                                onClick={() => setTermToDelete(term)}
+                                                                disabled={isMutating || loadError !== null || isLoadingTerms}
+                                                                className="cursor-pointer border border-red-500/25 bg-red-500/10 text-red-700 hover:bg-red-500/15 dark:text-red-300 text-sm md:text-base"
+                                                            >
+                                                                <Trash2 className="h-3 w-3" />
+                                                                <span className="hidden sm:inline">Delete</span>
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>

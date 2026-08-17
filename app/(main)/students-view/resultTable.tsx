@@ -70,7 +70,7 @@ export function ResultTable({ isEditingScores, startEditingScores, handleSaveSco
     // Schema for a single score
     const assessmentEntrySchema = z.object({
         assessmentStructureId: z.uuid(),  // to identify type. eg, CA, Project, etc
-        score: z.number().int().min(0),  // actual score value
+        score: z.number().int().min(0).max(100),  // actual score value
     });
 
     // Schema for a row === an array of length assessment structure and schema a single score. 
@@ -131,8 +131,10 @@ export function ResultTable({ isEditingScores, startEditingScores, handleSaveSco
                         </h3>
 
                         {/* Edit Scores Button */}
-                        {!readOnly && !isEditingScores ? (  // show edit icon if not editing scores
+                        {!readOnly && (
+                            !isEditingScores ? (
                             <Button
+                                type="button"
                                 onClick={startEditingScores}
                                 disabled={isGlobalEditing || !hasEnrolledSubject}
                                 variant="outline"
@@ -141,7 +143,7 @@ export function ResultTable({ isEditingScores, startEditingScores, handleSaveSco
                             >
                                 <Edit3 className="w-4 h-4 mr-2" />
                             </Button>
-                        ) : !readOnly ? (  // show save/cancel buttons if editing scores
+                            ) : (
                             <div className="flex gap-2">
                                 {/* Save Scores Button */}
                                 <Button
@@ -159,6 +161,7 @@ export function ResultTable({ isEditingScores, startEditingScores, handleSaveSco
                                 </Button>
                                 {/* Cancel Scores Button */}
                                 <Button
+                                    type="button"
                                     onClick={cancelEditingScores}
                                     variant="outline"
                                     size="sm"
@@ -169,7 +172,8 @@ export function ResultTable({ isEditingScores, startEditingScores, handleSaveSco
                                     Cancel
                                 </Button>
                             </div>
-                        ) : null}
+                            )
+                        )}
                     </div>
 
                     {/* Result Table */}
@@ -179,28 +183,28 @@ export function ResultTable({ isEditingScores, startEditingScores, handleSaveSco
                             <thead>
                                 <tr className="bg-muted">
                                     {/* Subject Header */}
-                                    <th className="border border-border p-2 md:p-3 text-left font-semibold text-foreground text-sm sm:text-base sticky left-0 z-20 bg-muted">
+                                    <th className="border border-border p-2 md:p-3 text-left font-semibold text-foreground text-sm lg:text-base sticky left-0 z-20 bg-muted">
                                         Subject
                                     </th>
                                     {/* Assessment Headers */}
                                     {assessmentStructure.map((assessment) => (
                                         <th
                                             key={assessment.id}
-                                            className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base"
+                                            className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm lg:text-base"
                                         >
                                             {assessment.type} ({assessment.percentage}%)
                                         </th>
                                     ))}
                                     {/* Total Score Header */}
-                                    <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base">
+                                    <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm lg:text-base">
                                         Total (100%)
                                     </th>
                                     {/* Grade Header */}
-                                    <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base">
+                                    <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm lg:text-base">
                                         Grade
                                     </th>
                                     {/* Remark Header */}
-                                    <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base">
+                                    <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm lg:text-base">
                                         Remark
                                     </th>
                                 </tr>
@@ -234,7 +238,7 @@ export function ResultTable({ isEditingScores, startEditingScores, handleSaveSco
                                             <tr key={index} className="hover:bg-muted">
 
                                                 {/* Subject Name */}
-                                                <td className="border border-border p-3 font-medium text-foreground text-sm sm:text-base whitespace-nowrap sticky left-0 z-10 bg-card">
+                                                <td className="border border-border p-3 font-medium text-foreground text-sm lg:text-base whitespace-nowrap sticky left-0 z-10 bg-card">
                                                     {enrolledSubject.subject.name}
                                                 </td>
 
@@ -245,7 +249,7 @@ export function ResultTable({ isEditingScores, startEditingScores, handleSaveSco
                                                     return (
                                                         <td
                                                             key={assessment.id}
-                                                            className="border border-border p-1.5 md:p-3 text-center text-sm sm:text-base"
+                                                            className="border border-border p-1.5 md:p-3 text-center text-sm lg:text-base"
                                                         >
                                                             {isEditingScores && rowActive && !readOnly ? (
                                                                 <FormField
@@ -265,6 +269,8 @@ export function ResultTable({ isEditingScores, startEditingScores, handleSaveSco
                                                                                                 : Number(e.target.value)
                                                                                         )
                                                                                     }
+                                                                                    min={0}
+                                                                                    max={100}
                                                                                     className="w-16 h-8 text-center text-xs sm:text-sm border-border focus:border-input"
                                                                                 />
                                                                             </FormControl>
@@ -282,17 +288,17 @@ export function ResultTable({ isEditingScores, startEditingScores, handleSaveSco
                                                 })}
 
                                                 {/* Total score */}
-                                                <td className="border border-border p-3 text-center font-semibold text-foreground text-sm sm:text-base">
+                                                <td className="border border-border p-3 text-center font-semibold text-foreground text-sm lg:text-base">
                                                     {percentage}
                                                 </td>
 
                                                 {/* Grade */}
-                                                <td className="border border-border p-3 text-center font-bold text-foreground text-sm sm:text-base">
+                                                <td className="border border-border p-3 text-center font-bold text-foreground text-sm lg:text-base">
                                                     {grade}
                                                 </td>
 
                                                 {/* Remark */}
-                                                <td className="border border-border p-3 text-center text-foreground text-sm sm:text-base">
+                                                <td className="border border-border p-3 text-center text-foreground text-sm lg:text-base">
                                                     {remark}
                                                 </td>
                                             </tr>
@@ -302,7 +308,7 @@ export function ResultTable({ isEditingScores, startEditingScores, handleSaveSco
                                     <tr>
                                         <td
                                             colSpan={assessmentStructure.length + 4}
-                                            className="border border-border p-3 text-center text-muted-foreground text-sm sm:text-base"
+                                            className="border border-border p-3 text-center text-muted-foreground text-sm lg:text-base"
                                         >
                                             No subjects available
                                         </td>

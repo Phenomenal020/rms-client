@@ -6,14 +6,14 @@ const LOADING_ROW_COUNT = 6;
 export function ClassesLoadingTable() {
     return (
         <div className="overflow-x-auto py-2">
-            <table className="table-fixed min-w-[480px] w-full border-collapse text-sm md:text-base text-left">
+            <table className="table-fixed min-w-[480px] w-full border-collapse text-sm lg:text-base text-left">
                 {/* Table Columns: S/N, Class, Class Teacher, Subjects, Actions */}
                 <colgroup>
-                    <col className="w-[10%]" />
-                    <col className="w-[20%]" />
-                    <col className="w-[35%]" />
-                    <col className="w-[25%]" />
-                    <col className="w-[10%]" />
+                <col className="w-[8%]" />
+                <col className="w-[20%]" />
+                <col className="w-[32%]" />
+                <col className="w-[20%]" />
+                <col className="w-[20%]" />
                 </colgroup>
                 {/* Table Header Row: S/N, Class, Class Teacher, Subjects, Actions */}
                 <thead>
@@ -22,7 +22,7 @@ export function ClassesLoadingTable() {
                         <th className="p-2 font-semibold text-muted-foreground">Class</th>
                         <th className="p-2 font-semibold text-muted-foreground">Class Teacher</th>
                         <th className="p-2 font-semibold text-muted-foreground">Subjects</th>
-                        <th className="p-2 font-semibold text-muted-foreground" />
+                        <th className="p-2 font-semibold text-muted-foreground text-right" />
                     </tr>
                 </thead>
                 {/* Table Body: Rows of loading skeletons */}

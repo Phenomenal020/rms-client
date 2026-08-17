@@ -19,6 +19,7 @@ import { getAssessmentStructure } from "@/fetcher/queries";
 import type { createSingleAssessmentStructure, getSingleAssessmentStructure, updateSingleAssessmentStructure } from "@/types/term";
 import { handleAuthRedirect } from "@/utils/auth-redirect";
 import { AssessmentTableSkeleton } from "../term-loading-skeletons";
+import { ConfirmDialog } from "@/shared-components/confirm-dialog";
 
 // Per-entry schema — used by both add and edit modals (id excluded: managed separately in state)
 export const assessmentStructureEntrySchema = z.object({
@@ -68,7 +69,7 @@ export function AssessmentStructureCard({ termId, canManage, onRetryAll }: Asses
         ? `/api/v1/assessment-structure?termId=${encodeURIComponent(termId)}`
         : null;
 
-    const criticalLoadError = termId ? asError : undefined;
+    const criticalLoadError = termId ? asError : null;
     const isComponentLoading = Boolean(termId) && isLoadingAS;
 
     useEffect(() => {
@@ -82,10 +83,10 @@ export function AssessmentStructureCard({ termId, canManage, onRetryAll }: Asses
     }, [asError, router, pathname]);
 
     // SWR mutation: POST /assessment-structure
-    const { trigger: createAS, isMutating: isCreating, error: createError, data: createData } = useCreateAssessmentStructure();
+    const { trigger: createAS, isMutating: isCreating, error: createError } = useCreateAssessmentStructure();
 
     // SWR mutation: PATCH /assessment-structure/{termId}
-    const { trigger: updateAS, isMutating: isUpdating, error: updateError, data: updateData } = useUpdateAssessmentStructure();
+    const { trigger: updateAS, isMutating: isUpdating, error: updateError } = useUpdateAssessmentStructure();
 
     // Local edit buffer — diverges from SWR cache while the user is staging changes.
     // id is null for new (unsaved) entries, string for persisted ones.
@@ -93,8 +94,10 @@ export function AssessmentStructureCard({ termId, canManage, onRetryAll }: Asses
 
     // Last persisted state — derived directly from SWR cache, used to restore on discard
     const [savedAssessmentStructures, setSavedAssessmentStructures] = useState<BufferEntry[]>([]);
-    // No saved entries yet → first-time POST; otherwise → full-replace PATCH
-    const isFirstSave = savedAssessmentStructures.length === 0;
+    // POST only when this term has no rows on the server; PATCH thereafter (new rows omit id)
+    const hasServerStructure = Array.isArray(asData) && asData.length > 0;
+    const [hasPersistedStructure, setHasPersistedStructure] = useState(false);
+    const isFirstSave = !hasServerStructure && !hasPersistedStructure;
 
     // Flag to indicate if the assessment structure has been modified since the last save
     const [assessmentStructureDirty, setAssessmentStructureDirty] = useState(false);
@@ -103,6 +106,7 @@ export function AssessmentStructureCard({ termId, canManage, onRetryAll }: Asses
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
+    const [assessmentToDelete, setAssessmentToDelete] = useState<number | null>(null);
 
     // Derived: running total — disables Add button at 100%
     const assessmentStructureTotal = assessmentStructures.length > 0 ? assessmentStructures.reduce((sum, e) => sum + e.percentage, 0) : 0;
@@ -113,6 +117,7 @@ export function AssessmentStructureCard({ termId, canManage, onRetryAll }: Asses
         setAssessmentStructures(rows);
         setSavedAssessmentStructures(rows);
         setAssessmentStructureDirty(false);
+        setHasPersistedStructure(rows.length > 0);
     }, [termId, asData]);
 
 
@@ -201,15 +206,13 @@ export function AssessmentStructureCard({ termId, canManage, onRetryAll }: Asses
         toast.success(`"${values.type}" updated. Save Changes to persist.`);
     }
 
-    // Delete entry from local state — does NOT call the API yet
-    function deleteAssessment(index: number) {
-        if (!canManage) return;
-        const label = assessmentStructures[index].type;
-        // filter it off from the local state using its index
-        setAssessmentStructures((prev) => prev.filter((_, i) => i !== index));
-        // indicate that the assessment structure has been modified since the last save
+    // Delete entry from local state — does NOT call the API yet (use Save Changes to persist)
+    function deleteAssessment() {
+        if (!canManage || assessmentToDelete === null) return;
+        const label = assessmentStructures[assessmentToDelete].type;
+        setAssessmentStructures((prev) => prev.filter((_, i) => i !== assessmentToDelete));
         setAssessmentStructureDirty(true);
-        // show success toast
+        setAssessmentToDelete(null);
         toast.success(`Deleted "${label}". Save Changes to persist.`);
     }
 
@@ -251,7 +254,7 @@ export function AssessmentStructureCard({ termId, canManage, onRetryAll }: Asses
                 : await updateAS({
                     termId,
                     entries: assessmentStructures.map((e): updateSingleAssessmentStructure => ({
-                        id: e.id!,
+                        ...(e.id ? { id: e.id } : {}),
                         type: e.type,
                         percentage: e.percentage,
                         displayOrder: e.displayOrder,
@@ -261,6 +264,7 @@ export function AssessmentStructureCard({ termId, canManage, onRetryAll }: Asses
             if (response?.success) {
                 setSavedAssessmentStructures(assessmentStructures);
                 setAssessmentStructureDirty(false);
+                setHasPersistedStructure(true);
                 if (assessmentKey) void mutate(assessmentKey);
                 toast.success(`Assessment structure ${isFirstSave ? "created" : "updated"} successfully`);
             }
@@ -303,6 +307,22 @@ export function AssessmentStructureCard({ termId, canManage, onRetryAll }: Asses
                 loading={editForm.formState.isSubmitting || isCreating || isUpdating}
             />
 
+            <ConfirmDialog
+                open={assessmentToDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open) setAssessmentToDelete(null);
+                }}
+                title="Remove assessment?"
+                description={
+                    assessmentToDelete !== null
+                        ? `Remove "${assessmentStructures[assessmentToDelete]?.type}" from the list? This is not saved until you click Save Changes.`
+                        : "Remove this assessment from the list?"
+                }
+                confirmLabel="Remove"
+                disabled={assessmentToDelete === null}
+                onConfirm={deleteAssessment}
+            />
+
             <Card className="border shadow-md">
                 <CardContent className="space-y-4">
                     <section className="overflow-hidden rounded-sm bg-card">
@@ -319,7 +339,7 @@ export function AssessmentStructureCard({ termId, canManage, onRetryAll }: Asses
                                     disabled={
                                         assessmentStructureTotal >= 100
                                         || !termId
-                                        || criticalLoadError !== undefined
+                                        || criticalLoadError !== null
                                         || isComponentLoading
                                         || isCreating
                                         || isUpdating
@@ -368,7 +388,7 @@ export function AssessmentStructureCard({ termId, canManage, onRetryAll }: Asses
                                             <th className="py-2 pr-2 w-[27%] md:w-[28%] font-semibold text-muted-foreground">Type</th>
                                             <th className="py-2 pr-2 w-[28%] font-semibold text-muted-foreground">Percentage</th>
                                             <th className="py-2 pr-2 w-[25%] md:w-[28%] font-semibold text-muted-foreground">Order</th>
-                                            {canManage && <th className="py-2 w-[20%]"></th>}
+                                            <th className="py-2 w-[20%]"></th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -380,10 +400,9 @@ export function AssessmentStructureCard({ termId, canManage, onRetryAll }: Asses
                                                 <td className="py-2 pr-2 font-medium truncate">{entry.type}</td>
                                                 <td className="py-2 pr-2 truncate">{entry.percentage}%</td>
                                                 <td className="py-2 pr-2 truncate">#{entry.displayOrder}</td>
-                                                {canManage && (
-                                                    <td className="py-2">
+                                                <td className="py-2">
+                                                    {canManage && (
                                                         <div className="flex items-center justify-end gap-1">
-                                                            {/* Edit Button */}
                                                             <Button
                                                                 type="button"
                                                                 variant="secondary"
@@ -394,21 +413,19 @@ export function AssessmentStructureCard({ termId, canManage, onRetryAll }: Asses
                                                                 <Pencil className="h-3 w-3" />
                                                                 <span className="hidden sm:inline">Edit</span>
                                                             </Button>
-
-                                                            {/* Delete Button */}
                                                             <Button
                                                                 type="button"
                                                                 variant="secondary"
                                                                 size="sm"
-                                                                onClick={() => deleteAssessment(index)}
+                                                                onClick={() => setAssessmentToDelete(index)}
                                                                 className="cursor-pointer border border-red-500/25 bg-red-500/10 text-red-700 hover:bg-red-500/15 dark:text-red-300 text-sm md:text-base"
                                                             >
                                                                 <Trash2 className="h-3 w-3" />
                                                                 <span className="hidden sm:inline">Delete</span>
                                                             </Button>
                                                         </div>
-                                                    </td>
-                                                )}
+                                                    )}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>

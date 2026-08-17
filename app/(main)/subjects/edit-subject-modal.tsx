@@ -18,7 +18,7 @@ type EditSubjectModalProps = {
   readOnly?: boolean;
   departmentOptions: string[];
 };
-
+// 
 export function EditSubjectModal({
   open,
   onOpenChange,
@@ -98,7 +98,7 @@ export function EditSubjectModal({
                   type="button"
                   variant="outline"
                   onClick={() => onOpenChange(false)}
-                  disabled={loading || !editForm.formState.isDirty}
+                  disabled={loading}
                   className="cursor-pointer h-10 md:h-12"
                 >
                   Cancel

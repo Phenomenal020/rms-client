@@ -1,5 +1,5 @@
 "use client";
-
+// 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shadcn/ui/form";
 import { Input } from "@/shadcn/ui/input";
 import { Button } from "@/shadcn/ui/button";
@@ -93,7 +93,7 @@ export function AddStudentModal({
                                         <FormItem>
                                             <FormLabel className="font-semibold text-muted-foreground">Gender</FormLabel>
                                             <FormControl>
-                                                <Select value={field.value} onValueChange={field.onChange}>
+                                                <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
                                                     <SelectTrigger className="h-10 md:h-12 w-full cursor-pointer">
                                                         <SelectValue placeholder="Select gender" />
                                                     </SelectTrigger>
@@ -146,7 +146,7 @@ export function AddStudentModal({
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    disabled={loading || (!readOnly && !addForm.formState.isDirty)}
+                                    disabled={loading}
                                     onClick={() => onOpenChange(false)}
                                     className="cursor-pointer h-10 md:h-12"
                                 >

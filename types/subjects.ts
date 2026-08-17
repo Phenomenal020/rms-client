@@ -11,6 +11,11 @@ export type updateSubjectPayload = {
     department?: string;
 };
 
+// Delete subject payload
+export type deleteSubjectPayload = {
+    id: string;
+};
+
 // Single get subject
 export type singleGetSubjectPayload = {
     id: string;
@@ -22,6 +27,7 @@ export type singleGetSubjectPayload = {
 
 // Get subjects payload
 export type getSubjectPayload = {
-    success: string;
+    success: boolean;
+    error: string | null;
     data: singleGetSubjectPayload[]
 }

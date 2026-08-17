@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { BookOpen, Pencil } from "lucide-react";
+import { BookOpen, Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/shadcn/ui/card";
 import { Input } from "@/shadcn/ui/input";
 import { Button } from "@/shadcn/ui/button";
@@ -15,9 +15,11 @@ import { EditClassModal } from "./edit-class-modal";
 import { ClassesLoadingTable } from "./classes-loading-table";
 import SmallTermText from "@/shared-components/small-term-text";
 import { SecuritySetupModal } from "@/shared-components/security-setup-modal";
+import { ConfirmDialog } from "@/shared-components/confirm-dialog";
 import type { getClassPayload } from "@/types/classes";
 import { getSubjects, getClasses, getTerms, getOrgMembers, ORG_MEMBERS_KEY } from "@/fetcher/queries";
-import { getApiErrorMessage, getHttpStatus, useCreateClass, useUpdateClass } from "@/fetcher/mutations";
+import { getApiErrorMessage, getHttpStatus, useCreateClass, useUpdateClass, useDeleteClass } from "@/fetcher/mutations";
+import { handleAuthRedirect } from "@/utils/auth-redirect";
 import { ErrorBanner } from "@/shared-components/error-banner";
 import { useSWRConfig } from "swr";
 import type { createClassPayload, updateClassPayload } from "@/types/classes";
@@ -35,7 +37,7 @@ const singleSubjectSchema = z.object({
 });
 // create/add class zod schema
 const addClassSchema = z.object({
-    name: z.string().trim().min(1, { message: "Class name is required" }),
+    name: z.string().trim().max(64, { message: "Class name should not be more than 64 characters" }).min(1, { message: "Class name is required" }),
     formTeacherId: z.string().nullable(),  // either assigned or not assigned (null)
     subjects: z.array(singleSubjectSchema).optional(),  // a class does not have to be assigned any subjects upon creation
 });
@@ -58,7 +60,7 @@ export function ClassesForm() {
 
     // Org admin gate
     const { user } = useUser();
-    const canManage = user?.role === "orgadmin" && user?.twoFactorEnabled === true;   // disable management features (add/edit) for non-orgadmin users
+    const canManage = user?.role === "orgadmin" && !(user?.twoFactorEnabled === true) && user?.emailVerified === true;
 
     //  Add dialog: Toggle, resolver, and defaults
     const [isAddOpen, setIsAddOpen] = useState(false);
@@ -70,6 +72,7 @@ export function ClassesForm() {
     // Edit dialog: Toggle, target, resolver, and defaults
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
+    const [classToDelete, setClassToDelete] = useState<getClassPayload | null>(null);
     const editForm = useForm<EditClassValues>({
         resolver: zodResolver(editClassSchema),
         defaultValues: { id: "", name: "", formTeacherId: "", subjects: [] },
@@ -81,7 +84,7 @@ export function ClassesForm() {
     const termsReady = !isLoadingTerms;
     const activeTermId = (termsData as singleTermPayload[] | undefined)?.find((term) => term.status === "ACTIVE")?.id ?? null;
     // Wait for terms before fetching classes — avoids a redundant request without termId. 
-    let { data: classes, error: classesError, isLoading: isLoadingClasses, statusCode: classesStatusCode } = getClasses(
+    const { data: classes, error: classesError, isLoading: isLoadingClasses, statusCode: classesStatusCode } = getClasses(
         termsReady ? activeTermId : undefined,
     );  // When undefined, getClasses does not run. A clever workaround react hooks and conditional rendering
     const { teachers, error: teachersError, isLoading: isLoadingTeachers, statusCode: teachersStatusCode } = getOrgMembers();
@@ -90,24 +93,8 @@ export function ClassesForm() {
     const classList = (classes ?? []) as getClassPayload[];
     const criticalLoadError = termsError ?? classesError;  // entire page needs these
     const auxiliaryLoadError = subjectsError ?? teachersError;  // only modals need these
-    const loadError = criticalLoadError ?? auxiliaryLoadError;  // aggregation
+    const loadError = (criticalLoadError ?? auxiliaryLoadError) ?? null;  // aggregation
     const showClassCount = !classesError && classes !== undefined;  // hide/show class count
-
-    // MUTATIONS: Handle authentication redirects: use the status code to determine the redirect (401, 403)
-    function handleAuthRedirect(err: unknown): boolean {
-        const status = getHttpStatus(err);
-        if (status === 401) {
-            toast.error("You are not authenticated. Please sign in to continue");
-            router.replace(`/sign-in?redirect=${pathname}`);
-            return true;
-        }
-        if (status === 403) {
-            toast.error("You are not authorized to access this page. Please contact your admin if you believe this is an error.");
-            router.replace("/forbidden");
-            return true;
-        }
-        return false;  // if the error is not 401 or 403, return false (no redirect)
-    }
 
     // Retry all fetches: revalidate the cached data (basically rerenders the component)
     function retryAllFetches() {
@@ -135,8 +122,9 @@ export function ClassesForm() {
     }, [termsError, classesError, subjectsError, teachersError, termsStatusCode, classesStatusCode, subjectsStatusCode, teachersStatusCode, router, pathname]);
 
     // mutations
-    const { trigger: createClass, isMutating: isCreating, error: createClassError, data: createClassData } = useCreateClass();
-    const { trigger: updateClass, isMutating: isUpdating, error: updateClassError, data: updateClassData } = useUpdateClass();
+    const { trigger: createClass, isMutating: isCreating, error: createClassError } = useCreateClass();
+    const { trigger: updateClass, isMutating: isUpdating, error: updateClassError } = useUpdateClass();
+    const { trigger: deleteClass, isMutating: isDeleting, error: deleteClassError } = useDeleteClass();
     // On error, manually trigger a revalidation of the cached data (rerenders the component)
     const { mutate } = useSWRConfig();
 
@@ -153,7 +141,7 @@ export function ClassesForm() {
     // Open add dialog: Reset form and set toggle
     function openAddDialog() {
         if (!canManage) return;  // return early if the user is not an org admin
-        addForm.reset({ name: "", formTeacherId: null, subjects: [] });
+        addForm.reset({ name: "", formTeacherId: "", subjects: [] });
         setIsAddOpen(true);
     }
     // Open edit dialog: Reset form with the class being edited
@@ -170,35 +158,46 @@ export function ClassesForm() {
         setIsEditOpen(true);
     }
 
+    function openDeleteDialog(cls: getClassPayload) {
+        if (!canManage) return;
+        setClassToDelete(cls);
+    }
+
     // Make api call to create new class + assign subjects to it (why we need active term)
-    async function addClassHandler() {
-        if (!canManage) return; // return early if the user is not an org admin
-        // Validate the class name is not already in use locally before hitting the API
-        const name = addForm.getValues().name.trim();
+    async function addClassHandler(values: CreateClassValues) {
+        if (!canManage) return;
+        const name = values.name.trim();
         if (classList.some((cls) => cls.name.toLowerCase() === name.toLowerCase())) {
             toast.error(`Class "${name}" already exists`);
             return;
         }
 
-        // construct create class payload
+        const subjects = values.subjects ?? [];
+        if (subjects.length > 20) {
+            toast.error("Maximum of 20 subjects can be assigned to a class");
+            return;
+        }
+        if (subjects.length > 0 && !activeTermId) {
+            toast.error("An active term is required when assigning subjects to a class");
+            return;
+        }
+
         const createClassPayload: createClassPayload = {
-            activeTermId: activeTermId ?? null,
             name,
-            formTeacherId: addForm.getValues().formTeacherId || null,
-            subjectIds: addForm.getValues().subjects?.map((subject) => subject.id) ?? [],
+            formTeacherId: values.formTeacherId || null,
+            ...(subjects.length > 0 && activeTermId
+                ? { activeTermId, subjectIds: subjects.map((subject) => subject.id) }
+                : {}),
         };
 
-        // Now, make the api call to create the class
         try {
-            await createClass(createClassPayload);  // No need to get the data back, just wait for the mutation to complete
-            // resets and success toast
+            await createClass(createClassPayload);
             setIsAddOpen(false);
             addForm.reset();
             toast.success(`Class "${name}" added successfully`);
         } catch (err) {
-            // if the error is 401 or 403, redirect to the sign in page. Otherwise, simply show the error toast
             const mutationErr = createClassError || err;
-            if (!handleAuthRedirect(mutationErr)) {
+            if (!handleAuthRedirect(mutationErr, { router, pathname })) {
                 toast.error(getApiErrorMessage(mutationErr, `Failed to add class "${name}"`));
             }
         }
@@ -217,14 +216,29 @@ export function ClassesForm() {
             return;
         }
 
-        // construct the update class payload
+        // Ensure subjectIds are not more than 20
+        const subjects = values.subjects ?? [];
+        if (subjects.length > 20) {
+            toast.error("Maximum of 20 subjects can be assigned to a class");
+            return;
+        }
+
+        const subjectsDirty = Boolean(editForm.formState.dirtyFields.subjects);
+        if (subjectsDirty && !activeTermId) {
+            toast.error("An active term is required when updating subject assignments");
+            return;
+        }
+
         const updateClassPayload: updateClassPayload = {
             id,
-            activeTermId: activeTermId ?? null,
             name,
             formTeacherId: values.formTeacherId || null,
-            subjectIds: values.subjects?.map((subject) => subject.id) ?? [],
+            ...(subjectsDirty && activeTermId
+                ? { activeTermId, subjectIds: subjects.map((subject) => subject.id) }
+                : {}),
         };
+
+        console.log("updateClassPayload", updateClassPayload);
 
         // Now, make the api call to update the class
         try {
@@ -236,8 +250,23 @@ export function ClassesForm() {
         } catch (err) {
             const mutationErr = updateClassError || err;
             // if the error is not 401 or 403, show the error toast
-            if (!handleAuthRedirect(mutationErr)) {
+            if (!handleAuthRedirect(mutationErr, { router, pathname })) {
                 toast.error(getApiErrorMessage(mutationErr, `Failed to update class "${name}"`));
+            }
+        }
+    }
+
+    async function deleteClassHandler() {
+        if (!canManage || !classToDelete) return;
+        const name = classToDelete.name;
+        try {
+            await deleteClass({ id: classToDelete.id });
+            setClassToDelete(null);
+            toast.success(`Class "${name}" deleted successfully`);
+        } catch (err) {
+            const mutationErr = deleteClassError || err;
+            if (!handleAuthRedirect(mutationErr, { router, pathname })) {
+                toast.error(getApiErrorMessage(mutationErr, `Failed to delete class "${name}"`));
             }
         }
     }
@@ -245,6 +274,8 @@ export function ClassesForm() {
     // Loading states
     const addLoading = addForm.formState.isSubmitting || isCreating;
     const editLoading = editForm.formState.isSubmitting || isUpdating;
+    const deleteLoading = isDeleting;
+    const isMutating = addLoading || editLoading || deleteLoading;
     // Block table until terms, classes, and teachers resolve
     const isComponentLoading = !termsReady || isLoadingClasses || isLoadingTeachers || isLoadingSubjects
 
@@ -272,6 +303,7 @@ export function ClassesForm() {
                 loading={addLoading}
                 teacherOptions={teachers}
                 subjectOptions={(subjects ?? []) as singleGetSubjectPayload[]}
+                canAssignSubjects={Boolean(activeTermId)}
             />
 
             {/* Edit Class Modal */}
@@ -285,6 +317,24 @@ export function ClassesForm() {
                 teacherOptions={teachers}
                 subjectOptions={(subjects ?? []) as singleGetSubjectPayload[]}
                 initialSubjects={editingIndex !== null ? filteredClasses[editingIndex]?.subjects ?? [] : []}
+                canAssignSubjects={Boolean(activeTermId)}
+            />
+
+            <ConfirmDialog
+                open={classToDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open && !deleteLoading) setClassToDelete(null);
+                }}
+                title="Delete class?"
+                description={
+                    classToDelete
+                        ? `Delete "${classToDelete.name}"? This cannot be undone. Classes with subject assignments or export requests cannot be deleted until those are removed.`
+                        : "Delete this class? This cannot be undone."
+                }
+                confirmLabel="Delete Class"
+                loading={deleteLoading}
+                disabled={!classToDelete}
+                onConfirm={deleteClassHandler}
             />
 
             {/* Main Card */}
@@ -305,14 +355,14 @@ export function ClassesForm() {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     placeholder="Search..."
                                     className="h-10 md:h-12 w-full sm:max-w-xs"
-                                    disabled={addLoading || editLoading || loadError !== undefined || isComponentLoading}
+                                    disabled={isMutating || loadError !== null || isComponentLoading}
                                 />
                                 {canManage && (
                                     <Button
                                         type="button"
                                         onClick={openAddDialog}
                                         className="cursor-pointer whitespace-nowrap h-10 md:h-12"
-                                        disabled={addLoading || editLoading || loadError !== undefined || isComponentLoading || !activeTermId}
+                                        disabled={isMutating || loadError !== null || isComponentLoading}
                                     >
                                         Add Class
                                     </Button>
@@ -352,14 +402,14 @@ export function ClassesForm() {
                                     </div>
                                 ) : (
                                     <div className="overflow-x-auto py-2">
-                                        <table className="table-fixed min-w-[480px] w-full border-collapse text-sm md:text-base text-left">
+                                        <table className="table-fixed min-w-[480px] w-full border-collapse text-sm lg:text-base text-left">
                                             {/* Table columns */}
                                             <colgroup>
-                                                <col className="w-[10%]" />
+                                                <col className="w-[8%]" />
                                                 <col className="w-[20%]" />
-                                                <col className="w-[35%]" />
-                                                <col className="w-[25%]" />
-                                                <col className="w-[10%]" />
+                                                <col className="w-[32%]" />
+                                                <col className="w-[20%]" />
+                                                <col className="w-[20%]" />
                                             </colgroup>
                                             {/* Table header */}
                                             <thead>
@@ -368,7 +418,7 @@ export function ClassesForm() {
                                                     <th className="p-2 font-semibold text-muted-foreground">Class</th>
                                                     <th className="p-2 font-semibold text-muted-foreground">Class Teacher</th>
                                                     <th className="p-2 font-semibold text-muted-foreground">Subjects</th>
-                                                    <th className="p-2 font-semibold text-muted-foreground" />
+                                                    <th className="p-2 font-semibold text-muted-foreground text-right" />
                                                 </tr>
                                             </thead>
                                             {/* Table body */}
@@ -413,22 +463,36 @@ export function ClassesForm() {
                                                                         </span>
                                                                     )}
                                                                 </td>
-                                                                {canManage && (
-                                                                    <td className="p-2">
-                                                                        <Button
-                                                                            type="button"
-                                                                            variant="outline"
-                                                                            size="sm"
-                                                                            onClick={() => openEditDialog(index)}
-                                                                            disabled={addLoading || editLoading || loadError !== undefined || isComponentLoading}
-                                                                            className="cursor-pointer border border-blue-500/25 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300"
-                                                                            aria-label="Edit class"
-                                                                        >
-                                                                            <Pencil className="h-3 w-3" />
-                                                                            <span className="hidden md:inline">Edit</span>
-                                                                        </Button>
-                                                                    </td>
-                                                                )}
+                                                                <td className="p-2 text-right">
+                                                                    {canManage && (
+                                                                        <div className="flex items-center justify-end gap-1">
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                onClick={() => openEditDialog(index)}
+                                                                                disabled={isMutating || loadError !== null || isComponentLoading}
+                                                                                className="cursor-pointer border border-blue-500/25 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300 text-sm lg:text-base"
+                                                                                aria-label="Edit class"
+                                                                            >
+                                                                                <Pencil className="h-3 w-3" />
+                                                                                <span className="sr-only sm:not-sr-only">Edit</span>
+                                                                            </Button>
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                onClick={() => openDeleteDialog(entry)}
+                                                                                disabled={isMutating || loadError !== null || isComponentLoading}
+                                                                                className="cursor-pointer border border-red-500/25 bg-red-500/10 text-red-700 hover:bg-red-500/15 dark:text-red-300 text-sm lg:text-base"
+                                                                                aria-label="Delete class"
+                                                                            >
+                                                                                <Trash2 className="h-3 w-3" />
+                                                                                <span className="sr-only sm:not-sr-only">Delete</span>
+                                                                            </Button>
+                                                                        </div>
+                                                                    )}
+                                                                </td>
                                                             </tr>
                                                         </React.Fragment>
                                                     );

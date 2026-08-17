@@ -4,54 +4,80 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSWRConfig } from "swr";
 import { Card, CardContent } from "@/shadcn/ui/card";
-import { toast } from "sonner";
 
 import { PrintExportHeader } from "./printExportHeader";
 import { SubjectSelection, type SubjectOption } from "./subjectSelection";
 import { SchoolHeader } from "../students-view/schoolHeader";
 import { SubjectInfo } from "./subjectInfo";
 import { SubjectResultTable } from "./subjectResultTable";
-import {ResultsContentSkeleton, ResultsHeaderSkeleton, StudentSelectionSkeleton} from "../students-view/ResultsSkeleton";
-import { Signatures } from "../students-view/signatures";
+import { ResultsContentSkeleton, StudentSelectionSkeleton } from "../students-view/ResultsSkeleton";
 import { calculateSubjectStats, getEnrolledStudents } from "./helpers";
 import createGradingFunctions from "../students-view/utils/gradingFns";
 import { getApiErrorMessage, getHttpStatus } from "@/fetcher/mutations";
-import {getAssessmentStructure, getClassRecord, getGradingSystem, getTeacherClasses} from "@/fetcher/queries";
+import { getAssessmentStructure, getClassRecord, getGradingSystem, getTeacherClasses } from "@/fetcher/queries";
 import { useUser } from "@/contexts/user-context";
 import type { AcademicTerm, AssessmentStructure, School, Student } from "@/types/drizzle";
 import { ErrorBanner } from "@/shared-components/error-banner";
+import {
+  readResultsClassSelection,
+  readResultsSubjectSelection,
+  writeResultsClassSelection,
+  writeResultsSubjectSelection,
+} from "../students-view/utils/selection-cookie";
 
-export default function SubjectsComponent({school, academicTerm}: {school: School; academicTerm: AcademicTerm}) {
-  // Routing and manual mutation for retries
+type TeacherClassRow = { id: string; name: string };
+
+export default function SubjectsComponent({ school, academicTerm }: { school: School; academicTerm: AcademicTerm }) {
   const router = useRouter();
   const pathname = usePathname();
   const { mutate } = useSWRConfig();
 
-  // Retrieve the user's role. Only regular users can edit scores.
   const { user } = useUser();
-  const canEdit = user?.role === "user";
+  const canEdit =
+    user?.role === "user" &&
+    !(user?.twoFactorEnabled === true) &&
+    user?.emailVerified === true;
 
-  // Global editing (across all sub-components) is disabled for now.
   const isGlobalEditing = false;
-  const selectionLocked = isGlobalEditing || !canEdit;
 
   // data hooks: grading system, teacher classes, class record, assessment structure
   const { data: gradingEntry, error: gradingError, isLoading: isGradingLoading } = getGradingSystem(academicTerm.id);
   const { data: assessmentStructure, error: assessmentError, isLoading: isAssessmentLoading } = getAssessmentStructure(academicTerm.id);
   const { data: teacherClasses, error: teacherClassesError, isLoading: isTeacherClassesLoading } = getTeacherClasses(academicTerm.id, true);
-  const firstClassId = teacherClasses?.[0]?.id ?? null;
-  const {data: classRecord, error: classRecordError, isLoading: isClassRecordLoading} = getClassRecord(firstClassId, academicTerm.id, true);
 
-  // Aggregate error states
-  const reportLoadError = gradingError ?? assessmentError ?? teacherClassesError ?? classRecordError;
+  const ownedClasses = (teacherClasses ?? []) as TeacherClassRow[];
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
 
-  // Extraact the students from the class record
+  useEffect(() => {
+    if (isTeacherClassesLoading) return;
+    if (ownedClasses.length === 0) {
+      setSelectedClassId(null);
+      return;
+    }
+    setSelectedClassId((prev) => {
+      if (prev && ownedClasses.some((cls) => cls.id === prev)) return prev;
+      const savedClassId = readResultsClassSelection(academicTerm.id);
+      if (savedClassId && ownedClasses.some((cls) => cls.id === savedClassId)) {
+        return savedClassId;
+      }
+      return ownedClasses[0].id;
+    });
+  }, [isTeacherClassesLoading, ownedClasses, academicTerm.id]);
+
+  const { data: classRecord, error: classRecordError, isLoading: isClassRecordLoading } = getClassRecord(
+    selectedClassId,
+    academicTerm.id,
+    true,
+  );
+
+  const reportLoadError =
+    (gradingError ?? assessmentError ?? teacherClassesError ?? classRecordError) ?? null;
+
   const classStudents: Student[] = useMemo(() => {
     if (!classRecord?.students) return [];
     return Array.isArray(classRecord.students) ? (classRecord.students as Student[]) : [];
   }, [classRecord]);
 
-  // Extract the subject options from the class record
   const subjectOptions: SubjectOption[] = useMemo(
     () =>
       (classRecord?.assignments ?? [])
@@ -63,7 +89,6 @@ export default function SubjectsComponent({school, academicTerm}: {school: Schoo
     [classRecord],
   );
 
-  // Sort the assessment structure by display order
   const sortedAssessmentStructure = useMemo(
     () =>
       [...(assessmentStructure ?? [])].sort(
@@ -88,7 +113,8 @@ export default function SubjectsComponent({school, academicTerm}: {school: Schoo
     [subjectOptions, selectedSubjectId],
   );
 
-  // Effect to update the selected subject and current subject index
+  // Keep selection/index stable across class/subject refreshes.
+  // Restore the cookie subject for this class+term, else fall back to the first subject.
   useEffect(() => {
     if (subjectOptions.length === 0) {
       if (selectedSubjectId !== null) setSelectedSubjectId(null);
@@ -96,32 +122,32 @@ export default function SubjectsComponent({school, academicTerm}: {school: Schoo
       return;
     }
 
-    const id = selectedSubjectId;
-    const nextIndex = id
-      ? subjectOptions.findIndex((s) => s.subjectId === id)
-      : 0;
+    let nextIndex = selectedSubjectId
+      ? subjectOptions.findIndex((s) => s.subjectId === selectedSubjectId)
+      : -1;
 
-    if (nextIndex === -1) {
-      setSelectedSubjectId(subjectOptions[0].subjectId);
-      setCurrentSubjectIndex(0);
-      return;
+    if (nextIndex === -1 && selectedClassId) {
+      const savedSubjectId = readResultsSubjectSelection(selectedClassId, academicTerm.id);
+      nextIndex = savedSubjectId
+        ? subjectOptions.findIndex((s) => s.subjectId === savedSubjectId)
+        : -1;
     }
+
+    if (nextIndex === -1) nextIndex = 0;
 
     if (nextIndex !== currentSubjectIndex) setCurrentSubjectIndex(nextIndex);
     if (subjectOptions[nextIndex].subjectId !== selectedSubjectId) {
       setSelectedSubjectId(subjectOptions[nextIndex].subjectId);
     }
-  }, [subjectOptions, selectedSubjectId, currentSubjectIndex]);
+  }, [subjectOptions, selectedSubjectId, currentSubjectIndex, selectedClassId, academicTerm.id]);
 
-  // Function to refresh the class record
   const refreshClassRecord = useCallback(() => {
-    if (!firstClassId) return;
+    if (!selectedClassId) return;
     void mutate(
-      `/api/v1/student-view/class-record?classId=${encodeURIComponent(firstClassId)}&termId=${encodeURIComponent(academicTerm.id)}`,
+      `/api/v1/student-view/class-record?classId=${encodeURIComponent(selectedClassId)}&termId=${encodeURIComponent(academicTerm.id)}`,
     );
-  }, [firstClassId, academicTerm.id, mutate]);
+  }, [selectedClassId, academicTerm.id, mutate]);
 
-  // Function to retry the report fetches
   const retryReportFetches = useCallback(() => {
     const termId = academicTerm.id;
     void mutate(`/api/v1/grading-system?termId=${encodeURIComponent(termId)}`);
@@ -130,7 +156,6 @@ export default function SubjectsComponent({school, academicTerm}: {school: Schoo
     refreshClassRecord();
   }, [academicTerm.id, mutate, refreshClassRecord]);
 
-  // Effect to handle the report load error by redirecting to the sign-in or forbidden page
   useEffect(() => {
     if (!reportLoadError) return;
     const status = getHttpStatus(reportLoadError);
@@ -141,13 +166,11 @@ export default function SubjectsComponent({school, academicTerm}: {school: Schoo
     }
   }, [reportLoadError, router, pathname]);
 
-  // Extract the enrolled students for the selected subject
   const enrolledStudents = useMemo(
     () => (selectedSubjectId ? getEnrolledStudents(selectedSubjectId, classStudents) : []),
     [selectedSubjectId, classStudents],
   );
 
-  // Extract the subject stats for the selected subject
   const subjectStats = useMemo(
     () =>
       selectedSubjectId
@@ -160,7 +183,6 @@ export default function SubjectsComponent({school, academicTerm}: {school: Schoo
     [selectedSubjectId, enrolledStudents, sortedAssessmentStructure],
   );
 
-  // Function to go to the previous subject
   const goToPreviousSubject = (): void => {
     if (subjectOptions.length === 0 || currentSubjectIndex <= 0) return;
     const newIndex = currentSubjectIndex - 1;
@@ -168,7 +190,6 @@ export default function SubjectsComponent({school, academicTerm}: {school: Schoo
     setSelectedSubjectId(subjectOptions[newIndex].subjectId);
   };
 
-  // Function to go to the next subject
   const goToNextSubject = (): void => {
     if (
       subjectOptions.length === 0 ||
@@ -181,18 +202,42 @@ export default function SubjectsComponent({school, academicTerm}: {school: Schoo
     setSelectedSubjectId(subjectOptions[newIndex].subjectId);
   };
 
-  // Function to handle the export functionality
-  const handleExport = (): void => {
-    if (!canEdit) return;
-    toast.info("Export functionality not available yet!");
+  const handleClassChange = (classId: string): void => {
+    if (classId === selectedClassId) return;
+    setSelectedSubjectId(null);
+    setCurrentSubjectIndex(0);
+    setSelectedClassId(classId);
   };
 
-  // Aggregate loading states
-  const isReportDataLoading = isGradingLoading || isTeacherClassesLoading || isClassRecordLoading || isAssessmentLoading;
-  const headerClassName = teacherClasses?.[0]?.name ?? null;
+  useEffect(() => {
+    if (!selectedClassId || !academicTerm.id) return;
+    writeResultsClassSelection(selectedClassId, academicTerm.id);
+  }, [selectedClassId, academicTerm.id]);
 
-  // Show error banner if there is a report load error
-  if (reportLoadError) {
+  useEffect(() => {
+    if (!selectedClassId || !academicTerm.id || !selectedSubjectId) return;
+    writeResultsSubjectSelection(selectedClassId, academicTerm.id, selectedSubjectId);
+  }, [selectedClassId, academicTerm.id, selectedSubjectId]);
+
+  const waitingForClassPick =
+    !isTeacherClassesLoading && ownedClasses.length > 0 && !selectedClassId;
+  const isReportDataLoading =
+    isGradingLoading ||
+    isTeacherClassesLoading ||
+    waitingForClassPick ||
+    (!!selectedClassId && isClassRecordLoading) ||
+    isAssessmentLoading;
+
+  const selectedClassName =
+    classRecord?.className ??
+    ownedClasses.find((cls) => cls.id === selectedClassId)?.name ??
+    null;
+  const teacherClassOptions = ownedClasses.map((cls) => ({
+    id: cls.id,
+    name: cls.name,
+  }));
+
+  if (reportLoadError !== null) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-5xl mx-auto">
@@ -209,12 +254,17 @@ export default function SubjectsComponent({school, academicTerm}: {school: Schoo
     );
   }
 
-  // Show loading skeleton if the report data is loading
   if (isReportDataLoading) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-5xl mx-auto">
-          <ResultsHeaderSkeleton />
+          <PrintExportHeader
+            isGlobalEditing
+            className={selectedClassName}
+            teacherClasses={teacherClassOptions}
+            selectedClassId={selectedClassId}
+            onSelectedClassChange={handleClassChange}
+          />
           <StudentSelectionSkeleton />
           <Card>
             <CardContent className="p-3 md:p-8">
@@ -227,8 +277,8 @@ export default function SubjectsComponent({school, academicTerm}: {school: Schoo
     );
   }
 
-  // Show error banner if there is no class assigned
-  if (teacherClasses !== undefined && !firstClassId) {
+  // TODO: Style the "not assigned as form teacher" empty state.
+  if (!isTeacherClassesLoading && ownedClasses.length === 0) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-5xl mx-auto">
@@ -242,7 +292,7 @@ export default function SubjectsComponent({school, academicTerm}: {school: Schoo
     );
   }
 
-  // Show error banner if there are no subjects assigned
+  // TODO: Style the "no subjects assigned" empty state.
   if (subjectOptions.length === 0) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
@@ -261,10 +311,11 @@ export default function SubjectsComponent({school, academicTerm}: {school: Schoo
     <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-5xl mx-auto">
         <PrintExportHeader
-          handleExport={handleExport}
           isGlobalEditing={isGlobalEditing}
-          className={headerClassName}
-          canEdit={canEdit}
+          className={selectedClassName}
+          teacherClasses={teacherClassOptions}
+          selectedClassId={selectedClassId}
+          onSelectedClassChange={handleClassChange}
         />
 
         <SubjectSelection
@@ -297,8 +348,6 @@ export default function SubjectsComponent({school, academicTerm}: {school: Schoo
               assessmentStructure={sortedAssessmentStructure}
               readOnly={!canEdit}
             />
-
-            <Signatures />
           </CardContent>
         </Card>
       </div>

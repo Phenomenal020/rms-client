@@ -20,14 +20,15 @@ export function TermForm() {
 
     // Org admin gate — disable management features for non-orgadmin users
     const { user } = useUser();
-    const canManage = user?.role === "orgadmin";
+    const canManage = user?.role === "orgadmin" && !(user?.twoFactorEnabled === true) && user?.emailVerified === true;
 
-    // Fetch the user's terms from the db and extract the active term
+    // Fetch the user's terms from the db and extract the active term. Other components use this active term id to fetch the grading system and assessment structure for that term.
     const { data: terms, error: termsError, isLoading: isLoadingTerms } = getTerms();
     const termList = (terms ?? []) as singleTermPayload[];
     const activeTerm = termList.find((term) => term.status === "ACTIVE") ?? null;
     const activeTermId = activeTerm?.id ?? "";
 
+    // On hit retry, invalidate the cache for the terms, grading system, and assessment structure
     function retryAllFetches() {
         void mutate("/api/v1/terms");
         void mutate((key) => typeof key === "string" && key.startsWith("/api/v1/grading-system"));

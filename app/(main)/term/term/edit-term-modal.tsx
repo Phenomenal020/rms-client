@@ -35,13 +35,13 @@ const STATUS_LABELS: Record<TermStatus, string> = {
     DRAFT: "Draft",
     ARCHIVED: "Archived",
 };
-
 const TERM_SLOT_LABELS: Record<NonNullable<TermContext["term"]>, string> = {
     FIRST: "First",
     SECOND: "Second",
     THIRD: "Third",
 };
 
+// Display labels for the term enum
 function TermStatusBadge({ status }: { status: TermStatus | undefined }) {
     if (!status) return null;
     const label = STATUS_LABELS[status];

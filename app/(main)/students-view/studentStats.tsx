@@ -24,37 +24,37 @@ export const StudentStats = ({ studentStats, studentName, className }: StudentSt
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
 
         {/* Student Name */}
-        <p className="text-sm sm:text-base">
+        <p className="text-sm lg:text-base">
           <span className="font-semibold text-muted-foreground">Name: </span>
           <span className="text-foreground">{studentName}</span>
         </p>
 
         {/* Class */}
-        <p className="text-sm sm:text-base">
+        <p className="text-sm lg:text-base">
           <span className="font-semibold text-muted-foreground">Class: </span>
           <span className="text-foreground">{className}</span>
         </p>
 
         {/* Total Marks */}
-        <p className="text-sm sm:text-base">
+        <p className="text-sm lg:text-base">
           <span className="font-semibold text-muted-foreground">Total Marks: </span>
           <span className="text-foreground">{studentStats.totalMarks}</span>
         </p>
 
         {/* Position */}
-        <p className="text-sm sm:text-base">
+        <p className="text-sm lg:text-base">
           <span className="font-semibold text-muted-foreground">Position: </span>
           <span className="text-foreground">N/A</span>
         </p>
 
         {/* Average Score */}
-        <p className="text-sm sm:text-base">
+        <p className="text-sm lg:text-base">
           <span className="font-semibold text-muted-foreground">Average: </span>
           <span className="text-foreground">{studentStats.average}%</span>
         </p>
 
         {/* Overall Grade */}
-        <p className="text-sm sm:text-base">
+        <p className="text-sm lg:text-base">
           <span className="font-semibold text-muted-foreground">Grade: </span>
           <span className="text-foreground">{studentStats.overallGrade}</span>
         </p>

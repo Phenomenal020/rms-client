@@ -2,5 +2,5 @@
 import { ResultsSkeleton } from "./ResultsSkeleton";
 
 export default function Loading() {
-  return <ResultsSkeleton />;
+  return <ResultsSkeleton title="Result Sheet" />;
 }

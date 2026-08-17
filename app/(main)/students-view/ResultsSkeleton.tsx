@@ -102,11 +102,22 @@ export function ResultsContentSkeleton() {
 }
 
 // Full-page skeleton — route loading.tsx and page.tsx initial fetch
-export function ResultsSkeleton() {
+export function ResultsSkeleton({ title }: { title?: string } = {}) {
   return (
     <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-5xl mx-auto">
-        <ResultsHeaderSkeleton />
+        {title ? (
+          <section className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">
+                {title}
+              </h1>
+              <Skeleton className="h-4 w-24" />
+            </div>
+          </section>
+        ) : (
+          <ResultsHeaderSkeleton />
+        )}
         <StudentSelectionSkeleton />
         <Card>
           <CardContent className="p-3 md:p-8">

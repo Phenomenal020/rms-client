@@ -24,6 +24,7 @@ type EditClassModalProps = {
     teacherOptions: teacherOption[];
     subjectOptions: singleGetSubjectPayload[];
     initialSubjects: singleGetSubjectPayload[];
+    canAssignSubjects?: boolean;
 };
 
 export function EditClassModal({
@@ -36,6 +37,7 @@ export function EditClassModal({
     teacherOptions,
     subjectOptions,
     initialSubjects = [],
+    canAssignSubjects = true,
 }: EditClassModalProps) {
 
     // state to track the subjects that are checked (assigned to the class being edited)
@@ -49,7 +51,7 @@ export function EditClassModal({
                 shouldDirty: false,
             });
         }
-    }, [open, editForm]);
+    }, [open, editForm, initialSubjects]);
 
     // Sync subjects' changes to the form
     function syncSubjectsToForm(next: singleGetSubjectPayload[]) {
@@ -59,8 +61,8 @@ export function EditClassModal({
     // Toggle a subject's selection by adding or removing it from checkedSubjects
     function toggleSubject(subject: singleGetSubjectPayload) {
         setCheckedSubjects((prev) => {
-            const next = prev.some((subj) => subj.name === subject.name)
-                ? prev.filter((subj) => subj.name !== subject.name)
+            const next = prev.some((subj) => subj.id === subject.id)
+                ? prev.filter((subj) => subj.id !== subject.id)
                 : [...prev, subject];
             syncSubjectsToForm(next as singleGetSubjectPayload[]);
             return next as singleGetSubjectPayload[];
@@ -68,6 +70,7 @@ export function EditClassModal({
     }
 
     // Handle the select all/deselect all button by modifying checkedSubjects based on allSelected state
+    const subjectsDisabled = readOnly || !canAssignSubjects;
     const allSelected =
         subjectOptions.length > 0 && checkedSubjects.length === subjectOptions.length;
     function handleSelectAll() {
@@ -168,8 +171,9 @@ export function EditClassModal({
                                             Subjects
                                         </p>
                                         <p className="text-xs text-muted-foreground">
-                                            {checkedSubjects.length} of {subjectOptions.length}{" "}
-                                            selected
+                                            {canAssignSubjects
+                                                ? `${checkedSubjects.length} of ${subjectOptions.length} selected`
+                                                : "Subjects can be assigned after an academic term is active"}
                                         </p>
                                     </div>
                                     {/* Select All/Deselect All Button */}
@@ -178,7 +182,7 @@ export function EditClassModal({
                                         variant="outline"
                                         size="sm"
                                         onClick={handleSelectAll}
-                                        disabled={readOnly}
+                                        disabled={subjectsDisabled}
                                         className="h-8 text-xs cursor-pointer"
                                     >
                                         {allSelected ? "Deselect All" : "Select All"}
@@ -191,12 +195,12 @@ export function EditClassModal({
                                         <label
                                             key={subject.id}
                                             htmlFor={`edit-subject-${subject.id}`}
-                                            className="flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-muted/50 cursor-pointer select-none"
+                                            className={`flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-muted/50 select-none ${subjectsDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
                                         >
                                             <Checkbox
                                                 id={`edit-subject-${subject.id}`}
-                                                checked={checkedSubjects.some((subj) => subj.name === subject.name)}
-                                                disabled={readOnly}
+                                                checked={checkedSubjects.some((subj) => subj.id === subject.id)}
+                                                disabled={subjectsDisabled}
                                                 onCheckedChange={() => toggleSubject(subject)}
                                             />
                                             <span className="text-sm text-foreground">
@@ -213,7 +217,7 @@ export function EditClassModal({
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    disabled={loading || (!readOnly && !editForm.formState.isDirty)}
+                                    disabled={loading}
                                     onClick={() => onOpenChange(false)}
                                     className="cursor-pointer h-10 md:h-12"
                                 >

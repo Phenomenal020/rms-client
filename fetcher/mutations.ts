@@ -5,12 +5,12 @@ import { axiosInstance } from "@/fetcher/fetcher"
 import { useSWRConfig } from "swr"
 import useSWRMutation from "swr/mutation"
 import type { UserData } from "@/types/updateProfile"
-import type { CreateTermPayload, UpdateTermPayload, SaveGradingSystemPayload } from "@/types/term"
-import type { createSingleStudent, updateSingleStudent } from "@/types/students"
+import type { CreateTermPayload, UpdateTermPayload, DeleteTermPayload, SaveGradingSystemPayload } from "@/types/term"
+import type { createSingleStudent, updateSingleStudent, deleteSingleStudent } from "@/types/students"
 import type { SaveClassRecordExportPayload, SaveStudentScoresPayload, SaveSubjectScoresPayload } from "@/types/view"
 import type { AddMemberPayload } from "@/types/organisation"
-import type { createSubjectPayload, updateSubjectPayload } from "@/types/subjects";
-import type { createClassPayload, updateClassPayload } from "@/types/classes";
+import type { createSubjectPayload, updateSubjectPayload, deleteSubjectPayload } from "@/types/subjects";
+import type { createClassPayload, updateClassPayload, deleteClassPayload } from "@/types/classes";
 import type { createAssessmentStructurePayload, updateAssessmentStructurePayload } from "@/types/term";
 import type { SaveEnrollmentPayload } from "@/types/enrollments";
 import type {
@@ -384,6 +384,29 @@ export function useUpdateTerm() {
     };
 }
 
+// delete term — DELETE /api/v1/terms/:id
+export function useDeleteTerm() {
+    const { mutate } = useSWRConfig();
+    const { trigger, isMutating, error, data } = useSWRMutation(
+        TERMS_KEY,
+        async (_url, { arg }: { arg: DeleteTermPayload }) => {
+            const response = await axiosInstance.delete(termByIdPath(arg.id));
+            return response.data;
+        },
+        {
+            onSuccess: () => {
+                mutate(TERMS_KEY);
+            },
+        },
+    );
+    return {
+        trigger,
+        isMutating,
+        error,
+        data,
+    };
+}
+
 // Save grading system for a term — POST /api/v1/grading-system/:termId (full replace)
 export function useSaveGradingSystem() {
     const { mutate } = useSWRConfig();
@@ -482,14 +505,37 @@ export function useCreateSubject() {
     };
 }
 
-// update a subject — PATCH /api/v1/subjects/:id
+// update a subject — PUT /api/v1/subjects/:id
 export function useUpdateSubject() {
     const { mutate } = useSWRConfig();
     const { trigger, isMutating, error, data } = useSWRMutation(
         SUBJECTS_KEY,
         async (_url, { arg }: { arg: updateSubjectPayload }) => {
             const { id, ...body } = arg;
-            const response = await axiosInstance.patch(subjectByIdPath(id), body);
+            const response = await axiosInstance.put(subjectByIdPath(id), body);
+            return response.data;
+        },
+        {
+            onSuccess: () => {
+                mutate(SUBJECTS_KEY);
+            },
+        },
+    );
+    return {
+        trigger,
+        isMutating,
+        error,
+        data,
+    };
+}
+
+// delete a subject — DELETE /api/v1/subjects/:id
+export function useDeleteSubject() {
+    const { mutate } = useSWRConfig();
+    const { trigger, isMutating, error, data } = useSWRMutation(
+        SUBJECTS_KEY,
+        async (_url, { arg }: { arg: deleteSubjectPayload }) => {
+            const response = await axiosInstance.delete(subjectByIdPath(arg.id));
             return response.data;
         },
         {
@@ -549,6 +595,23 @@ export function useUpdateClass() {
     return { trigger, isMutating, error, data };
 }
 
+// delete a class — DELETE /api/v1/classes/:id
+export function useDeleteClass() {
+    const { mutate } = useSWRConfig();
+    const { trigger, isMutating, error, data } = useSWRMutation(
+        CLASSES_KEY,
+        async (_url, { arg }: { arg: deleteClassPayload }) => {
+            const response = await axiosInstance.delete(classByIdPath(arg.id));
+            return response.data;
+        },
+        {
+            onSuccess: () => {
+                mutate(startsWithKey(CLASSES_KEY), undefined, { revalidate: true });
+            },
+        },
+    );
+    return { trigger, isMutating, error, data };
+}
 
 
 
@@ -584,6 +647,29 @@ export function useUpdateStudent() {
         async (_url, { arg }: { arg: updateSingleStudent }) => {
             const { id, ...body } = arg;
             const response = await axiosInstance.patch(studentByIdPath(id), body);
+            return response.data;
+        },
+        {
+            onSuccess: () => {
+                mutate(STUDENTS_KEY);
+            },
+        },
+    );
+    return {
+        trigger,
+        isMutating,
+        error,
+        data,
+    };
+}
+
+// delete a student — DELETE /api/v1/students/:id
+export function useDeleteStudent() {
+    const { mutate } = useSWRConfig();
+    const { trigger, isMutating, error, data } = useSWRMutation(
+        STUDENTS_KEY,
+        async (_url, { arg }: { arg: deleteSingleStudent }) => {
+            const response = await axiosInstance.delete(studentByIdPath(arg.id));
             return response.data;
         },
         {

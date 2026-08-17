@@ -6,17 +6,18 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/shadcn/ui/card";
 import { Input } from "@/shadcn/ui/input";
 import { Button } from "@/shadcn/ui/button";
 import SmallTermText from "@/shared-components/small-term-text";
 import { SecuritySetupModal } from "@/shared-components/security-setup-modal";
 import { ErrorBanner } from "@/shared-components/error-banner";
+import { ConfirmDialog } from "@/shared-components/confirm-dialog";
 import { AddStudentModal } from "./add-student-modal";
 import { EditStudentModal } from "./edit-student-modal";
 import { StudentsLoadingTable } from "./students-loading-table";
-import { getApiErrorMessage, getHttpStatus, useCreateStudent, useUpdateStudent } from "@/fetcher/mutations";
+import { getApiErrorMessage, getHttpStatus, useCreateStudent, useUpdateStudent, useDeleteStudent } from "@/fetcher/mutations";
 import { handleAuthRedirect } from "@/utils/auth-redirect";
 import { getStudents, getClasses } from "@/fetcher/queries";
 import { useUser } from "@/contexts/user-context";
@@ -26,9 +27,9 @@ import type { getClassPayload } from "@/types/classes";
 
 // Add student schema
 const addStudentSchema = z.object({
-    firstName: z.string().trim().min(1, { message: "First name is required" }),
-    middleName: z.string().trim().optional(),
-    lastName: z.string().trim().min(1, { message: "Last name is required" }),
+    firstName: z.string().trim().max(128, { message: "First name should not be more than 128 characters" }).min(1, { message: "First name is required" }),
+    middleName: z.string().trim().max(128, { message: "Middle name should not be more than 128 characters" }).optional(),
+    lastName: z.string().trim().max(128, { message: "Last name should not be more than 128 characters" }).min(1, { message: "Last name is required" }),
     gender: z.enum(["Male", "Female"], { message: "Gender is required" }),
     classId: z.string().nullable().optional(),
 });
@@ -66,11 +67,11 @@ export function StudentsForm() {
 
     // Org admin gate — disable management features for non-orgadmin users
     const { user } = useUser();
-    const canManage = user?.role === "orgadmin" && user?.twoFactorEnabled === true;
+    const canManage = user?.role === "orgadmin" && !(user?.twoFactorEnabled === true) && user?.emailVerified === true;
 
     // Data fetchers
-    const {data: students, error: studentsError, isLoading: isLoadingStudents} = getStudents();
-    const {data: classes, error: classesError, isLoading: isLoadingClasses} = getClasses(null);  // get all classes 
+    const { data: students, error: studentsError, isLoading: isLoadingStudents, isValidating: isValidatingStudents } = getStudents();
+    const { data: classes, error: classesError, isLoading: isLoadingClasses, isValidating: isValidatingClasses } = getClasses(null);  // get all classes 
     const studentList = (students ?? []) as getSingleStudent[];
 
     // Error handling: split critical (table) vs auxiliary (modals) fetch failures
@@ -82,6 +83,7 @@ export function StudentsForm() {
     // Mutation hooks
     const { trigger: createStudent, isMutating: isCreatingStudent, error: createStudentError } = useCreateStudent();
     const { trigger: updateStudent, isMutating: isUpdatingStudent, error: updateStudentError } = useUpdateStudent();
+    const { trigger: deleteStudent, isMutating: isDeletingStudent, error: deleteStudentError } = useDeleteStudent();
 
     function retryAllFetches() {
         void mutate("/api/v1/students");
@@ -126,6 +128,7 @@ export function StudentsForm() {
     // Edit dialog state — track by student id to avoid index/filter mismatch
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+    const [studentToDelete, setStudentToDelete] = useState<getSingleStudent | null>(null);
 
     // Add form
     const addForm = useForm<AddStudentValues>({
@@ -138,11 +141,6 @@ export function StudentsForm() {
         resolver: zodResolver(editStudentSchema),
         defaultValues: { id: "", firstName: "", middleName: "", lastName: "", gender: "Female", status: "active", classId: null },
     });
-
-    // Loading states
-    const addLoading = addForm.formState.isSubmitting || isCreatingStudent;
-    const editLoading = editForm.formState.isSubmitting || isUpdatingStudent;
-    const isComponentLoading = isLoadingStudents || isLoadingClasses;
 
     // Open add dialog
     function openAddDialog() {
@@ -160,11 +158,16 @@ export function StudentsForm() {
             firstName: s.firstName,
             middleName: s.middleName ?? "",
             lastName: s.lastName,
-            gender: toTitleCase(s.gender) as EditStudentValues["gender"],
+            gender: s.gender === "MALE" ? "Male" : "Female",
             status: s.status.toLowerCase() as EditStudentValues["status"],
             classId: s.classId ?? null,
         });
         setIsEditOpen(true);
+    }
+
+    function openDeleteDialog(s: getSingleStudent) {
+        if (!canManage) return;
+        setStudentToDelete(s);
     }
 
     // Add a student
@@ -240,7 +243,7 @@ export function StudentsForm() {
                 firstName,
                 middleName: values.middleName?.trim() || undefined,
                 lastName,
-                gender: values.gender.toUpperCase() as "MALE" | "FEMALE" | "NONE",
+                gender: values.gender.toUpperCase() as "MALE" | "FEMALE",
                 status: values.status.toUpperCase() as "ACTIVE" | "INACTIVE",
                 // undefined = leave unchanged; null = remove from class; string = assign to class
                 classId: values.classId !== undefined ? values.classId : undefined,
@@ -255,6 +258,32 @@ export function StudentsForm() {
             }
         }
     }
+
+    async function deleteStudentHandler() {
+        if (!canManage || !studentToDelete) return;
+        const displayName = getDisplayName({
+            firstName: studentToDelete.firstName,
+            middleName: studentToDelete.middleName ?? "",
+            lastName: studentToDelete.lastName,
+        });
+        try {
+            await deleteStudent({ id: studentToDelete.id });
+            setStudentToDelete(null);
+            toast.success(`Student "${displayName}" deleted successfully`);
+        } catch (error) {
+            const mutationErr = deleteStudentError || error;
+            if (!handleAuthRedirect(mutationErr, { router, pathname })) {
+                toast.error(getApiErrorMessage(mutationErr, "Failed to delete student. Please try again."));
+            }
+        }
+    }
+
+    const addLoading = addForm.formState.isSubmitting || isCreatingStudent;
+    const editLoading = editForm.formState.isSubmitting || isUpdatingStudent;
+    const deleteLoading = isDeletingStudent;
+    const isMutating = addLoading || editLoading || deleteLoading;
+    const isComponentLoading = isLoadingStudents || isLoadingClasses;
+    const isRefreshing = isValidatingStudents || isValidatingClasses;
 
     return (
         <>
@@ -291,6 +320,27 @@ export function StudentsForm() {
                 classOptions={classOptions}
             />
 
+            <ConfirmDialog
+                open={studentToDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open && !deleteLoading) setStudentToDelete(null);
+                }}
+                title="Delete student?"
+                description={
+                    studentToDelete
+                        ? `Delete "${getDisplayName({
+                            firstName: studentToDelete.firstName,
+                            middleName: studentToDelete.middleName ?? "",
+                            lastName: studentToDelete.lastName,
+                        })}"? This cannot be undone. Students enrolled in subjects cannot be deleted until those enrollments are removed.`
+                        : "Delete this student? This cannot be undone."
+                }
+                confirmLabel="Delete Student"
+                loading={deleteLoading}
+                disabled={!studentToDelete}
+                onConfirm={deleteStudentHandler}
+            />
+
             {/* Main Card */}
             <Card className="border shadow-md">
                 <CardContent className="space-y-4">
@@ -307,14 +357,14 @@ export function StudentsForm() {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     placeholder="Search by name, gender, or class..."
                                     className="h-10 md:h-12 w-full sm:max-w-xs"
-                                    disabled={addLoading || editLoading || loadError !== undefined || isComponentLoading}
+                                    disabled={isMutating || loadError !== null || isComponentLoading || isRefreshing}
                                 />
                                 {canManage && (
                                     <Button
                                         type="button"
                                         onClick={openAddDialog}
                                         className="cursor-pointer whitespace-nowrap h-10 md:h-12"
-                                        disabled={addLoading || editLoading || loadError !== undefined || isComponentLoading}
+                                        disabled={isMutating || loadError !== null || isComponentLoading || isRefreshing}
                                     >
                                         Add Student
                                     </Button>
@@ -354,13 +404,13 @@ export function StudentsForm() {
                                     </div>
                                 ) : (
                                     <div className="overflow-x-auto py-2">
-                                        <table className="min-w-[400px] w-full border-collapse text-sm md:text-base text-left">
+                                        <table className="min-w-[400px] w-full border-collapse text-sm lg:text-base text-left">
                                             <colgroup>
                                                 <col className="w-[8%]" />
-                                                <col className="w-[36%]" />
+                                                <col className="w-[32%]" />
+                                                <col className="w-[22%]" />
+                                                <col className="w-[14%]" />
                                                 <col className="w-[24%]" />
-                                                <col className="w-[16%]" />
-                                                <col className="w-[16%]" />
                                             </colgroup>
                                             <thead>
                                                 <tr className="bg-muted/50 border-b border-border">
@@ -397,22 +447,36 @@ export function StudentsForm() {
                                                             <span className="block truncate">{toTitleCase(s.gender)}</span>
                                                         </td>
 
-                                                        {canManage && (
-                                                            <td className="p-2 text-right">
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => openEditDialog(s)}
-                                                                    disabled={addLoading || editLoading || loadError !== undefined || isComponentLoading}
-                                                                    className="cursor-pointer border border-blue-500/25 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300"
-                                                                    aria-label="Edit student"
-                                                                >
-                                                                    <Pencil className="h-3 w-3" />
-                                                                    <span className="sr-only sm:not-sr-only">Edit</span>
-                                                                </Button>
-                                                            </td>
-                                                        )}
+                                                        <td className="p-2 text-right">
+                                                            {canManage && (
+                                                                <div className="flex items-center justify-end gap-1">
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        onClick={() => openEditDialog(s)}
+                                                                        disabled={isMutating || loadError !== null || isComponentLoading || isRefreshing}
+                                                                        className="cursor-pointer border border-blue-500/25 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300 text-sm lg:text-base"
+                                                                        aria-label="Edit student"
+                                                                    >
+                                                                        <Pencil className="h-3 w-3" />
+                                                                        <span className="sr-only sm:not-sr-only">Edit</span>
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        onClick={() => openDeleteDialog(s)}
+                                                                        disabled={isMutating || loadError !== null || isComponentLoading || isRefreshing}
+                                                                        className="cursor-pointer border border-red-500/25 bg-red-500/10 text-red-700 hover:bg-red-500/15 dark:text-red-300 text-sm lg:text-base"
+                                                                        aria-label="Delete student"
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                        <span className="sr-only sm:not-sr-only">Delete</span>
+                                                                    </Button>
+                                                                </div>
+                                                            )}
+                                                        </td>
                                                     </tr>
                                                 ))}
                                             </tbody>

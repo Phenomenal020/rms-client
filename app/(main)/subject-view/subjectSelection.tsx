@@ -36,7 +36,7 @@ export function SubjectSelection({
     <Card className="mb-6">
       <CardContent className="p-2 md:p-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 sm:gap-2 md:gap-4 w-[70%] text-sm md:text-base">
+          <div className="flex items-center gap-1 sm:gap-2 md:gap-4 w-[70%] text-sm lg:text-base">
             <Select
               value={selectedSubjectId ?? ""}
               onValueChange={(subjectId) => {

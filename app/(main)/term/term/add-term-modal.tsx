@@ -36,7 +36,6 @@ export function AddTermModal({ open, onOpenChange, form, onSubmit, loading }: Ad
 
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-
                         <div className="grid grid-cols-2 gap-1">
                             {/* Term — enum select (FIRST / SECOND / THIRD) */}
                             <FormField
@@ -61,7 +60,6 @@ export function AddTermModal({ open, onOpenChange, form, onSubmit, loading }: Ad
                                     </FormItem>
                                 )}
                             />
-
                             {/* Academic Year */}
                             <FormField
                                 control={form.control}
@@ -91,7 +89,6 @@ export function AddTermModal({ open, onOpenChange, form, onSubmit, loading }: Ad
 
                         {/* Start Date and End Date */}
                         <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-
                             {/* Start Date */}
                             <FormField
                                 control={form.control}
@@ -161,7 +158,6 @@ export function AddTermModal({ open, onOpenChange, form, onSubmit, loading }: Ad
                                                     mode="single"
                                                     selected={field.value}
                                                     onSelect={field.onChange}
-                                                    initialFocus
                                                 />
                                             </PopoverContent>
                                         </Popover>
@@ -202,7 +198,7 @@ export function AddTermModal({ open, onOpenChange, form, onSubmit, loading }: Ad
                                 type="button"
                                 variant="outline"
                                 onClick={() => onOpenChange(false)}
-                                disabled={loading || !form.formState.isDirty}
+                                disabled={loading}
                                 className="cursor-pointer h-10 md:h-12 cursor-pointer"
                             >
                                 Cancel
@@ -216,10 +212,8 @@ export function AddTermModal({ open, onOpenChange, form, onSubmit, loading }: Ad
                                 Add Term
                             </LoadingButton>
                         </DialogFooter>
-
                     </form>
                 </Form>
-
             </DialogContent>
         </Dialog>
     );

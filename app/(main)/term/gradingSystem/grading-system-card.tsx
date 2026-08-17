@@ -19,6 +19,7 @@ import { getGradingSystem } from "@/fetcher/queries";
 import type { getSingleGradingEntry, GradingEntryPayload } from "@/types/term";
 import { handleAuthRedirect } from "@/utils/auth-redirect";
 import { GradingTableSkeleton } from "../term-loading-skeletons";
+import { ConfirmDialog } from "@/shared-components/confirm-dialog";
 
 // Used by both add and edit modals
 export const gradingEntrySchema = z.object({
@@ -35,6 +36,16 @@ export type GradingEntryValues = z.infer<typeof gradingEntrySchema>;
 function validateGradingCoverage(entries: GradingEntryValues[]): string | null {
     // If there are no entries, return an error
     if (entries.length === 0) return "At least one grade entry is required";
+
+    // Check for duplicate grades (ie, A and a are the same grade, so fail...)
+    const seenGrades = new Set<string>();
+    for (const entry of entries) {  // for each grade entry
+        const normalised = entry.grade.toLowerCase();  // normalise the actual grade (eg, A -> a)
+        if (seenGrades.has(normalised)) {
+            return `Grade label "${entry.grade}" is already used. Labels must be unique (case-insensitive).`;
+        }  // Check if the normalised grade is already in the set. If true, return an error
+        seenGrades.add(normalised); // Otherwise, add the normalised grade to the set
+    }
 
     // Otherwise, sort the entries by minScore
     const sorted = [...entries].sort((a, b) => a.minScore - b.minScore);
@@ -69,6 +80,17 @@ function hasRangeOverlap(
     });
 }
 
+// Check for duplicate grades (ie, A and a are the same grade, so fail...)
+function hasDuplicateGrade(
+    entries: GradingEntryValues[],
+    grade: string,
+): boolean {
+    const normalised = grade.toLowerCase();
+    return entries.some((g, i) => {
+        return g.grade.toLowerCase() === normalised;
+    });
+}
+
 type GradingSystemCardProps = {
     termId: string;
     canManage: boolean;
@@ -86,7 +108,7 @@ export function GradingSystemCard({ termId, canManage, onRetryAll }: GradingSyst
         ? `/api/v1/grading-system?termId=${encodeURIComponent(termId)}`
         : null;
 
-    const criticalLoadError = termId ? gsError : undefined;
+    const criticalLoadError = termId ? gsError : null;
     const isComponentLoading = Boolean(termId) && isLoadingGS;
 
     useEffect(() => {
@@ -130,6 +152,7 @@ export function GradingSystemCard({ termId, canManage, onRetryAll }: GradingSyst
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
+    const [gradingToDelete, setGradingToDelete] = useState<number | null>(null);
 
     // Derived: true when 0–100 is fully covered — disables the Add button
     const isFullyCovered = validateGradingCoverage(gradings) === null;
@@ -163,6 +186,11 @@ export function GradingSystemCard({ termId, canManage, onRetryAll }: GradingSyst
 
     // Add entry to local state — does NOT call the API (use Save Changes to persist)
     function addGrading(values: GradingEntryValues) {
+        // Check for duplicate grade before you add a new grade
+        if (hasDuplicateGrade(gradings, values.grade)) {
+            addForm.setError("grade", { message: `Grade "${values.grade}" is already used` });
+            return;
+        }
         // If the range overlaps with an existing grade range, return an error
         if (hasRangeOverlap(gradings, values.minScore, values.maxScore)) {
             toast.error("This range overlaps with an existing grade range");
@@ -184,6 +212,11 @@ export function GradingSystemCard({ termId, canManage, onRetryAll }: GradingSyst
             toast.error("No grade selected to update");
             return;
         }
+        // Check for duplicate grade before you update a grade
+        if (hasDuplicateGrade(gradings, values.grade)) {
+            toast.error(`Grade "${values.grade}" is already used`);
+            return;
+        }
         // If the range overlaps with an existing grade range, return an error
         if (hasRangeOverlap(gradings, values.minScore, values.maxScore, editingIndex)) {
             toast.error("This range overlaps with an existing grade range");
@@ -197,13 +230,13 @@ export function GradingSystemCard({ termId, canManage, onRetryAll }: GradingSyst
         toast.success(`Grade "${values.grade}" updated. Save Changes to persist.`);
     }
 
-    // Delete entry from local state — does NOT call the API
-    function deleteGrading(index: number) {
-        if (!canManage) return;
-        const label = gradings[index].grade;
-        setGradings((prev) => prev.filter((_, i) => i !== index));
-        // state management
+    // Delete entry from local state — does NOT call the API (use Save Changes to persist)
+    function deleteGrading() {
+        if (!canManage || gradingToDelete === null) return;
+        const label = gradings[gradingToDelete].grade;
+        setGradings((prev) => prev.filter((_, i) => i !== gradingToDelete));
         setGradingDirty(true);
+        setGradingToDelete(null);
         toast.success(`Deleted grade "${label}". Save Changes to persist.`);
     }
 
@@ -284,6 +317,22 @@ export function GradingSystemCard({ termId, canManage, onRetryAll }: GradingSyst
                 loading={editForm.formState.isSubmitting || isSaving}
             />
 
+            <ConfirmDialog
+                open={gradingToDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open) setGradingToDelete(null);
+                }}
+                title="Remove grade?"
+                description={
+                    gradingToDelete !== null
+                        ? `Remove "${gradings[gradingToDelete]?.grade}" from the list? This is not saved until you click Save Changes.`
+                        : "Remove this grade from the list?"
+                }
+                confirmLabel="Remove"
+                disabled={gradingToDelete === null}
+                onConfirm={deleteGrading}
+            />
+
             <Card className="border shadow-md">
                 <CardContent className="space-y-4">
                     <section className="overflow-hidden rounded-sm bg-card">
@@ -300,7 +349,7 @@ export function GradingSystemCard({ termId, canManage, onRetryAll }: GradingSyst
                                     disabled={
                                         isFullyCovered
                                         || !termId
-                                        || criticalLoadError !== undefined
+                                        || criticalLoadError !== null
                                         || isComponentLoading
                                         || isSaving
                                     }
@@ -339,7 +388,7 @@ export function GradingSystemCard({ termId, canManage, onRetryAll }: GradingSyst
                                             <th className="py-2 pr-2 w-[20%] md:w-[28%] font-semibold text-muted-foreground">Grade</th>
                                             <th className="py-2 pr-2 w-[24%] md:w-[28%] font-semibold text-muted-foreground">Min Score</th>
                                             <th className="py-2 pr-2 w-[24%] md:w-[28%] font-semibold text-muted-foreground">Max Score</th>
-                                            {canManage && <th className="py-2 w-[32%] md:w-[16%]"></th>}
+                                            <th className="py-2 w-[32%] md:w-[16%]"></th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -351,8 +400,8 @@ export function GradingSystemCard({ termId, canManage, onRetryAll }: GradingSyst
                                                 <td className="py-2 pr-2 font-medium truncate">{entry.grade}</td>
                                                 <td className="py-2 pr-2 truncate">{entry.minScore}</td>
                                                 <td className="py-2 pr-2 truncate">{entry.maxScore}</td>
-                                                {canManage && (
-                                                    <td className="py-2">
+                                                <td className="py-2">
+                                                    {canManage && (
                                                         <div className="flex items-center justify-end gap-1">
                                                             {/* Edit Button */}
                                                             <Button
@@ -370,15 +419,15 @@ export function GradingSystemCard({ termId, canManage, onRetryAll }: GradingSyst
                                                                 type="button"
                                                                 variant="secondary"
                                                                 size="sm"
-                                                                onClick={() => deleteGrading(index)}
+                                                                onClick={() => setGradingToDelete(index)}
                                                                 className="cursor-pointer border border-red-500/25 bg-red-500/10 text-red-700 hover:bg-red-500/15 dark:text-red-300 text-sm md:text-base"
                                                             >
                                                                 <Trash2 className="h-3 w-3" />
                                                                 <span className="hidden sm:inline">Delete</span>
                                                             </Button>
                                                         </div>
-                                                    </td>
-                                                )}
+                                                    )}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>

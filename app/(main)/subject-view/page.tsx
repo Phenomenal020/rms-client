@@ -45,11 +45,11 @@ const SubjectsPage = () => {
 
   // Show loading skeleton while fetching data
   if (isShellLoading) {
-    return <ResultsSkeleton />;
+    return <ResultsSkeleton title="Subject Sheet" />;
   }
 
   // Show error banner if there is an error
-  if (shellLoadError) {
+  if (shellLoadError !== null) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-5xl mx-auto">

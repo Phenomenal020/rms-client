@@ -42,6 +42,10 @@ export type UpdateTermPayload = {
     termEnd?: string;     // ISO date string
 };
 
+export type DeleteTermPayload = {
+    id: string;
+};
+
 
 
 // ----------------------------------- Assessment Structure types -----------------------------------
@@ -73,9 +77,9 @@ export type createAssessmentStructurePayload = {
     entries: createSingleAssessmentStructure[];
 };
 
-// Upsert single
+// Upsert single — omit id for new rows so the API inserts rather than treating null as a UUID
 export type updateSingleAssessmentStructure = {
-    id: string;
+    id?: string;
     type: string;
     percentage: number;
     displayOrder: number;

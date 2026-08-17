@@ -50,7 +50,7 @@ export function EditStudentModal({
                                         <FormItem>
                                             <FormLabel className="font-semibold text-muted-foreground">First Name</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="John" {...field} disabled={readOnly} className="h-10 md:h-12" />
+                                                <Input placeholder="John" {...field} disabled={readOnly || loading} className="h-10 md:h-12" />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -63,7 +63,7 @@ export function EditStudentModal({
                                         <FormItem>
                                             <FormLabel className="font-semibold text-muted-foreground">Middle Name</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Michael (optional)" {...field} disabled={readOnly} className="h-10 md:h-12" />
+                                                <Input placeholder="Michael (optional)" {...field} disabled={readOnly || loading} className="h-10 md:h-12" />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -80,7 +80,7 @@ export function EditStudentModal({
                                         <FormItem>
                                             <FormLabel className="font-semibold text-muted-foreground">Last Name</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Doe" {...field} disabled={readOnly} className="h-10 md:h-12" />
+                                                <Input placeholder="Doe" {...field} disabled={readOnly || loading} className="h-10 md:h-12" />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -93,7 +93,7 @@ export function EditStudentModal({
                                         <FormItem>
                                             <FormLabel className="font-semibold text-muted-foreground">Gender</FormLabel>
                                             <FormControl>
-                                                <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+                                                <Select value={field.value} onValueChange={field.onChange} disabled={readOnly || loading}>
                                                     <SelectTrigger className="h-10 md:h-12 w-full cursor-pointer">
                                                         <SelectValue placeholder="Select gender" />
                                                     </SelectTrigger>
@@ -118,7 +118,7 @@ export function EditStudentModal({
                                         <FormItem>
                                             <FormLabel className="font-semibold text-muted-foreground">Status</FormLabel>
                                             <FormControl>
-                                                <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+                                                <Select value={field.value} onValueChange={field.onChange} disabled={readOnly || loading}>
                                                     <SelectTrigger className="h-10 md:h-12 w-full cursor-pointer">
                                                         <SelectValue placeholder="Select status" />
                                                     </SelectTrigger>
@@ -142,7 +142,7 @@ export function EditStudentModal({
                                                 <Select
                                                     value={field.value ?? "none"}
                                                     onValueChange={(val) => field.onChange(val === "none" ? null : val)}
-                                                    disabled={readOnly}
+                                                    disabled={readOnly || loading}
                                                 >
                                                     <SelectTrigger className="h-10 md:h-12 w-full cursor-pointer">
                                                         <SelectValue placeholder="Assign to a class..." />
@@ -169,7 +169,7 @@ export function EditStudentModal({
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    disabled={loading || (!readOnly && !editForm.formState.isDirty)}
+                                    disabled={loading}
                                     onClick={() => onOpenChange(false)}
                                     className="cursor-pointer h-10 md:h-12"
                                 >
@@ -194,3 +194,4 @@ export function EditStudentModal({
         </Dialog>
     );
 }
+// 

@@ -20,7 +20,7 @@ export type getAllClassesPayload = {
 }
 
 export type createClassPayload = {
-    activeTermId: string | null;
+    activeTermId?: string | null;
     name: string;
     formTeacherId: string | null;
     subjectIds?: string[];
@@ -28,10 +28,14 @@ export type createClassPayload = {
 
 export type updateClassPayload = {
     id: string;
-    activeTermId: string | null;
-    name: string;
-    formTeacherId: string | null;
+    activeTermId?: string | null;
+    name?: string;
+    formTeacherId?: string | null;
     subjectIds?: string[];
+}
+
+export type deleteClassPayload = {
+    id: string;
 }
 
 export type teacherOption = {

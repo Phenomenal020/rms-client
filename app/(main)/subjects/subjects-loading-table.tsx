@@ -6,11 +6,11 @@ const LOADING_ROW_COUNT = 6;
 export function SubjectsLoadingTable() {
     return (
         <div className="overflow-x-auto py-4">
-            <table className="min-w-[300px] w-full table-fixed border-collapse text-sm md:text-base text-left">
+            <table className="min-w-[300px] w-full table-fixed border-collapse text-sm lg:text-base text-left">
                 <colgroup>
                     <col className="w-[10%]" />
-                    <col className="w-[45%]" />
-                    <col className="w-[25%]" />
+                    <col className="w-[35%]" />
+                    <col className="w-[35%]" />
                     <col className="w-[20%]" />
                 </colgroup>
                 <thead>

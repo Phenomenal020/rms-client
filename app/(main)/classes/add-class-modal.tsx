@@ -23,6 +23,7 @@ type AddClassModalProps = {
     readOnly?: boolean;
     teacherOptions: teacherOption[];
     subjectOptions: singleGetSubjectPayload[];
+    canAssignSubjects?: boolean;
 };
 
 export function AddClassModal({
@@ -34,6 +35,7 @@ export function AddClassModal({
     readOnly = false,
     teacherOptions,
     subjectOptions,
+    canAssignSubjects = true,
 }: AddClassModalProps) {
     // state to track the subjects that are checked (assigned to the class)
     const [checkedSubjects, setCheckedSubjects] = useState<singleGetSubjectPayload[]>([]);
@@ -72,6 +74,7 @@ export function AddClassModal({
     );
 
     // Handle the select all/deselect all button by modifying checkedSubjects based on allSelected state
+    const subjectsDisabled = readOnly || !canAssignSubjects;
     const allSelected = subjectOptions.length > 0 && checkedSubjects.length === subjectOptions.length;
     function handleSelectAll() {
         const next = allSelected ? [] : [...subjectOptions];
@@ -167,8 +170,9 @@ export function AddClassModal({
                                             Subjects
                                         </p>
                                         <p className="text-xs text-muted-foreground">
-                                            {checkedSubjects.length} of {subjectOptions.length}{" "}
-                                            selected
+                                            {canAssignSubjects
+                                                ? `${checkedSubjects.length} of ${subjectOptions.length} selected`
+                                                : "Subjects can be assigned after an academic term is active"}
                                         </p>
                                     </div>
                                     <Button
@@ -176,7 +180,7 @@ export function AddClassModal({
                                         variant="outline"
                                         size="sm"
                                         onClick={handleSelectAll}
-                                        disabled={readOnly}
+                                        disabled={subjectsDisabled}
                                         className="h-8 text-xs cursor-pointer"
                                     >
                                         {allSelected ? "Deselect All" : "Select All"}
@@ -188,12 +192,12 @@ export function AddClassModal({
                                         <label
                                             key={subject.id}
                                             htmlFor={`add-subject-${subject.id}`}
-                                            className="flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-muted/50 cursor-pointer select-none"
+                                            className={`flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-muted/50 select-none ${subjectsDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
                                         >
                                             <Checkbox
                                                 id={`add-subject-${subject.id}`}
                                                 checked={checkedSubjects.some((s) => s.id === subject.id)}
-                                                disabled={readOnly}
+                                                disabled={subjectsDisabled}
                                                 onCheckedChange={() => toggleSubject(subject)}
                                             />
                                             <span className="text-sm text-foreground">
@@ -210,7 +214,7 @@ export function AddClassModal({
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    disabled={loading || (!readOnly && !addForm.formState.isDirty)}
+                                    disabled={loading}
                                     onClick={() => onOpenChange(false)}
                                     className="cursor-pointer h-10 md:h-12"
                                 >

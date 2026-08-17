@@ -95,7 +95,7 @@ export function AddGradingModal({ open, onOpenChange, form, onSubmit, loading }:
                                 type="button"
                                 variant="outline"
                                 onClick={() => onOpenChange(false)}
-                                disabled={loading || form.formState.isDirty}
+                                disabled={loading}
                                 className="cursor-pointer h-10 md:h-12"
                             >
                                 Cancel

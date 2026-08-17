@@ -98,7 +98,7 @@ export function AddSubjectModal({
 
                 {/* Cancel Button */}
                 <Button
-                  disabled={loading || !addForm.formState.isDirty}
+                  disabled={loading}
                   type="button"
                   variant="outline"
                   onClick={() => onOpenChange(false)}

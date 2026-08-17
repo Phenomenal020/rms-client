@@ -11,6 +11,7 @@ interface AcceptRejectButtonsProps {
     className: string | null;
     onAccept: () => void | Promise<void>;
     onReject: (reason: string) => void | Promise<void>;
+    canManage?: boolean;
 }
 
 export function AcceptRejectButtons({
@@ -18,6 +19,7 @@ export function AcceptRejectButtons({
     className,
     onAccept,
     onReject,
+    canManage = false,
 }: AcceptRejectButtonsProps) {
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
     const [rejectionReason, setRejectionReason] = useState("");
@@ -41,6 +43,7 @@ export function AcceptRejectButtons({
                     {title}
                 </h1>
 
+                {canManage && (
                 <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-none">
                     <Button
                         type="button"
@@ -64,6 +67,7 @@ export function AcceptRejectButtons({
                         Reject
                     </Button>
                 </div>
+                )}
             </div>
 
             <Dialog open={isRejectModalOpen} onOpenChange={handleRejectOpenChange}>

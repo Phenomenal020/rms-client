@@ -77,7 +77,6 @@ export const calculateSubjectStats = (
   average: number;
   minimum: number;
   maximum: number;
-  classAverage: number;
 } | null => {
   if (!subjectId || !enrolledStudents || enrolledStudents.length === 0) {
     return null;
@@ -99,6 +98,5 @@ export const calculateSubjectStats = (
     average: Math.round(average * 100) / 100,
     minimum: Math.round(minimum * 100) / 100,
     maximum: Math.round(maximum * 100) / 100,
-    classAverage: Math.round(average * 100) / 100,
   };
 };

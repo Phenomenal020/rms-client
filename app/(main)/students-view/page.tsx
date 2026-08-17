@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSWRConfig } from "swr";
 import type { AcademicTerm } from "@/types/drizzle";
 import ResultsComponent from "./ResultsComponent";
-import { getTerms, getUserWithRelations } from "@/fetcher/queries";
+import { getTerms } from "@/fetcher/queries";
 import { getApiErrorMessage, getHttpStatus } from "@/fetcher/mutations";
 import { authClient } from "@/src/auth-client";
 import { ResultsSkeleton } from "./ResultsSkeleton";
@@ -29,7 +29,6 @@ const ResultsPage = () => {
 
   // Retry shell fetches - retry the shell fetches if the shell load error is present
   function retryShellFetches() {
-    void mutate("/api/v1/users/user");
     void mutate("/api/v1/terms");
   }
 
@@ -46,11 +45,11 @@ const ResultsPage = () => {
 
   // Handle loading states
   if (isShellLoading) {
-    return <ResultsSkeleton />;
+    return <ResultsSkeleton title="Result Sheet" />;
   }
 
   // Handle shell load error
-  if (shellLoadError) {
+  if (shellLoadError !== null) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-5xl mx-auto">

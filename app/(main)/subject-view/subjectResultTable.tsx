@@ -38,24 +38,24 @@ export function SubjectResultTable({
             {/* Table header: Assessment type, Total, Grade, Remark */}
             <thead>
               <tr className="bg-muted">
-                <th className="border border-border p-2 md:p-3 text-left font-semibold text-foreground text-sm sm:text-base sticky left-0 z-20 bg-muted">
+                <th className="border border-border p-2 md:p-3 text-left font-semibold text-foreground text-sm lg:text-base sticky left-0 z-20 bg-muted">
                   Student Name
                 </th>
                 {sortedAssessments.map((assessment) => (
                   <th
                     key={assessment.id}
-                    className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base"
+                    className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm lg:text-base"
                   >
                     {assessment.type} ({assessment.percentage}%)
                   </th>
                 ))}
-                <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base">
+                <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm lg:text-base">
                   Total (100%)
                 </th>
-                <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base">
+                <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm lg:text-base">
                   Grade
                 </th>
-                <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm sm:text-base">
+                <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm lg:text-base">
                   Remark
                 </th>
               </tr>
@@ -85,7 +85,7 @@ export function SubjectResultTable({
 
                   return (
                     <tr key={student.id || index} className="hover:bg-muted">
-                      <td className="border border-border p-3 font-medium text-foreground text-sm sm:text-base whitespace-nowrap sticky left-0 z-10 bg-card">
+                      <td className="border border-border p-3 font-medium text-foreground text-sm lg:text-base whitespace-nowrap sticky left-0 z-10 bg-card">
                         {studentName}
                       </td>
 
@@ -99,20 +99,20 @@ export function SubjectResultTable({
                         return (
                           <td
                             key={assessment.id}
-                            className="border border-border p-1.5 md:p-3 text-center text-sm sm:text-base"
+                            className="border border-border p-1.5 md:p-3 text-center text-sm lg:text-base"
                           >
                             <span className="text-foreground">{scoreValue}</span>
                           </td>
                         );
                       })}
 
-                      <td className="border border-border p-3 text-center font-semibold text-foreground text-sm sm:text-base">
+                      <td className="border border-border p-3 text-center font-semibold text-foreground text-sm lg:text-base">
                         {percentage}
                       </td>
-                      <td className="border border-border p-3 text-center font-bold text-foreground text-sm sm:text-base">
+                      <td className="border border-border p-3 text-center font-bold text-foreground text-sm lg:text-base">
                         {grade}
                       </td>
-                      <td className="border border-border p-3 text-center text-foreground text-sm sm:text-base">
+                      <td className="border border-border p-3 text-center text-foreground text-sm lg:text-base">
                         {remark}
                       </td>
                     </tr>
@@ -122,7 +122,7 @@ export function SubjectResultTable({
                 <tr>
                   <td
                     colSpan={sortedAssessments.length + 4}
-                    className="border border-border p-3 text-center text-muted-foreground text-sm sm:text-base"
+                    className="border border-border p-3 text-center text-muted-foreground text-sm lg:text-base"
                   >
                     No students enrolled in this subject
                   </td>

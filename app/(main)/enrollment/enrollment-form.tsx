@@ -39,13 +39,16 @@ export function EnrollmentForm() {
 
     // Org admin gate — disable management features for non-orgadmin users
     const { user } = useUser();
-    const canManage = user?.role === "orgadmin" && user?.twoFactorEnabled === true;
+    const canManage = user?.role === "orgadmin" && !(user?.twoFactorEnabled === true) && user?.emailVerified === true;
 
-    // Active term — required for class assignments and enrollments
+    // Get the terms, then the active term id, then use that to get the class assignments
+    // Later, we get enrollments for the selected class and term
     const { data: termsData, error: termsError, isLoading: isLoadingTerms } = getTerms();
+    const termsReady = !isLoadingTerms;
     const activeTermId = (termsData as singleTermPayload[] | undefined)?.find((term) => term.status === "ACTIVE")?.id ?? null;
-    // Get classes for that term: For the classes dropdown
-    const { data: classes = [], error: classesError, isLoading: isLoadingClasses } = getSubjectClassAssignments(activeTermId);
+    const { data: classes, error: classesError, isLoading: isLoadingClasses } = getSubjectClassAssignments(
+        termsReady ? activeTermId : null,
+    );
 
     // State management: class selector
     const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
@@ -58,19 +61,19 @@ export function EnrollmentForm() {
     const [searchQuery, setSearchQuery] = useState("");
 
     // fetch enrollments for the selected class and term
-    const { data: enrollmentsData = [], error: enrollmentsError, isLoading: isLoadingStudents } = getEnrollments(selectedClassId, activeTermId);
+    const { data: enrollmentsData, error: enrollmentsError, isLoading: isLoadingStudents } = getEnrollments(selectedClassId, activeTermId);
 
     // save enrollment mutation
     const { trigger: triggerSaveEnrollment, isMutating: isSavingEnrollment, error: saveEnrollmentError } = useSaveEnrollment();
 
-    const classList = classes as subjectClassAssignmentPayload[];
+    const classList = (classes ?? []) as subjectClassAssignmentPayload[];
     const enrollmentList = (enrollmentsData ?? []) as enrollmentPayload[];
 
     // Error handling: split critical (terms) vs auxiliary (classes) vs class-scoped (enrollments)
     const criticalLoadError = termsError;
     const auxiliaryLoadError = classesError;
-    const enrollmentsLoadError = selectedClassId ? enrollmentsError : undefined;
-    const loadError = criticalLoadError ?? auxiliaryLoadError ?? enrollmentsLoadError;
+    const enrollmentsLoadError = selectedClassId ? enrollmentsError : null;
+    const loadError = (criticalLoadError ?? auxiliaryLoadError ?? enrollmentsLoadError) ?? null;
 
     // try again: retry all fetches
     function retryAllFetches() {
@@ -108,17 +111,20 @@ export function EnrollmentForm() {
     // Derive class assignments from the selected class
     const classAssignments: subjectAssignment[] = selectedClass?.assignments ?? [];
 
-    // Map API students → EnrollmentStudent shape
+    // Map API students → EnrollmentStudent shape (only assignments for the selected class)
     const studentsForClass: EnrollmentStudent[] = useMemo(() => {
         if (enrollmentList.length <= 0) return [];
+        const allowedAssignmentIds = new Set(classAssignments.map((a) => a.assignmentId));
         return enrollmentList.map((s) => ({
             studentId: s.student.studentId,
             name: [s.student.firstName, s.student.middleName ? s.student.middleName.charAt(0) + "." : "", s.student.lastName]
                 .filter(Boolean)
                 .join(" "),
-            enrolledSubjectIds: s.enrollments.map((es) => es.assignmentId),
+            enrolledSubjectIds: s.enrollments
+                .map((es) => es.assignmentId)
+                .filter((id) => allowedAssignmentIds.has(id)),
         }));
-    }, [enrollmentList]);
+    }, [enrollmentList, classAssignments]);
 
     // Clear the editing student whenever the class changes
     useEffect(() => {
@@ -144,14 +150,14 @@ export function EnrollmentForm() {
             toast.error("No active term. Please set up an active term first.");
             return;
         }
+        if (enrolledSubjectIds.length > 20) {
+            toast.error("Maximum of 20 subject enrollments allowed per student");
+            return;
+        }
         try {
             await triggerSaveEnrollment({ studentId, enrolledSubjectIds, activeTermId });
             toast.success("Enrollment saved successfully");
             setIsEditOpen(false);
-            // Revalidate the enrollments query for this class + term
-            await mutate(
-                `/api/v1/students/enrollments?classId=${encodeURIComponent(selectedClassId)}&termId=${encodeURIComponent(activeTermId)}`,
-            );
         } catch (error) {
             const mutationErr = saveEnrollmentError || error;
             if (!handleAuthRedirect(mutationErr, { router, pathname })) {
@@ -161,7 +167,7 @@ export function EnrollmentForm() {
     }
 
     // loading states
-    const isPageLoading = isLoadingTerms;
+    const isPageLoading = !termsReady || isLoadingClasses;
     const isStudentsLoading = !!selectedClassId && isLoadingStudents;
 
     return (
@@ -212,7 +218,7 @@ export function EnrollmentForm() {
                                                 isLoadingClasses ||
                                                 isPageLoading ||
                                                 !activeTermId ||
-                                                loadError !== undefined
+                                                loadError !== null
                                             }
                                             className="h-10 md:h-12 w-full justify-between font-normal"
                                         >
@@ -331,7 +337,7 @@ export function EnrollmentForm() {
                                     </div>
                                 ) : (
                                     <div className="overflow-x-auto py-2">
-                                        <table className="table-fixed min-w-[360px] w-full border-collapse text-sm md:text-base text-left">
+                                        <table className="table-fixed min-w-[360px] w-full border-collapse text-sm lg:text-base text-left">
                                             <colgroup>
                                                 <col className="w-[10%]" />
                                                 <col className="w-[46%]" />
@@ -345,7 +351,7 @@ export function EnrollmentForm() {
                                                     <th className="p-2 font-semibold text-muted-foreground">
                                                         Enrolled Subjects
                                                     </th>
-                                                    <th className="p-2 font-semibold text-muted-foreground" />
+                                                    <th className="p-2 font-semibold text-muted-foreground text-right" />
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -375,8 +381,8 @@ export function EnrollmentForm() {
                                                             )}
                                                         </td>
 
-                                                        {canManage && (
-                                                            <td className="p-2">
+                                                        <td className="p-2 text-right">
+                                                            {canManage && (
                                                                 <Button
                                                                     type="button"
                                                                     variant="outline"
@@ -384,17 +390,17 @@ export function EnrollmentForm() {
                                                                     onClick={() => openEditDialog(student)}
                                                                     disabled={
                                                                         isSavingEnrollment ||
-                                                                        loadError !== undefined ||
+                                                                        loadError !== null ||
                                                                         isStudentsLoading
                                                                     }
-                                                                    className="cursor-pointer border border-blue-500/25 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300"
+                                                                    className="cursor-pointer border border-blue-500/25 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300 text-sm lg:text-base"
                                                                     aria-label="Edit enrollment"
                                                                 >
                                                                     <Pencil className="h-3 w-3" />
-                                                                    <span className="hidden md:inline">Edit</span>
+                                                                    <span className="sr-only sm:not-sr-only">Edit</span>
                                                                 </Button>
-                                                            </td>
-                                                        )}
+                                                            )}
+                                                        </td>
                                                     </tr>
                                                 ))}
                                             </tbody>

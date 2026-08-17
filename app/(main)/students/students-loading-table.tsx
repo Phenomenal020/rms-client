@@ -5,13 +5,13 @@ const LOADING_ROW_COUNT = 6;
 export function StudentsLoadingTable() {
     return (
         <div className="overflow-x-auto py-2">
-            <table className="min-w-[400px] w-full border-collapse text-sm md:text-base text-left">
+            <table className="min-w-[400px] w-full border-collapse text-sm lg:text-base text-left">
                 <colgroup>
                     <col className="w-[8%]" />
-                    <col className="w-[36%]" />
+                    <col className="w-[32%]" />
+                    <col className="w-[22%]" />
+                    <col className="w-[14%]" />
                     <col className="w-[24%]" />
-                    <col className="w-[16%]" />
-                    <col className="w-[16%]" />
                 </colgroup>
                 <thead>
                     <tr className="bg-muted/50 border-b border-border">
@@ -38,7 +38,10 @@ export function StudentsLoadingTable() {
                                 <Skeleton className="h-4 w-16" />
                             </td>
                             <td className="p-2 text-right">
-                                <Skeleton className="ml-auto h-6 w-12 rounded-md" />
+                                <div className="flex justify-end gap-1">
+                                    <Skeleton className="h-6 w-12 rounded-md" />
+                                    <Skeleton className="h-6 w-14 rounded-md" />
+                                </div>
                             </td>
                         </tr>
                     ))}

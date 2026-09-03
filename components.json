@@ -18,5 +18,7 @@
     "lib": "@/lib",
     "hooks": "@/hooks"
   },
-  "registries": {}
+  "registries": {
+    "@7ovr": "https://7ovr.com/r/{name}.json"
+  }
 }

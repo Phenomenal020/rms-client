@@ -1,6 +1,7 @@
 import { Navbar } from "@/shared-components/navbar";
 import AppSidebar from "./sidebar";
 import { SidebarProvider } from "@/contexts/sidebar-context";
+import { UserProvider } from "@/contexts/user-context";
 
 export default function MainLayout({
   children,
@@ -8,6 +9,7 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   return (
+    <UserProvider>
     <SidebarProvider>
       {/* Navbar sticks to top via sticky */}
       <Navbar />
@@ -20,5 +22,6 @@ export default function MainLayout({
         {children}
       </main>
     </SidebarProvider>
+    </UserProvider>
   );
 }

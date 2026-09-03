@@ -36,7 +36,7 @@ export const metadata: Metadata = {
 // RootLayout component > return jsx
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${oxanium.variable} ${oxanium.className} antialiased`}>
         <ThemeProvider
           attribute="class"
@@ -45,12 +45,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           disableTransitionOnChange
         >
         <Providers>
-          <UserProvider>
             <TooltipProvider>
             {children}
             </TooltipProvider>
             <Toaster position="top-right" richColors />
-          </UserProvider>
         </Providers>
         </ThemeProvider>
       </body>

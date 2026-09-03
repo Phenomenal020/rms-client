@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/src/auth-client";
 import { toast } from "sonner";
 import { LoadingButton } from "@/shared-components/loading-button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shadcn/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/shadcn/ui/input-otp";
 import { ChevronLeft, MailIcon } from "lucide-react";
-import { Button } from "@/shadcn/ui/button";
+import { EDUCATION_SPEECHES } from "@/shared-components/quotes";
 
 // Keep in sync with the backend configuration
 const MAX_OTP_ATTEMPTS = 2;
@@ -32,6 +32,13 @@ export function VerifyEmailForm({ email }: { email: string }) {
     // Resend cooldown: tracks remaining seconds; 0 means the button is available
     const [resendCooldown, setResendCooldown] = useState(0);
     const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Randomise speech index (after mount to avoid hydration mismatch)
+    const [speechIndex, setSpeechIndex] = useState(0);
+    useEffect(() => {
+        setSpeechIndex(Math.floor(Math.random() * EDUCATION_SPEECHES.length));
+    }, []);
+    const speech = EDUCATION_SPEECHES[speechIndex];
 
     // Clear cooldown timer on unmount
     useEffect(() => {
@@ -155,87 +162,111 @@ export function VerifyEmailForm({ email }: { email: string }) {
     }
 
     return (
-        <Card className="w-full max-w-md relative">
+        <div className="flex w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-border bg-card md:min-h-[560px] md:flex-row">
 
-            {/* Back button */}
-            <div className="flex justify-center mt-2 absolute top-0 left-0">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground hover:text-foreground gap-1.5 cursor-pointer"
-                    onClick={() => router.replace("/sign-up")}
-                >
-                    <ChevronLeft className="h-8 w-8" />
-                    Back
-                </Button>
-            </div>
-
-            {/* Card Header */}
-            <CardHeader className="text-center">
-                {/* Email icon */}
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/15">
-                    <MailIcon className="h-6 w-6 text-primary" />
-                </div>
-                {/* Title: Verify your email */}
-                <CardTitle className="text-lg md:text-xl">Verify your email</CardTitle>
-                {/* Description: A 6-digit verification code was sent to your email. Please enter it below. */}
-                <CardDescription className="text-xs md:text-sm space-y-1">
-                    <span className="block">
-                        A 6-digit verification code was sent to{" "}
-                        <span className="font-medium">{email || "your email"}</span>.
-                    </span>
-                </CardDescription>
-
-
-            </CardHeader>
-
-            {/* Content */}
-            <CardContent className="space-y-6">
-                {/* OTP Input Field */}
-                <InputOTP
-                    maxLength={6}
-                    value={otp}
-                    onChange={setOtp}
-                    onComplete={handleVerify}
-                    disabled={isVerifying || attemptsExhausted}
-                    className="w-full"
-                >
-                    <InputOTPGroup className="w-full gap-2">
-                        <InputOTPSlot index={0} className="flex-1 h-12" />
-                        <InputOTPSlot index={1} className="flex-1 h-12" />
-                        <InputOTPSlot index={2} className="flex-1 h-12" />
-                        <InputOTPSlot index={3} className="flex-1 h-12" />
-                        <InputOTPSlot index={4} className="flex-1 h-12" />
-                        <InputOTPSlot index={5} className="flex-1 h-12" />
-                    </InputOTPGroup>
-                </InputOTP>
-
-                {/* Verify Button */}
-                <LoadingButton
-                    className="w-full h-10 md:h-12 rounded-sm"
-                    loading={isVerifying}
-                    disabled={attemptsExhausted}
-                    onClick={handleVerify}
-                >
-                    Verify Email
-                </LoadingButton>
-
-                {/* Resend Verification Code Button */}
-                <div className="text-center text-sm text-muted-foreground">
-                    {attemptsExhausted
-                        ? "This code can no longer be used. "
-                        : "Didn't receive a code or code expired? "}
-                    <LoadingButton
-                        variant="link"
-                        className="p-0 h-auto font-semibold text-primary disabled:opacity-50"
-                        loading={isResending}
-                        disabled={resendCooldown > 0}
-                        onClick={handleResend}
+            {/* Left Side - Education quotes */}
+            <section className="flex flex-col justify-between gap-10 bg-neutral-950 px-8 py-10 text-neutral-100 md:w-1/2 md:border-r md:border-neutral-800">
+                {/* Brand text*/}
+                <h2 className="text-2xl font-semibold tracking-tight">
+                    {process.env.NEXT_PUBLIC_BRAND}
+                </h2>
+                {/* Education quote */}
+                <figure className="flex flex-col gap-4">
+                    <blockquote className="border-l border-neutral-700 pl-4">
+                        <p key={speechIndex} className="text-lg leading-relaxed text-neutral-200">
+                            &ldquo;{speech.quote}&rdquo;
+                        </p>
+                    </blockquote>
+                    <figcaption
+                        key={`${speechIndex}-author`}
+                        className="text-sm text-neutral-500"
                     >
-                        {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend"}
-                    </LoadingButton>
+                        — {speech.author}
+                    </figcaption>
+                </figure>
+                {/* Copyright notice */}
+                <p className="text-xs text-neutral-600">
+                    © <span suppressHydrationWarning>{new Date().getFullYear()}</span>{" "}
+                    {process.env.NEXT_PUBLIC_BRAND} Inc. All rights reserved.
+                </p>
+            </section>
+
+            {/* Right Side - Verify Email Form */}
+            <section className="flex flex-col justify-center px-8 py-10 md:w-1/2">
+                <div className="mx-auto w-full max-w-sm space-y-8">
+                    {/* Back button */}
+                    <Link
+                        href="/sign-up"
+                        replace
+                        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                    >
+                        <ChevronLeft className="size-4" aria-hidden="true" />
+                        Back
+                    </Link>
+
+                    {/* Title and Description */}
+                    <div className="space-y-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15">
+                            <MailIcon className="h-6 w-6 text-primary" />
+                        </div>
+                        <div className="space-y-1">
+                            <h1 className="text-xl font-semibold tracking-tight">Verify your email</h1>
+                            <p className="text-sm text-muted-foreground">
+                                A 6-digit verification code was sent to{" "}
+                                <span className="font-medium text-foreground">{email || "your email"}</span>.
+                                {" "}Please enter it below.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-6">
+                        {/* OTP Input Field */}
+                        <InputOTP
+                            maxLength={6}
+                            value={otp}
+                            onChange={setOtp}
+                            onComplete={handleVerify}
+                            disabled={isVerifying || attemptsExhausted}
+                            className="w-full"
+                        >
+                            <InputOTPGroup className="w-full gap-2">
+                                <InputOTPSlot index={0} className="h-11 flex-1" />
+                                <InputOTPSlot index={1} className="h-11 flex-1" />
+                                <InputOTPSlot index={2} className="h-11 flex-1" />
+                                <InputOTPSlot index={3} className="h-11 flex-1" />
+                                <InputOTPSlot index={4} className="h-11 flex-1" />
+                                <InputOTPSlot index={5} className="h-11 flex-1" />
+                            </InputOTPGroup>
+                        </InputOTP>
+
+                        {/* Verify Button */}
+                        <LoadingButton
+                            className="w-full"
+                            loading={isVerifying}
+                            disabled={attemptsExhausted}
+                            onClick={handleVerify}
+                        >
+                            Verify Email
+                        </LoadingButton>
+
+                        {/* Resend Verification Code Button */}
+                        <div className="text-center text-sm text-muted-foreground">
+                            {attemptsExhausted
+                                ? "This code can no longer be used. "
+                                : "Didn't receive a code or code expired? "}
+                            <LoadingButton
+                                variant="link"
+                                className="h-auto p-0 font-medium text-foreground hover:underline disabled:opacity-50"
+                                loading={isResending}
+                                disabled={resendCooldown > 0}
+                                onClick={handleResend}
+                            >
+                                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend"}
+                            </LoadingButton>
+                        </div>
+                    </div>
                 </div>
-            </CardContent>
-        </Card>
+            </section>
+        </div>
     );
 }

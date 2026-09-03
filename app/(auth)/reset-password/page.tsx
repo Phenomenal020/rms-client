@@ -19,11 +19,8 @@ export default async function ResetPasswordPage({
 
   return (
     <main className="flex min-h-svh items-center justify-center px-4">
-      <div className="w-full space-y-6">
-
-        {/* Reset Password Form */}
-        <ResetPasswordForm email={email} />
-      </div>
+      {/* Reset Password Form */}
+      <ResetPasswordForm email={email} />
     </main>
   );
 }

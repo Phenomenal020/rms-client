@@ -21,6 +21,7 @@ import { useUser } from "@/contexts/user-context";
 import type { AcademicTerm, AssessmentStructure, School, Student } from "@/types/drizzle";
 import type { SaveClassRecordExportPayload } from "@/types/view";
 import { ErrorBanner } from "@/shared-components/error-banner";
+import { EmptyNoEntry } from "@/shared-components/empty-noentry";
 import {
   readResultsClassSelection,
   readResultsStudentSelection,
@@ -441,14 +442,33 @@ export default function ResultsComponent({ school, academicTerm, requestId, mode
     );
   }
 
-  // TODO: Style the "not assigned as form teacher" empty state (bare ErrorBanner + no-op retry).
   if (isViewMode && !isTeacherClassesLoading && (teacherClasses?.length ?? 0) === 0) {
-    return <ErrorBanner title="Error" message="You are not assigned as form teacher to any class for this term. Please contact your administrator." onRetry={() => { }} />;
+    return (
+      <div className="min-h-screen bg-background p-4 md:p-6">
+        <div className="max-w-5xl mx-auto">
+          <ErrorBanner
+            title="Not assigned as form teacher"
+            message="You are not assigned as form teacher to any class for this term. Please contact your administrator."
+          />
+        </div>
+      </div>
+    );
   }
 
-  // TODO: Style the "no students in this class" empty state (bare ErrorBanner + no-op retry).
   if (classStudents.length === 0) {
-    return <ErrorBanner title="Error" message="No students available for this class at this time. Please contact your administrator to enroll students" onRetry={() => { }} />;
+    return (
+      <div className="min-h-screen bg-background p-4 md:p-6">
+        <div className="max-w-5xl mx-auto">
+          <EmptyNoEntry
+            embedded
+            title="No students in this class"
+            description="No students are enrolled in this class yet."
+            actionLabel="Manage enrollment"
+            actionHref="/enrollment"
+          />
+        </div>
+      </div>
+    );
   }
 
   if (!selectedStudent) {

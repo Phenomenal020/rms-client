@@ -18,6 +18,7 @@ import { getAssessmentStructure, getClassRecord, getGradingSystem, getTeacherCla
 import { useUser } from "@/contexts/user-context";
 import type { AcademicTerm, AssessmentStructure, School, Student } from "@/types/drizzle";
 import { ErrorBanner } from "@/shared-components/error-banner";
+import { EmptyNoEntry } from "@/shared-components/empty-noentry";
 import {
   readResultsClassSelection,
   readResultsSubjectSelection,
@@ -277,7 +278,6 @@ export default function SubjectsComponent({ school, academicTerm }: { school: Sc
     );
   }
 
-  // TODO: Style the "not assigned as form teacher" empty state.
   if (!isTeacherClassesLoading && ownedClasses.length === 0) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
@@ -285,22 +285,22 @@ export default function SubjectsComponent({ school, academicTerm }: { school: Sc
           <ErrorBanner
             title="No class assigned"
             message="You are not assigned as form teacher to any class for this term. Please contact your administrator."
-            onRetry={retryReportFetches}
           />
         </div>
       </div>
     );
   }
 
-  // TODO: Style the "no subjects assigned" empty state.
   if (subjectOptions.length === 0) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-5xl mx-auto">
-          <ErrorBanner
+          <EmptyNoEntry
+            embedded
             title="No subjects assigned"
-            message="No subjects are assigned to this class for the current term."
-            onRetry={retryReportFetches}
+            description="No subjects are assigned to this class for the current term."
+            actionLabel="Manage classes"
+            actionHref="/classes"
           />
         </div>
       </div>

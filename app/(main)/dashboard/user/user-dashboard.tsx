@@ -2,11 +2,18 @@
 
 import { StatusBadge } from "../helpers/dashboard-badge";
 import { DashboardSessions } from "../helpers/dashboard-sessions";
-import { DashboardRequestsTableRowsSkeleton } from "../helpers/dashboard-loading";
+import { DashboardRequestsTableSkeleton } from "../helpers/dashboard-loading";
 import { getRecentRequests, getTerms } from "@/fetcher/queries";
 import type { singleTermPayload } from "@/types/term";
 import { Button } from "@/shadcn/ui/button";
+import { ErrorBanner } from "@/shared-components/error-banner";
+import { EmptyPending } from "@/shared-components/empty-pending";
+import { EmptyNoEntry } from "@/shared-components/empty-noentry";
+import { useSWRConfig } from "swr";
+import { recordRequestsKey } from "@/fetcher/keys";
+import { getApiErrorMessage } from "@/fetcher/mutations";
 
+// Map record status to badge text
 function recordStatusForBadge(status: string) {
     if (status === "ACCEPTED") return "Accepted";
     if (status === "REJECTED") return "Declined";
@@ -15,57 +22,69 @@ function recordStatusForBadge(status: string) {
 }
 
 export function UserDashboard() {
+    // Manually invalidate the record requests cache
+    const { mutate } = useSWRConfig();
+
     // Get the active term
-    const { data: termsData = [] } = getTerms();
+    const { data: termsData = [], isLoading: isTermsLoading } = getTerms();
     const activeTermId =
         (termsData as singleTermPayload[])?.find((t) => t.status === "ACTIVE")?.id ?? null;
 
-    // Regular users receive only their own record requests from this endpoint.
-    const { data: recentRequests, error, isLoading, isValidating } = getRecentRequests(activeTermId);
+    // Use that to get record requests. Teachers receive only their own record requests from this endpoint.
+    const { data: recentRequests, error, isLoading } = getRecentRequests(activeTermId);
 
     return (
         <section className="space-y-10 pb-6">
+            {/* My Requests title */}
             <h4 className="text-xl font-semibold tracking-tight text-foreground">
                 My Requests
             </h4>
 
-            <div className="overflow-x-auto rounded-sm border border-border bg-card shadow-md">
-                <table className="min-w-[440px] w-full table-fixed border-collapse text-sm md:text-base">
-                    <thead>
-                        <tr className="border-b border-border bg-muted/50">
-                            <th className="w-[25%] p-3 text-left text-sm md:text-base font-semibold uppercase tracking-wider text-muted-foreground">
-                                Class
-                            </th>
-                            <th className="w-[20%] p-3 text-left text-sm md:text-base font-semibold uppercase tracking-wider text-muted-foreground">
-                                Status
-                            </th>
-                            <th className="w-[40%] p-3 text-left text-sm md:text-base font-semibold uppercase tracking-wider text-muted-foreground">
-                                Date &amp; Time
-                            </th>
-                            <th className="w-[15%] p-3 text-left text-sm md:text-base font-semibold uppercase tracking-wider text-muted-foreground">
-                            </th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {!activeTermId ? (
-                            <tr>
-                                <td colSpan={4} className="p-4">
-                                    <p className="text-center text-muted-foreground">
-                                        Activate an academic term to see your record requests.
-                                    </p>
-                                </td>
+            {/* If there is no active term, show the empty component */}
+            {isTermsLoading ? (
+                <DashboardRequestsTableSkeleton variant="user" rows={3} />
+            ) : !activeTermId ? (
+                <EmptyNoEntry
+                    embedded
+                    title="No active term"
+                    description="Activate an academic term to see your record requests."
+                    actionLabel="Set up term"
+                    actionHref="/term"
+                />
+            ) : isLoading && (recentRequests?.length ?? 0) === 0 ? (
+                <DashboardRequestsTableSkeleton variant="user" rows={3} />
+            ) : error ? (
+                // If there is an error loading the record requests, show the error banner
+                <ErrorBanner
+                    title="Could not load requests"
+                    message={getApiErrorMessage(error, "Failed to load your record requests. Please try again.")}
+                    onRetry={() => {
+                        if (activeTermId) {
+                            void mutate(recordRequestsKey(activeTermId));
+                        }
+                    }}
+                />
+            ) : recentRequests && recentRequests.length > 0 ? (
+                // If there are record requests, show them in the table (TODO: Display the shared one)
+                <div className="overflow-x-auto rounded-sm border border-border bg-card shadow-md">
+                    <table className="min-w-[440px] w-full table-fixed border-collapse text-sm md:text-base">
+                        <thead>
+                            <tr className="border-b border-border bg-muted/50">
+                                <th className="w-[25%] p-3 text-left text-sm font-semibold uppercase tracking-wider text-muted-foreground md:text-base">
+                                    Class
+                                </th>
+                                <th className="w-[20%] p-3 text-left text-sm font-semibold uppercase tracking-wider text-muted-foreground md:text-base">
+                                    Status
+                                </th>
+                                <th className="w-[40%] p-3 text-left text-sm font-semibold uppercase tracking-wider text-muted-foreground md:text-base">
+                                    Date &amp; Time
+                                </th>
+                                <th className="w-[15%] p-3 text-left text-sm font-semibold uppercase tracking-wider text-muted-foreground md:text-base">
+                                </th>
                             </tr>
-                        ) : isLoading || isValidating ? (
-                            <DashboardRequestsTableRowsSkeleton columns={4} rows={3} />
-                        ) : error ? (
-                            <tr>
-                                <td colSpan={4} className="p-4">
-                                    <p className="text-center text-destructive">Could not load requests.</p>
-                                </td>
-                            </tr>
-                        ) : recentRequests && recentRequests.length > 0 ? (
-                            recentRequests.map((row) => (
+                        </thead>
+                        <tbody>
+                            {recentRequests.map((row) => (
                                 <tr
                                     key={row.id}
                                     className="border-b border-border last:border-b-0 transition-colors hover:bg-muted/40"
@@ -87,7 +106,6 @@ export function UserDashboard() {
                                             <Button
                                                 type="button"
                                                 size="sm"
-                                                // variant="destructive"
                                                 className="cursor-pointer"
                                             >
                                                 Cancel
@@ -106,28 +124,25 @@ export function UserDashboard() {
                                                 type="button"
                                                 size="sm"
                                                 variant="outline"
-                                                className="border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300 cursor-pointer"
+                                                className="cursor-pointer border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300"
                                             >
                                                 Review
                                             </Button>
                                         )}
                                     </td>
                                 </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan={4} className="p-4">
-                                    <div className="w-full rounded-md border-2 border-dashed border-border/80 py-16 text-center">
-                                        <p className="text-base font-medium text-muted-foreground">
-                                            You have not submitted any record requests for this term.
-                                        </p>
-                                    </div>
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : (
+                // If there are no record requests for the active term, show the empty pending component
+                <EmptyPending
+                    embedded
+                    title="No record requests for this term"
+                    description="You have not submitted any record requests for this term."
+                />
+            )}
 
             <DashboardSessions />
         </section>

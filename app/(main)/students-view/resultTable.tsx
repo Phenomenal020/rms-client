@@ -1,21 +1,18 @@
 'use client';
 
-import { useEffect, useRef, useTransition } from "react";
+import { useEffect, useTransition } from "react";
 import { Button } from "@/shadcn/ui/button";
-import { Input } from "@/shadcn/ui/input";
 import { Edit3, Save, X, Loader2 } from "lucide-react";
-import { Form, FormControl, FormField, FormItem, FormMessage } from "@/shadcn/ui/form";
+import { Form } from "@/shadcn/ui/form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { getScorePercentage } from "./utils/scoreFns";
-import type { Student, AssessmentStructure, AssessmentScore, StudentSubject } from "@/types/drizzle";
-
-// check if the student is enrolled in the subject offering
-type StudentSubjectRow = StudentSubject & { enrolled?: boolean };
-function isSubjectEnrolled(row: StudentSubjectRow): boolean {
-    return row.enrolled !== false;
-}
+import {
+    StudentResultTable,
+    isSubjectEnrolled,
+    type StudentSubjectRow,
+} from "./student-result-table";
+import type { Student, AssessmentStructure, AssessmentScore } from "@/types/drizzle";
 
 // For each subject, return the assessment score and assessment structure id corr. to that score.
 type FormSubjectRow = {
@@ -177,147 +174,16 @@ export function ResultTable({ isEditingScores, startEditingScores, handleSaveSco
                     </div>
 
                     {/* Result Table */}
-                    <div className="overflow-x-auto">
-                        <table className="w-full border-collapse border border-border ">
-                            {/* Table headers - dynamically generated from assessment structure */}
-                            <thead>
-                                <tr className="bg-muted">
-                                    {/* Subject Header */}
-                                    <th className="border border-border p-2 md:p-3 text-left font-semibold text-foreground text-sm lg:text-base sticky left-0 z-20 bg-muted">
-                                        Subject
-                                    </th>
-                                    {/* Assessment Headers */}
-                                    {assessmentStructure.map((assessment) => (
-                                        <th
-                                            key={assessment.id}
-                                            className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm lg:text-base"
-                                        >
-                                            {assessment.type} ({assessment.percentage}%)
-                                        </th>
-                                    ))}
-                                    {/* Total Score Header */}
-                                    <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm lg:text-base">
-                                        Total (100%)
-                                    </th>
-                                    {/* Grade Header */}
-                                    <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm lg:text-base">
-                                        Grade
-                                    </th>
-                                    {/* Remark Header */}
-                                    <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm lg:text-base">
-                                        Remark
-                                    </th>
-                                </tr>
-                            </thead>
-
-                            {/* Table body - subjects and corresponding scores, grade, remark */}
-                            <tbody>
-                                {subjectRows.length > 0 ? (
-                                    subjectRows.map((enrolledSubject, index: number) => {
-                                        // Set rowActive to true if the subject is enrolled, false otherwise.
-                                        const rowActive = isSubjectEnrolled(enrolledSubject);
-
-                                        // Get scores from subject (original data); assessments is an array of { scores }
-                                        const scores = enrolledSubject.assessments?.[0]?.scores || [];
-
-                                        // Get watched form row for live updates (for total score)
-                                        const formRow = watchedSubjects?.[index];
-                                        const totalFromForm = formRow?.scores?.reduce(
-                                            (sum: number, s: { assessmentStructureId: string; score: number }) => sum + (Number(s.score) || 0),
-                                            0
-                                        ) ?? 0;
-
-                                        // Compute percentage: use form values when editing, original data otherwise
-                                        const percentage = !readOnly && isEditingScores && rowActive
-                                            ? totalFromForm
-                                            : getScorePercentage(scores);
-                                        const grade = getGrade(percentage);
-                                        const remark = getRemark(grade);
-
-                                        return (
-                                            <tr key={index} className="hover:bg-muted">
-
-                                                {/* Subject Name */}
-                                                <td className="border border-border p-3 font-medium text-foreground text-sm lg:text-base whitespace-nowrap sticky left-0 z-10 bg-card">
-                                                    {enrolledSubject.subject.name}
-                                                </td>
-
-                                                {/* Dynamically render assessment type columns (assessment headers) */}
-                                                {assessmentStructure.map((assessment, scoreIndex) => {
-                                                    const scoreValue = scores.find((s: AssessmentScore) => s.assessmentStructureId === assessment.id)?.score || 0;
-
-                                                    return (
-                                                        <td
-                                                            key={assessment.id}
-                                                            className="border border-border p-1.5 md:p-3 text-center text-sm lg:text-base"
-                                                        >
-                                                            {isEditingScores && rowActive && !readOnly ? (
-                                                                <FormField
-                                                                    control={form.control}
-                                                                    name={`subjects.${index}.scores.${scoreIndex}.score`}
-                                                                    render={({ field }) => (
-                                                                        <FormItem className="mb-0">
-                                                                            <FormControl>
-                                                                                <Input
-                                                                                    type="number"
-                                                                                    {...field}
-                                                                                    value={field.value ?? 0}
-                                                                                    onChange={(e) =>
-                                                                                        field.onChange(
-                                                                                            e.target.value === ""
-                                                                                                ? ""
-                                                                                                : Number(e.target.value)
-                                                                                        )
-                                                                                    }
-                                                                                    min={0}
-                                                                                    max={100}
-                                                                                    className="w-16 h-8 text-center text-xs sm:text-sm border-border focus:border-input"
-                                                                                />
-                                                                            </FormControl>
-                                                                            <FormMessage />
-                                                                        </FormItem>
-                                                                    )}
-                                                                />
-                                                            ) : (
-                                                                <span className="text-foreground">
-                                                                    {rowActive ? scoreValue : "—"}
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                    );
-                                                })}
-
-                                                {/* Total score */}
-                                                <td className="border border-border p-3 text-center font-semibold text-foreground text-sm lg:text-base">
-                                                    {percentage}
-                                                </td>
-
-                                                {/* Grade */}
-                                                <td className="border border-border p-3 text-center font-bold text-foreground text-sm lg:text-base">
-                                                    {grade}
-                                                </td>
-
-                                                {/* Remark */}
-                                                <td className="border border-border p-3 text-center text-foreground text-sm lg:text-base">
-                                                    {remark}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
-                                ) : (
-                                    <tr>
-                                        <td
-                                            colSpan={assessmentStructure.length + 4}
-                                            className="border border-border p-3 text-center text-muted-foreground text-sm lg:text-base"
-                                        >
-                                            No subjects available
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-
-                        </table>
-                    </div>
+                    <StudentResultTable
+                        subjectRows={subjectRows}
+                        assessmentStructure={assessmentStructure}
+                        getGrade={getGrade}
+                        getRemark={getRemark}
+                        isEditingScores={isEditingScores}
+                        readOnly={readOnly}
+                        control={form.control}
+                        watchedSubjects={watchedSubjects}
+                    />
                 </form>
             </Form>
         </div>

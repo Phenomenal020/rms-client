@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, Check, Pencil, BookOpen } from "lucide-react";
+import { ChevronDown, Check } from "lucide-react";
 import { Card, CardContent } from "@/shadcn/ui/card";
 import { Button } from "@/shadcn/ui/button";
 import { Input } from "@/shadcn/ui/input";
@@ -10,12 +10,15 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/shadcn/ui/popover";
 import SmallTermText from "@/shared-components/small-term-text";
 import { SecuritySetupModal } from "@/shared-components/security-setup-modal";
 import { ErrorBanner } from "@/shared-components/error-banner";
+import { EmptyNoEntry } from "@/shared-components/empty-noentry";
 import { EditEnrollmentModal } from "./edit-enrollment-modal";
 import { EnrollmentLoadingTable } from "./enrollment-loading-table";
+import { EnrollmentTable } from "./enrollment-table";
 import { cn } from "@/lib/utils";
 import { subjectClassAssignmentPayload, subjectAssignment } from "@/types/enrollments";
 import { getApiErrorMessage, getHttpStatus, useSaveEnrollment } from "@/fetcher/mutations";
 import { getEnrollments, getSubjectClassAssignments, getTerms } from "@/fetcher/queries";
+import { TERMS_KEY, classEnrollmentsKey, studentEnrollmentsKey } from "@/fetcher/keys";
 import { useUser } from "@/contexts/user-context";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
@@ -29,20 +32,16 @@ export type EnrollmentStudent = {
     enrolledSubjectIds: string[];
 };
 
-//  Component
 export function EnrollmentForm() {
-    // hooks for redirection
     const router = useRouter();
     const pathname = usePathname();
-    // to manually invalidate the cache
     const { mutate } = useSWRConfig();
 
-    // Org admin gate — disable management features for non-orgadmin users
+    // Org admin gate
     const { user } = useUser();
     const canManage = user?.role === "orgadmin" && !(user?.twoFactorEnabled === true) && user?.emailVerified === true;
 
-    // Get the terms, then the active term id, then use that to get the class assignments
-    // Later, we get enrollments for the selected class and term
+    // Fetch terms, then class assignments for the active term
     const { data: termsData, error: termsError, isLoading: isLoadingTerms } = getTerms();
     const termsReady = !isLoadingTerms;
     const activeTermId = (termsData as singleTermPayload[] | undefined)?.find((term) => term.status === "ACTIVE")?.id ?? null;
@@ -50,45 +49,37 @@ export function EnrollmentForm() {
         termsReady ? activeTermId : null,
     );
 
-    // State management: class selector
     const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
-    // editing student, edit modal open state
     const [editingStudent, setEditingStudent] = useState<EnrollmentStudent | null>(null);
     const [isEditOpen, setIsEditOpen] = useState(false);
-    // Open/Close the class picker dropdown
     const [classPickerOpen, setClassPickerOpen] = useState(false);
-    // class search query
     const [searchQuery, setSearchQuery] = useState("");
 
-    // fetch enrollments for the selected class and term
-    const { data: enrollmentsData, error: enrollmentsError, isLoading: isLoadingStudents } = getEnrollments(selectedClassId, activeTermId);
+    const { data: enrollmentsData, error: enrollmentsError, isLoading: isLoadingStudents } = getEnrollments(
+        selectedClassId,
+        activeTermId,
+    );
 
-    // save enrollment mutation
     const { trigger: triggerSaveEnrollment, isMutating: isSavingEnrollment, error: saveEnrollmentError } = useSaveEnrollment();
 
     const classList = (classes ?? []) as subjectClassAssignmentPayload[];
     const enrollmentList = (enrollmentsData ?? []) as enrollmentPayload[];
 
-    // Error handling: split critical (terms) vs auxiliary (classes) vs class-scoped (enrollments)
-    const criticalLoadError = termsError;
-    const auxiliaryLoadError = classesError;
-    const enrollmentsLoadError = selectedClassId ? enrollmentsError : null;
-    const loadError = (criticalLoadError ?? auxiliaryLoadError ?? enrollmentsLoadError) ?? null;
+    const isTermsInitialLoading = isLoadingTerms && termsData == null;
+    const isClassesInitialLoading = Boolean(activeTermId) && isLoadingClasses && classes == null;
+    const isStudentsInitialLoading = Boolean(selectedClassId) && isLoadingStudents && enrollmentsData == null;
 
-    // try again: retry all fetches
+    // Retry all fetches for terms, class options, and the selected class enrollments
     function retryAllFetches() {
-        void mutate("/api/v1/terms");
-        void mutate(
-            (key) => typeof key === "string" && key.startsWith("/api/v1/classes/enrollments"),
-        );  // mutate the subject class assignments cache
+        void mutate(TERMS_KEY);
+        if (activeTermId) {
+            void mutate(classEnrollmentsKey(activeTermId));
+        }
         if (selectedClassId && activeTermId) {
-            void mutate(
-                `/api/v1/students/enrollments?classId=${encodeURIComponent(selectedClassId)}&termId=${encodeURIComponent(activeTermId)}`,
-            );  // finally, mutate the enrollments cache which depends on the selected class and active term
+            void mutate(studentEnrollmentsKey(selectedClassId, activeTermId));
         }
     }
 
-    // handle authentication redirects based on the error status code
     useEffect(() => {
         const fetchError = termsError ?? classesError ?? enrollmentsError;
         if (!fetchError) return;
@@ -100,24 +91,20 @@ export function EnrollmentForm() {
         }
     }, [termsError, classesError, enrollmentsError, router, pathname]);
 
-    // Filter classes by search query
     const filteredClasses = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
         return q ? classList.filter((cls) => cls.name.toLowerCase().includes(q)) : classList;
     }, [classList, searchQuery]);
 
-    // The selected class record (used to derive subjects for the modal)
     const selectedClass = classList.find((cls) => cls.classId === selectedClassId) ?? null;
-    // Derive class assignments from the selected class
     const classAssignments: subjectAssignment[] = selectedClass?.assignments ?? [];
 
-    // Map API students → EnrollmentStudent shape (only assignments for the selected class)
     const studentsForClass: EnrollmentStudent[] = useMemo(() => {
         if (enrollmentList.length <= 0) return [];
         const allowedAssignmentIds = new Set(classAssignments.map((a) => a.assignmentId));
         return enrollmentList.map((s) => ({
             studentId: s.student.studentId,
-            name: [s.student.firstName, s.student.middleName ? s.student.middleName.charAt(0) + "." : "", s.student.lastName]
+            name: [s.student.firstName, s.student.middleName ? `${s.student.middleName.charAt(0)}.` : "", s.student.lastName]
                 .filter(Boolean)
                 .join(" "),
             enrolledSubjectIds: s.enrollments
@@ -126,22 +113,19 @@ export function EnrollmentForm() {
         }));
     }, [enrollmentList, classAssignments]);
 
-    // Clear the editing student whenever the class changes
     useEffect(() => {
         setEditingStudent(null);
         setIsEditOpen(false);
     }, [selectedClassId]);
 
-    // Open the edit enrollment modal
     function openEditDialog(student: EnrollmentStudent) {
-        if (!canManage) return;  // if the user is not an orgadmin, return
+        if (!canManage) return;
         setEditingStudent(student);
         setIsEditOpen(true);
     }
 
-    // Save enrollment handler
     async function saveEnrollmentHandler(studentId: string, enrolledSubjectIds: string[]) {
-        if (!canManage) return;  // if the user is not an orgadmin, return
+        if (!canManage) return;
         if (!selectedClassId) {
             toast.error("No class selected. Please select a class first.");
             return;
@@ -166,13 +150,12 @@ export function EnrollmentForm() {
         }
     }
 
-    // loading states
-    const isPageLoading = !termsReady || isLoadingClasses;
-    const isStudentsLoading = !!selectedClassId && isLoadingStudents;
+    const isShellLoading = isTermsInitialLoading || isClassesInitialLoading;
+    const classPickerDisabled = isShellLoading || !!termsError || (!!classesError && classList.length === 0);
 
     return (
         <>
-            {/* Edit Enrollment Modal */}
+            {/* Edit enrollment modal */}
             <EditEnrollmentModal
                 open={isEditOpen}
                 onOpenChange={setIsEditOpen}
@@ -183,7 +166,6 @@ export function EnrollmentForm() {
                 isSavingEnrollment={isSavingEnrollment}
             />
 
-            {/* Page Header */}
             <section className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-1">
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">Enrollment</h1>
@@ -194,18 +176,22 @@ export function EnrollmentForm() {
             {/* Security setup modal — shown once if 2FA is not yet enabled */}
             <SecuritySetupModal />
 
-            {/* Main Card */}
             <Card className="border shadow-md">
-                <CardContent className="space-y-6">
+                <CardContent>
                     <section className="overflow-hidden rounded-sm bg-card">
-
-                        {/* Header: title + class combobox */}
+                        {/* Class title and class picker */}
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <h4 className="text-base md:text-lg font-semibold text-foreground">
-                                Class
-                            </h4>
+                            {/* Title and description */}
+                            <div className="space-y-1">
+                                <h4 className="text-base font-semibold text-foreground md:text-lg">
+                                    Class{selectedClass ? `: ${selectedClass.name}` : ""}
+                                </h4>
+                                <p className="text-sm text-muted-foreground">
+                                    Select a class to view and manage student subject enrollments.
+                                </p>
+                            </div>
 
-                            {/* Class selector — Popover + search (avoids base-ui/Radix asChild conflict) */}
+                            {/* Class selector — Popover + search */}
                             <div className="w-full sm:max-w-xs">
                                 <Popover open={classPickerOpen} onOpenChange={setClassPickerOpen}>
                                     <PopoverTrigger asChild>
@@ -214,19 +200,14 @@ export function EnrollmentForm() {
                                             variant="outline"
                                             role="combobox"
                                             aria-expanded={classPickerOpen}
-                                            disabled={
-                                                isLoadingClasses ||
-                                                isPageLoading ||
-                                                !activeTermId ||
-                                                loadError !== null
-                                            }
-                                            className="h-10 md:h-12 w-full justify-between font-normal"
+                                            disabled={classPickerDisabled || !activeTermId}
+                                            className="h-10 w-full justify-between font-normal md:h-12"
                                         >
                                             <span className="truncate">
-                                                {isLoadingClasses || isPageLoading
+                                                {isShellLoading
                                                     ? "Loading classes..."
                                                     : classList.find((c) => c.classId === selectedClassId)?.name ??
-                                                    "Select a class..."}
+                                                      "Select a class…"}
                                             </span>
                                             <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
                                         </Button>
@@ -236,17 +217,15 @@ export function EnrollmentForm() {
                                         align="start"
                                         className="w-[--radix-popover-trigger-width] p-0"
                                     >
-                                        {/* Search */}
                                         <div className="border-b p-2">
                                             <Input
-                                                placeholder="Search classes..."
+                                                placeholder="Search classes…"
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
                                                 className="h-8 border-0 shadow-none focus-visible:ring-0"
                                             />
                                         </div>
 
-                                        {/* Class list */}
                                         <div className="max-h-52 overflow-y-auto p-1">
                                             {filteredClasses.length === 0 ? (
                                                 <p className="py-4 text-center text-sm text-muted-foreground">
@@ -283,128 +262,95 @@ export function EnrollmentForm() {
                             </div>
                         </div>
 
-                        <hr className="my-4" />
+                        <hr className="my-3" />
 
-                        {/* Body: terms error, no active term, class/enrollment errors, loading, empty, table */}
-                        {criticalLoadError ? (
+                        {/* If terms are loading and there is no cached data, show the skeleton */}
+                        {isTermsInitialLoading ? (
+                            <EnrollmentLoadingTable />
+                        ) : termsError ? (
+                            // If there is an error loading terms, show the error banner
                             <ErrorBanner
                                 title="Could not load term data"
-                                message={getApiErrorMessage(criticalLoadError, "Failed to load terms. Please try again.")}
+                                message={getApiErrorMessage(termsError, "Failed to load terms. Please try again.")}
                                 onRetry={retryAllFetches}
                             />
-                        ) : isPageLoading ? (
-                            <EnrollmentLoadingTable />
                         ) : !activeTermId ? (
-                            <div className="w-full rounded-md border-2 border-dashed border-border/80 py-16 text-center">
-                                <p className="text-base font-medium text-muted-foreground">
-                                    No active term. Please set up an active term before managing enrollments.
-                                </p>
-                            </div>
+                            // If there is no active term, show the empty no entry component
+                            <EmptyNoEntry
+                                embedded
+                                title="No active term"
+                                description="Set up an active term before managing enrollments."
+                                actionLabel="Set up term"
+                                actionHref="/term"
+                            />
+                        ) : isClassesInitialLoading ? (
+                            // If class options are loading and there is no cached data, show the skeleton
+                            <EnrollmentLoadingTable />
                         ) : !selectedClassId ? (
-                            <div className="w-full rounded-md border-2 border-dashed border-border/80 py-16 text-center">
-                                <p className="text-base font-medium text-muted-foreground">
-                                    Select a class above to view and manage student enrollments.
-                                </p>
-                            </div>
-                        ) : enrollmentsLoadError ? (
+                            classesError ? (
+                                // If class options failed to load, show the error banner
+                                <ErrorBanner
+                                    title="Could not load class options"
+                                    message={getApiErrorMessage(
+                                        classesError,
+                                        "Failed to load classes for this term. Please try again.",
+                                    )}
+                                    onRetry={retryAllFetches}
+                                />
+                            ) : (
+                                // If no class is selected yet, prompt the user to choose one
+                                <EmptyNoEntry
+                                    embedded
+                                    title="Select a class"
+                                    description="Choose a class above to view and manage student enrollments."
+                                />
+                            )
+                        ) : isStudentsInitialLoading ? (
+                            // If enrollments are loading and there is no cached data, show the skeleton
+                            <EnrollmentLoadingTable />
+                        ) : enrollmentsError ? (
+                            // If there is an error loading enrollments for the selected class, show the error banner
                             <ErrorBanner
                                 title="Could not load enrollments"
                                 message={getApiErrorMessage(
-                                    enrollmentsLoadError,
+                                    enrollmentsError,
                                     "Failed to load students for this class. Please try again.",
                                 )}
                                 onRetry={retryAllFetches}
                             />
-                        ) : isStudentsLoading ? (
-                            <EnrollmentLoadingTable />
                         ) : (
                             <div className="space-y-4">
-                                {auxiliaryLoadError && (
+                                {/* Auxiliary class fetch failure — class was selected before options failed */}
+                                {classesError ? (
                                     <ErrorBanner
                                         title="Could not load class options"
                                         message={getApiErrorMessage(
-                                            auxiliaryLoadError,
+                                            classesError,
                                             "Failed to load classes for this term. Please try again.",
                                         )}
                                         onRetry={retryAllFetches}
                                     />
-                                )}
+                                ) : null}
+
                                 {studentsForClass.length === 0 ? (
-                                    <div className="w-full rounded-md border-2 border-dashed border-border/80 py-16 text-center">
-                                        <p className="text-base font-medium text-muted-foreground">
-                                            No students are assigned to this class yet.
-                                        </p>
-                                    </div>
+                                    // If there are no students for the selected class, show the empty no entry component
+                                    <EmptyNoEntry
+                                        embedded
+                                        title="No students enrolled"
+                                        description="No students are assigned to this class yet."
+                                        actionLabel="Manage students"
+                                        actionHref="/students"
+                                    />
                                 ) : (
-                                    <div className="overflow-x-auto py-2">
-                                        <table className="table-fixed min-w-[360px] w-full border-collapse text-sm lg:text-base text-left">
-                                            <colgroup>
-                                                <col className="w-[10%]" />
-                                                <col className="w-[46%]" />
-                                                <col className="w-[34%]" />
-                                                <col className="w-[10%]" />
-                                            </colgroup>
-                                            <thead>
-                                                <tr className="bg-muted/50 border-b border-border">
-                                                    <th className="p-2 font-semibold text-muted-foreground">S/N</th>
-                                                    <th className="p-2 font-semibold text-muted-foreground">Student</th>
-                                                    <th className="p-2 font-semibold text-muted-foreground">
-                                                        Enrolled Subjects
-                                                    </th>
-                                                    <th className="p-2 font-semibold text-muted-foreground text-right" />
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {studentsForClass.map((student, index) => (
-                                                    <tr
-                                                        key={student.studentId}
-                                                        className="border-b border-border last:border-b-0 hover:bg-muted/40 transition-colors"
-                                                    >
-                                                        <td className="p-2 font-medium text-foreground">{index + 1}</td>
-
-                                                        <td className="max-w-0 p-2 font-medium text-foreground">
-                                                            <span className="block truncate" title={student.name}>
-                                                                {student.name}
-                                                            </span>
-                                                        </td>
-
-                                                        <td className="max-w-0 p-2">
-                                                            {student.enrolledSubjectIds.length === 0 ? (
-                                                                <span className="italic text-xs text-muted-foreground">
-                                                                    None enrolled
-                                                                </span>
-                                                            ) : (
-                                                                <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                                                                    <BookOpen className="h-3 w-3" />
-                                                                    {`${student.enrolledSubjectIds.length} subject${student.enrolledSubjectIds.length !== 1 ? "s" : ""}`}
-                                                                </span>
-                                                            )}
-                                                        </td>
-
-                                                        <td className="p-2 text-right">
-                                                            {canManage && (
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => openEditDialog(student)}
-                                                                    disabled={
-                                                                        isSavingEnrollment ||
-                                                                        loadError !== null ||
-                                                                        isStudentsLoading
-                                                                    }
-                                                                    className="cursor-pointer border border-blue-500/25 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300 text-sm lg:text-base"
-                                                                    aria-label="Edit enrollment"
-                                                                >
-                                                                    <Pencil className="h-3 w-3" />
-                                                                    <span className="sr-only sm:not-sr-only">Edit</span>
-                                                                </Button>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                    // Finally, if there are students, show the enrollment table
+                                    <div className="py-3">
+                                        <EnrollmentTable
+                                            students={studentsForClass}
+                                            canManage={canManage}
+                                            isSaving={isSavingEnrollment}
+                                            disabled={isSavingEnrollment}
+                                            onEditEnrollment={openEditDialog}
+                                        />
                                     </div>
                                 )}
                             </div>

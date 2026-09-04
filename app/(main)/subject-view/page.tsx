@@ -6,10 +6,12 @@ import { useSWRConfig } from "swr";
 import type { AcademicTerm } from "@/types/drizzle";
 import SubjectsComponent from "./SubjectsComponent";
 import { getTerms } from "@/fetcher/queries";
+import { TERMS_KEY } from "@/fetcher/keys";
 import { getApiErrorMessage, getHttpStatus } from "@/fetcher/mutations";
 import { authClient } from "@/src/auth-client";
 import { ResultsSkeleton } from "../students-view/ResultsSkeleton";
 import { ErrorBanner } from "@/shared-components/error-banner";
+import { EmptyNoEntry } from "@/shared-components/empty-noentry";
 
 const SubjectsPage = () => {
   // Routing and manual mutation for retries
@@ -66,30 +68,33 @@ const SubjectsPage = () => {
     );
   }
 
-  // Show error banner if no academic term is found
   if (!academicTerm) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-5xl mx-auto">
-          <ErrorBanner
+          <EmptyNoEntry
+            embedded
             title="No active term"
-            message="No academic term found. Please create or activate an academic term first."
-            onRetry={retryShellFetches}
+            description="Create or activate an academic term before viewing subject sheets."
+            actionLabel="Set up term"
+            actionHref="/term"
           />
         </div>
       </div>
     );
   }
 
-  // Show error banner if no school is found
+  // Show empty state if no school is found
   if (!school) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-5xl mx-auto">
-          <ErrorBanner
+          <EmptyNoEntry
+            embedded
             title="No school selected"
-            message="No school record found. Select or set up your school and try again."
-            onRetry={retryShellFetches}
+            description="Select or set up your school before viewing subject sheets."
+            actionLabel="Set up school"
+            actionHref="/school"
           />
         </div>
       </div>

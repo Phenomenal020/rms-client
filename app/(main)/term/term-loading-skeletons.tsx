@@ -7,27 +7,32 @@ const ROW_COUNT = 3;
 // Term setup table skeleton
 export function TermSetupTableSkeleton() {
     return (
-        <div className="overflow-x-auto py-3">
-            <table className="min-w-[480px] w-full table-fixed border-collapse text-sm md:text-base text-left">
-                <thead>
-                    <tr className="bg-muted/50 border-b border-border">
-                        <th className="py-2 pr-1 font-semibold text-muted-foreground">Session</th>
-                        <th className="py-2 pr-1 font-semibold text-muted-foreground">Term</th>
-                        <th className="py-2 pr-1 font-semibold text-muted-foreground">Start Date</th>
-                        <th className="py-2 pr-1 font-semibold text-muted-foreground">End Date</th>
-                        <th className="py-2 pr-1 font-semibold text-muted-foreground">Days</th>
-                        <th className="py-2" />
-                    </tr>
-                </thead>
+        <div className="overflow-x-auto py-3" aria-busy="true" aria-label="Loading terms">
+            <table className="min-w-[560px] w-full table-fixed border-collapse text-sm text-left md:text-base">
                 <tbody>
                     {Array.from({ length: ROW_COUNT }).map((_, index) => (
                         <tr key={index} className="border-b border-border last:border-b-0">
-                            <td className="py-2 pr-1"><Skeleton className="h-4 w-[80%]" /></td>
-                            <td className="py-2 pr-1"><Skeleton className="h-4 w-[70%]" /></td>
-                            <td className="py-2 pr-1"><Skeleton className="h-4 w-[75%]" /></td>
-                            <td className="py-2 pr-1"><Skeleton className="h-4 w-[75%]" /></td>
-                            <td className="py-2 pr-1"><Skeleton className="h-4 w-8" /></td>
-                            <td className="py-2"><Skeleton className="ml-auto h-6 w-12 rounded-md" /></td>
+                            <td className="p-2">
+                                <Skeleton className="h-3.5 w-[75%] sm:h-4 sm:w-[80%]" />
+                            </td>
+                            <td className="p-2">
+                                <Skeleton className="h-3.5 w-[65%] sm:h-4 sm:w-[70%]" />
+                            </td>
+                            <td className="p-2">
+                                <Skeleton className="h-3.5 w-[70%] sm:h-4 sm:w-[75%]" />
+                            </td>
+                            <td className="p-2">
+                                <Skeleton className="h-3.5 w-[70%] sm:h-4 sm:w-[75%]" />
+                            </td>
+                            <td className="p-2">
+                                <Skeleton className="h-3.5 w-6 sm:h-4 sm:w-8" />
+                            </td>
+                            <td className="p-2">
+                                <div className="flex items-center justify-end gap-1">
+                                    <Skeleton className="h-7 w-7 rounded-md sm:h-8 sm:w-14" />
+                                    <Skeleton className="h-7 w-7 rounded-md sm:h-8 sm:w-14" />
+                                </div>
+                            </td>
                         </tr>
                     ))}
                 </tbody>
@@ -39,23 +44,26 @@ export function TermSetupTableSkeleton() {
 // Grading system table skeleton
 export function GradingTableSkeleton() {
     return (
-        <div className="overflow-x-auto py-2">
-            <table className="min-w-[240px] w-full table-fixed border-collapse text-sm md:text-base text-left">
-                <thead>
-                    <tr className="bg-muted/50 border-b border-border">
-                        <th className="py-2 pr-2 font-semibold text-muted-foreground">Grade</th>
-                        <th className="py-2 pr-2 font-semibold text-muted-foreground">Min Score</th>
-                        <th className="py-2 pr-2 font-semibold text-muted-foreground">Max Score</th>
-                        <th className="py-2" />
-                    </tr>
-                </thead>
+        <div className="overflow-x-auto py-3" aria-busy="true" aria-label="Loading grading system">
+            <table className="min-w-[240px] w-full table-fixed border-collapse text-sm text-left md:text-base">
                 <tbody>
                     {Array.from({ length: ROW_COUNT }).map((_, index) => (
                         <tr key={index} className="border-b border-border last:border-b-0">
-                            <td className="py-2 pr-2"><Skeleton className="h-4 w-10" /></td>
-                            <td className="py-2 pr-2"><Skeleton className="h-4 w-8" /></td>
-                            <td className="py-2 pr-2"><Skeleton className="h-4 w-10" /></td>
-                            <td className="py-2"><Skeleton className="ml-auto h-6 w-16 rounded-md" /></td>
+                            <td className="p-2">
+                                <Skeleton className="h-3.5 w-8 sm:h-4 sm:w-10" />
+                            </td>
+                            <td className="p-2">
+                                <Skeleton className="h-3.5 w-6 sm:h-4 sm:w-8" />
+                            </td>
+                            <td className="p-2">
+                                <Skeleton className="h-3.5 w-8 sm:h-4 sm:w-10" />
+                            </td>
+                            <td className="p-2">
+                                <div className="flex items-center justify-end gap-1">
+                                    <Skeleton className="h-7 w-7 rounded-md sm:h-8 sm:w-14" />
+                                    <Skeleton className="h-7 w-7 rounded-md sm:h-8 sm:w-14" />
+                                </div>
+                            </td>
                         </tr>
                     ))}
                 </tbody>
@@ -67,23 +75,26 @@ export function GradingTableSkeleton() {
 // Assessment structure table skeleton
 export function AssessmentTableSkeleton() {
     return (
-        <div className="overflow-x-auto py-2">
-            <table className="min-w-[320px] w-full table-fixed border-collapse text-sm md:text-base text-left">
-                <thead>
-                    <tr className="bg-muted/50 border-b border-border">
-                        <th className="py-2 pr-2 font-semibold text-muted-foreground">Type</th>
-                        <th className="py-2 pr-2 font-semibold text-muted-foreground">Percentage</th>
-                        <th className="py-2 pr-2 font-semibold text-muted-foreground">Order</th>
-                        <th className="py-2" />
-                    </tr>
-                </thead>
+        <div className="overflow-x-auto py-3" aria-busy="true" aria-label="Loading assessment structure">
+            <table className="min-w-[320px] w-full table-fixed border-collapse text-sm text-left md:text-base">
                 <tbody>
                     {Array.from({ length: ROW_COUNT }).map((_, index) => (
                         <tr key={index} className="border-b border-border last:border-b-0">
-                            <td className="py-2 pr-2"><Skeleton className="h-4 w-[70%]" /></td>
-                            <td className="py-2 pr-2"><Skeleton className="h-4 w-12" /></td>
-                            <td className="py-2 pr-2"><Skeleton className="h-4 w-8" /></td>
-                            <td className="py-2"><Skeleton className="ml-auto h-6 w-16 rounded-md" /></td>
+                            <td className="p-2">
+                                <Skeleton className="h-3.5 w-[65%] sm:h-4 sm:w-[70%]" />
+                            </td>
+                            <td className="p-2">
+                                <Skeleton className="h-3.5 w-10 sm:h-4 sm:w-12" />
+                            </td>
+                            <td className="p-2">
+                                <Skeleton className="h-3.5 w-6 sm:h-4 sm:w-8" />
+                            </td>
+                            <td className="p-2">
+                                <div className="flex items-center justify-end gap-1">
+                                    <Skeleton className="h-7 w-7 rounded-md sm:h-8 sm:w-14" />
+                                    <Skeleton className="h-7 w-7 rounded-md sm:h-8 sm:w-14" />
+                                </div>
+                            </td>
                         </tr>
                     ))}
                 </tbody>

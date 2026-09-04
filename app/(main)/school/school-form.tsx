@@ -6,6 +6,7 @@ import { LoadingButton } from "@/shared-components/loading-button";
 import { SecuritySetupModal } from "@/shared-components/security-setup-modal";
 import { SchoolAndTermMgt } from "@/shared-components/school-and-term-mgt";
 import { ErrorBanner } from "@/shared-components/error-banner";
+import { EmptyNoEntry } from "@/shared-components/empty-noentry";
 import { Button } from "@/shadcn/ui/button";
 import { Card, CardContent } from "@/shadcn/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shadcn/ui/form";
@@ -211,11 +212,11 @@ export function SchoolForm() {
       {isComponentLoading ? (
         <SchoolFormCardSkeleton />
       ) : !activeOrganisationError && !activeOrganisation ? (
-        <Card className="border shadow-md">
-          <CardContent>
-            <p>No school information found. Please contact your admin if you believe this is an error.</p>
-          </CardContent>
-        </Card>
+        <EmptyNoEntry
+          embedded
+          title="No school information found"
+          description="Please contact your admin if you believe this is an error."
+        />
       ) : !activeOrganisationError && (
         <Card className="border shadow-md">
           <CardContent>

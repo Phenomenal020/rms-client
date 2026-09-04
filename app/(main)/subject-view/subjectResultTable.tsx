@@ -1,7 +1,8 @@
 'use client';
 
-import type { Student, AssessmentStructure, Subject, AssessmentScore } from "@/types/drizzle";
-import { getScorePercentage } from "../students-view/utils/scoreFns";
+import type { Student, AssessmentStructure } from "@/types/drizzle";
+import { EmptyNoEntry } from "@/shared-components/empty-noentry";
+import { SubjectResultTable as SubjectResultDataTable } from "./subject-result-table";
 
 // Component props (parallel to students-view ResultTable, without edit/save handlers)
 interface SubjectResultTableProps {
@@ -19,10 +20,7 @@ export function SubjectResultTable({
   getGrade,
   getRemark,
   assessmentStructure,
-  readOnly = false,
 }: SubjectResultTableProps) {
-  const sortedAssessments = assessmentStructure ?? [];
-
   return (
     <div className="mb-8">
       <div className="space-y-4">
@@ -33,104 +31,25 @@ export function SubjectResultTable({
           </h3>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse border border-border">
-            {/* Table header: Assessment type, Total, Grade, Remark */}
-            <thead>
-              <tr className="bg-muted">
-                <th className="border border-border p-2 md:p-3 text-left font-semibold text-foreground text-sm lg:text-base sticky left-0 z-20 bg-muted">
-                  Student Name
-                </th>
-                {sortedAssessments.map((assessment) => (
-                  <th
-                    key={assessment.id}
-                    className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm lg:text-base"
-                  >
-                    {assessment.type} ({assessment.percentage}%)
-                  </th>
-                ))}
-                <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm lg:text-base">
-                  Total (100%)
-                </th>
-                <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm lg:text-base">
-                  Grade
-                </th>
-                <th className="border border-border p-2 md:p-3 text-center font-semibold text-foreground text-sm lg:text-base">
-                  Remark
-                </th>
-              </tr>
-            </thead>
-
-            {/* Table body: Student name, Assessment scores, Total, Grade, Remark */}
-            <tbody>
-              {enrolledStudents.length > 0 ? (
-                enrolledStudents.map((student, index) => {
-                  const studentName = [
-                    student.firstName,
-                    student.middleName || "",
-                    student.lastName,
-                  ]
-                    .filter(Boolean)
-                    .join(" ");
-
-                  const scores =
-                    student.subjects?.find(
-                      (s: Subject) =>
-                        (s.subjectId ?? s.subject?.subjectId) === selectedSubjectId,
-                    )?.assessments?.[0]?.scores || [];
-
-                  const percentage = getScorePercentage(scores);
-                  const grade = getGrade(percentage);
-                  const remark = getRemark(grade);
-
-                  return (
-                    <tr key={student.id || index} className="hover:bg-muted">
-                      <td className="border border-border p-3 font-medium text-foreground text-sm lg:text-base whitespace-nowrap sticky left-0 z-10 bg-card">
-                        {studentName}
-                      </td>
-
-                      {sortedAssessments.map((assessment) => {
-                        const scoreValue =
-                          scores.find(
-                            (s: AssessmentScore) =>
-                              s.assessmentStructureId === assessment.id,
-                          )?.score ?? 0;
-
-                        return (
-                          <td
-                            key={assessment.id}
-                            className="border border-border p-1.5 md:p-3 text-center text-sm lg:text-base"
-                          >
-                            <span className="text-foreground">{scoreValue}</span>
-                          </td>
-                        );
-                      })}
-
-                      <td className="border border-border p-3 text-center font-semibold text-foreground text-sm lg:text-base">
-                        {percentage}
-                      </td>
-                      <td className="border border-border p-3 text-center font-bold text-foreground text-sm lg:text-base">
-                        {grade}
-                      </td>
-                      <td className="border border-border p-3 text-center text-foreground text-sm lg:text-base">
-                        {remark}
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td
-                    colSpan={sortedAssessments.length + 4}
-                    className="border border-border p-3 text-center text-muted-foreground text-sm lg:text-base"
-                  >
-                    No students enrolled in this subject
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {enrolledStudents.length === 0 ? (
+          // If there are no students enrolled in this subject, show the empty no entry component
+          <EmptyNoEntry
+            embedded
+            title="No students enrolled"
+            description="No students are enrolled in this subject yet."
+            actionLabel="Manage enrollment"
+            actionHref="/enrollment"
+          />
+        ) : (
+          // Finally, if there are enrolled students, show the subject result table
+          <SubjectResultDataTable
+            enrolledStudents={enrolledStudents}
+            selectedSubjectId={selectedSubjectId}
+            getGrade={getGrade}
+            getRemark={getRemark}
+            assessmentStructure={assessmentStructure}
+          />
+        )}
       </div>
     </div>
   );

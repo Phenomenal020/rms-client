@@ -2,21 +2,22 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Pencil, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useSWRConfig } from "swr";
 import { Card, CardContent } from "@/shadcn/ui/card";
-import { Input } from "@/shadcn/ui/input";
 import { Button } from "@/shadcn/ui/button";
 import { TeacherModal } from "./add-teacher-modal";
 import { EditTeacherModal } from "./edit-teacher-modal";
 import SmallTermText from "@/shared-components/small-term-text";
 import { SecuritySetupModal } from "@/shared-components/security-setup-modal";
 import { ErrorBanner } from "@/shared-components/error-banner";
+import { EmptyNoEntry } from "@/shared-components/empty-noentry";
 import { useUser } from "@/contexts/user-context";
+import { TeachersTable } from "./teachers-table";
 import { getOrgMembers, ORG_MEMBERS_KEY } from "@/fetcher/queries";
 import { getApiErrorMessage, getHttpStatus, useAddMember } from "@/fetcher/mutations";
 import { handleAuthRedirect } from "@/utils/auth-redirect";
@@ -32,45 +33,39 @@ export type AddTeacherValues = z.infer<typeof addTeacherSchema>;
 export type TeacherMember = Pick<teacherOption, "id" | "name" | "email">;
 
 export function TeachersForm() {
-    // hooks for redirection
+    // Router for redirection, mutate for manual retry
     const router = useRouter();
     const pathname = usePathname();
-    // manually invalidate the cache
     const { mutate } = useSWRConfig();
 
-    // fetch the user's role (gate orgadmin)
+    // Check the user is an org admin with 2FA and a verified email
     const { user } = useUser();
     const canManage = user?.role === "orgadmin" && user?.twoFactorEnabled === true && user?.emailVerified === true;
 
-    // state for the dialog and search query
+    // Dialog and search state
     const [isTeacherDialogOpen, setIsTeacherDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-    const [searchQuery, setSearchQuery] = useState("");
-    // state for the editing teacher
     const [editingTeacher, setEditingTeacher] = useState<TeacherMember | null>(null);
 
-    // fetch the user's teachers
+    // Fetch organisation members
     const { teachers, error: membersError, isLoading: isLoadingMembers } = getOrgMembers();
     const teacherList = (teachers ?? []) as teacherOption[];
-    // add a teacher mutation hook
+
+    // Add teacher mutation hook
     const { addMemberClient, isMutating: isAddingMember } = useAddMember();
 
-    // add a form hook
+    // Add teacher form with resolver and default values
     const addForm = useForm<AddTeacherValues>({
         resolver: zodResolver(addTeacherSchema),
         defaultValues: { email: "" },
     });
-    // loading and error state
-    const loadError = membersError;
-    const showTeacherCount = !membersError && teachers !== undefined;
-    const isComponentLoading = isLoadingMembers;
 
-    // retry all fetches
+    // Retry fetching organisation members (manual retry logic)
     function retryAllFetches() {
         void mutate(ORG_MEMBERS_KEY);
     }
 
-    // handle authentication redirects based on the error status code (on page load)
+    // Redirect on auth errors
     useEffect(() => {
         if (!membersError) return;
         const status = getHttpStatus(membersError);
@@ -81,41 +76,29 @@ export function TeachersForm() {
         }
     }, [membersError, router, pathname]);
 
-    // filter the teachers based on the search query
-    const filteredTeachers = useMemo(() => {
-        const query = searchQuery.trim().toLowerCase();
-        if (!query) return teacherList;
-        return teacherList.filter((teacher) =>
-            (teacher.name ?? "").toLowerCase().includes(query) ||
-            (teacher.email ?? "").toLowerCase().includes(query),
-        );
-    }, [teacherList, searchQuery]);
-
-    // open the add teacher dialog
+    // Open add/edit teacher dialogs
     function openAddTeacherDialog() {
-        if (!canManage) return;   // orgadmin gate
+        if (!canManage) return;
         addForm.reset({ email: "" });
         setIsTeacherDialogOpen(true);
     }
-
-    // open the edit teacher dialog
     function openEditTeacherDialog(teacher: TeacherMember) {
-        if (!canManage) return;   // orgadmin gate
+        if (!canManage) return;
         setEditingTeacher(teacher);
         setIsEditDialogOpen(true);
     }
 
-    // add member handler
+    // Add teacher handler
     async function addMember(formData: AddTeacherValues) {
-        if (!canManage) return;   // orgadmin gate
+        if (!canManage) return;
         const normalisedEmail = formData.email.trim().toLowerCase();
         if (teacherList.some((teacher) => teacher.email.toLowerCase() === normalisedEmail)) {
             addForm.setError("email", { message: "A teacher with this email already exists" });
             return;
-        }  // check local state first 
+        }
         try {
-            // Then, make the api call to add the member
-            await addMemberClient({ email: normalisedEmail });  // on success in the mutation hook automatically invalidates the org members key to refetch the org members
+            const { error } = await addMemberClient({ email: normalisedEmail });
+            if (error) throw error;
             toast.success(`${normalisedEmail} added to the organisation.`);
             setIsTeacherDialogOpen(false);
             addForm.reset();
@@ -126,31 +109,31 @@ export function TeachersForm() {
         }
     }
 
-    // remove member handler
+    // Remove teacher handler
     async function removeMember(email: string) {
-        if (!canManage) return;   // orgadmin gate
+        if (!canManage) return;
         try {
             const { error } = await authClient.organization.removeMember({
                 memberIdOrEmail: email,
             });
-            // If there is a remove error, throw it and handle the error in the catch block
-            if (error) throw error;
+            if (error) throw error;  //if error, throw it
             setIsEditDialogOpen(false);
             setEditingTeacher(null);
-            // await mutate(ORG_MEMBERS_KEY);
             toast.success("Member removed from organisation.");
-        } catch (err) {
+        } catch (err) { // catch the error here
             if (!handleAuthRedirect(err, { router, pathname })) {
                 toast.error(getApiErrorMessage(err, "Failed to remove member. Please try again."));
             }
         }
     }
 
-    // add loading state
+    // Loading state and disabled controls
     const addLoading = isAddingMember || addForm.formState.isSubmitting;
+    const controlsDisabled = addLoading || isLoadingMembers || !!membersError || teacherList.length === 0;
 
     return (
         <>
+            {/* Teachers Header Text and Small Term Text */}
             <section className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-1">
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">Teachers</h1>
@@ -161,7 +144,7 @@ export function TeachersForm() {
             {/* Security setup modal — shown once if 2FA is not yet enabled */}
             <SecuritySetupModal />
 
-            {/* Add Teacher Modal */}
+            {/* Add teacher modal */}
             <TeacherModal
                 open={isTeacherDialogOpen}
                 onOpenChange={setIsTeacherDialogOpen}
@@ -171,7 +154,7 @@ export function TeachersForm() {
                 readOnly={!canManage}
             />
 
-            {/* Edit / View Teacher Modal */}
+            {/* Edit / view teacher modal */}
             <EditTeacherModal
                 open={isEditDialogOpen}
                 onOpenChange={setIsEditDialogOpen}
@@ -184,127 +167,67 @@ export function TeachersForm() {
             <Card className="border shadow-md">
                 <CardContent>
                     <section className="overflow-hidden rounded-sm bg-card">
-                        {/* Teacher Header: Count, Input, and Query*/}
+                        {/* All Teachers title and add teacher button */}
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <h4 className="text-base font-semibold text-foreground md:text-lg">
-                                All Teachers{showTeacherCount ? ` (${teacherList.length})` : ""}
-                            </h4>
-                            <div className="flex items-center gap-2">
-                                {/* Search Teacher Input */}
-                                <Input
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="Search..."
-                                    className="h-10 md:h-12 w-full sm:max-w-xs"
-                                    disabled={addLoading || loadError !== undefined || isComponentLoading}
-                                />
-                                {/* Add Teacher Button */}
-                                {canManage && (
-                                    <Button
-                                        type="button"
-                                        className="w-fit cursor-pointer h-10 md:h-12 sm:self-center"
-                                        onClick={openAddTeacherDialog}
-                                        disabled={addLoading || loadError !== undefined || isComponentLoading}
-                                    >
-                                        <Plus className="h-4 w-4 sm:mr-1" />
-                                        <span className="hidden sm:inline">Add Teacher</span>
-                                        <span className="sm:hidden">Add</span>
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-
-                        <hr className="my-4" />
-
-                        {/* Load error */}
-                        {loadError ? (
-                            <ErrorBanner
-                                title="Could not load teachers"
-                                message={getApiErrorMessage(loadError, "Failed to load organisation members. Please try again.")}
-                                onRetry={retryAllFetches}
-                            />
-                            // {/* Load error. Error banner */}
-                        ) : isComponentLoading ? (
-                            // {/* Loading Table Skeleton */}
-                            <TeachersLoadingTable />
-                        ) : teacherList.length === 0 ? (
-                            <div className="w-full rounded-md border-2 border-dashed border-border/80 py-16 text-center">
-                                <p className="text-base font-medium text-muted-foreground">
-                                    No teachers in your organisation yet.
-                                    {canManage ? " Use the Add Teacher button to add a teacher." : ""}
+                            {/* Title and description */}
+                            <div className="space-y-1">
+                                <h4 className="text-base font-semibold text-foreground md:text-lg">
+                                    All Teachers ({teacherList.length})
+                                </h4>
+                                <p className="text-sm text-muted-foreground">
+                                    Manage teachers in your organisation.
                                 </p>
                             </div>
-                            // {/* No teachers found. Empty state */}
-                        ) : filteredTeachers.length === 0 ? (
-                            <div className="py-4 text-center text-sm text-muted-foreground">
-                                No teachers match your search.
-                            </div>
-                            // {/* No teachers match your search. Empty state */}
+                            {canManage && (
+                                <Button
+                                    type="button"
+                                    className="h-10 w-fit cursor-pointer md:h-12 sm:self-center"
+                                    onClick={openAddTeacherDialog}
+                                    disabled={addLoading || isLoadingMembers || !!membersError}
+                                >
+                                    <Plus className="h-4 w-4 sm:mr-1" />
+                                    <span className="hidden sm:inline">Add Teacher</span>
+                                    <span className="sm:hidden">Add</span>
+                                </Button>
+                            )}
+                        </div>
+                        <hr className="my-3" />
+
+                        {/* If teachers are loading and there is no cached data, show the skeleton */}
+                        {isLoadingMembers && teacherList.length === 0 ? (
+                            <TeachersLoadingTable />
+                        ) : membersError ? (
+                            // If there is an error loading teachers, show the error banner
+                            <ErrorBanner
+                                title="Could not load teachers"
+                                message={getApiErrorMessage(
+                                    membersError,
+                                    "Failed to load organisation members. Please try again.",
+                                )}
+                                onRetry={retryAllFetches}
+                            />
+                        ) : teacherList.length === 0 ? (
+                            // If there are no teachers after loading, show the empty no entry component
+                            <EmptyNoEntry
+                                embedded
+                                title="No teachers yet"
+                                description={
+                                    "No teachers have been added to your organisation yet."
+                                }
+                                actionLabel={canManage ? "Add Teacher" : undefined}
+                                onAction={canManage ? openAddTeacherDialog : undefined}
+                            />
                         ) : (
-                            <div className="overflow-x-auto py-3">
-                                <table className="min-w-[300px] w-full table-fixed border-collapse text-sm text-left">
-                                    <colgroup>
-                                        <col className="w-[40%]" />
-                                        <col className="w-[48%]" />
-                                        <col className="w-[12%]" />
-                                    </colgroup>
-                                    {/* Table Header */}
-                                    <thead>
-                                        <tr className="bg-muted/50 border-b border-border">
-                                            <th className="p-2 text-left font-semibold text-muted-foreground">Name</th>
-                                            <th className="p-2 text-left font-semibold text-muted-foreground">Email</th>
-                                            <th className="p-2 text-right font-semibold text-muted-foreground"></th>
-                                        </tr>
-                                    </thead>
-                                    {/* Table Body */}
-                                    <tbody>
-                                        {filteredTeachers.map((teacher) => (
-                                            <tr
-                                                key={teacher.id}
-                                                className="border-b border-border last:border-b-0 transition-colors hover:bg-primary/5"
-                                            >
-                                                {/* Name Column */}
-                                                <td className="p-2 whitespace-nowrap">
-                                                    <span className="inline-flex py-1 font-medium text-foreground">
-                                                        {teacher.name}
-                                                    </span>
-                                                </td>
-                                                {/* Email Column */}
-                                                <td className="p-2 mr-1">
-                                                    <span className="block truncate text-muted-foreground">
-                                                        {teacher.email}
-                                                    </span>
-                                                </td>
-                                                {/* Actions Column */}
-                                                <td className="p-2">
-                                                    {(canManage) && (teacher.id !== user?.id ? (
-                                                        <div className="flex items-center justify-end gap-1">
-                                                            {/* View Teacher Button */}
-                                                            <Button
-                                                                type="button"
-                                                                variant="secondary"
-                                                                size="sm"
-                                                                onClick={() => openEditTeacherDialog(teacher)}
-                                                                disabled={addLoading || loadError !== undefined || isComponentLoading}
-                                                                className="cursor-pointer border border-blue-500/25 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300 text-sm"
-                                                                aria-label="View teacher"
-                                                            >
-                                                                <Pencil className="h-3 w-3" />
-                                                                <span className="hidden sm:inline">View</span>
-                                                            </Button>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center justify-end">
-                                                            <span className="inline-flex h-8 items-center bg-secondary/60 px-2.5 text-sm font-medium text-muted-foreground">
-                                                                You
-                                                            </span>
-                                                        </div>
-                                                    ))}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                            // Finally, if there are teachers, show the teachers table
+                            <div className="py-3">
+                                <TeachersTable
+                                    teachers={teacherList}
+                                    canManage={canManage}
+                                    currentUserId={user?.id}
+                                    addLoading={addLoading}
+                                    disabled={controlsDisabled}
+                                    onViewTeacher={openEditTeacherDialog}
+                                />
                             </div>
                         )}
                     </section>

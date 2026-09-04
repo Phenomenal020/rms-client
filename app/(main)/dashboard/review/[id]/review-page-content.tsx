@@ -6,6 +6,7 @@ import { useSWRConfig } from "swr";
 import ResultsComponent from "@/app/(main)/students-view/ResultsComponent";
 import { ResultsSkeleton } from "@/app/(main)/students-view/ResultsSkeleton";
 import { ErrorBanner } from "@/shared-components/error-banner";
+import { EmptyNoEntry } from "@/shared-components/empty-noentry";
 import { getTerms } from "@/fetcher/queries";
 import { getApiErrorMessage, getHttpStatus } from "@/fetcher/mutations";
 import { authClient } from "@/src/auth-client";
@@ -76,10 +77,12 @@ export function ReviewPageContent() {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-5xl mx-auto">
-          <ErrorBanner
+          <EmptyNoEntry
+            embedded
             title="No school selected"
-            message="No active school. Select a school and try again."
-            onRetry={retryShellFetches}
+            description="Select or set up your school before reviewing records."
+            actionLabel="Set up school"
+            actionHref="/school"
           />
         </div>
       </div>
@@ -90,10 +93,12 @@ export function ReviewPageContent() {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-5xl mx-auto">
-          <ErrorBanner
+          <EmptyNoEntry
+            embedded
             title="No active term"
-            message="No academic term found. Please create or activate an academic term first."
-            onRetry={retryShellFetches}
+            description="Create or activate an academic term before reviewing records."
+            actionLabel="Set up term"
+            actionHref="/term"
           />
         </div>
       </div>

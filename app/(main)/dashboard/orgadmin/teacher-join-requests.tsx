@@ -1,33 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Check, X } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
 import { Card, CardContent } from "@/shadcn/ui/card";
-import { Input } from "@/shadcn/ui/input";
-import { LoadingButton } from "@/shared-components/loading-button";
 import { ErrorBanner } from "@/shared-components/error-banner";
 import { EmptyPending } from "@/shared-components/empty-pending";
-import { EmptySearch } from "@/shared-components/empty-search";
 import { ONBOARDING_JOIN_REQUESTS_KEY } from "@/fetcher/keys";
-import { StatusBadge } from "../helpers/dashboard-badge";
 import { DashboardRequestsTableSkeleton } from "../helpers/dashboard-loading";
 import { getTeacherJoinRequests } from "@/fetcher/queries";
 import { getApiErrorMessage, useApproveTeacherJoinRequest, useRejectTeacherJoinRequest } from "@/fetcher/mutations";
 import { useUser } from "@/contexts/user-context";
 import type { TeacherJoinRequestRow } from "@/types/onboarding";
+import { TeacherJoinRequestsTable } from "./teacher-join-requests-table";
 
 // Default decline reason for teacher join requests
 const DEFAULT_DECLINE_REASON = "Declined by organisation admin.";
-
-// Map api statuses to badge statuses
-function statusForBadge(status: string) {
-    if (status === "APPROVED") return "Accepted";
-    if (status === "REJECTED") return "Declined";
-    if (status === "PENDING") return "Pending";
-    return status;
-}
 
 export function TeacherJoinRequests() {
     const { mutate } = useSWRConfig();
@@ -41,11 +29,7 @@ export function TeacherJoinRequests() {
         data: joinRequests = [],
         error: joinRequestsError,
         isLoading: isJoinRequestsLoading,
-        isValidating: isJoinRequestsValidating,
     } = getTeacherJoinRequests();
-
-    // Search query for the table
-    const [searchQuery, setSearchQuery] = useState("");
 
     // Action ID for the table
     const [actionId, setActionId] = useState<string | null>(null);
@@ -54,20 +38,6 @@ export function TeacherJoinRequests() {
     const { approveTeacherJoinRequest, isMutating: isApproving } = useApproveTeacherJoinRequest();
     const { rejectTeacherJoinRequest, isMutating: isRejecting } = useRejectTeacherJoinRequest();
     const busy = isApproving || isRejecting;
-
-    // Filtered requests for the table
-    const filteredRequests = useMemo(() => {
-        const q = searchQuery.toLowerCase().trim();
-        return (joinRequests ?? []).filter((row) => {
-            if (!q) return true;  // if q is empty, return all rows
-            return (
-                row.firstName.toLowerCase().includes(q) ||
-                row.lastName.toLowerCase().includes(q) ||
-                row.name.toLowerCase().includes(q) ||
-                row.email.toLowerCase().includes(q)
-            );
-        });
-    }, [joinRequests, searchQuery]);
 
     // Handle approving a teacher join request
     async function handleApprove(row: TeacherJoinRequestRow) {
@@ -102,25 +72,14 @@ export function TeacherJoinRequests() {
         <Card className="border shadow-md">
             <CardContent>
                 <section className="overflow-hidden rounded-sm bg-card">
-                    {/* Teacher Join Requests title and search input */}
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        {/* Title and description */}
-                        <div className="space-y-1">
-                            <h4 className="text-base font-semibold text-foreground md:text-lg">
-                                Teacher Join Requests ({joinRequests?.length ?? 0})
-                            </h4>
-                            <p className="text-sm text-muted-foreground">
-                                Requests to join your organisation.
-                            </p>
-                        </div>
-                        {/* Search input */}
-                        <Input
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search…"
-                            className="h-10 md:h-12 w-full sm:max-w-xs text-sm"
-                            disabled={isJoinRequestsLoading || (joinRequests?.length ?? 0) === 0}
-                        />
+                    {/* Teacher Join Requests title and description */}
+                    <div className="space-y-1">
+                        <h4 className="text-base font-semibold text-foreground md:text-lg">
+                            Teacher Join Requests ({joinRequests?.length ?? 0})
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                            Requests to join your organisation.
+                        </p>
                     </div>
                     <hr className="my-3" />
 
@@ -144,103 +103,19 @@ export function TeacherJoinRequests() {
                             title="No pending requests"
                             description="When teachers request to join your organisation, they will appear here."
                         />
-                    ) : filteredRequests.length === 0 ? (
-                        // If the search returns no results, show the empty search component
-                        <EmptySearch
-                            embedded
-                            query={searchQuery}
-                            onClear={() => setSearchQuery("")}
-                        />
                     ) : (
-                        // If there are requests, show them in the table (TODO: Display the shared one)
-                        <div className="overflow-x-auto py-3">
-                            <table className="min-w-[640px] w-full table-fixed border-collapse text-sm text-left">
-                                {/* Table column widths */}
-                                <colgroup>
-                                    <col className="w-[27.5%]" />
-                                    <col className="w-[27.5%]" />
-                                    <col className="w-[12.5%]" />
-                                    <col className="w-[17.5%]" />
-                                    <col className="w-[15%]" />
-                                </colgroup>
-                                {/* Table headers */}
-                                <thead>
-                                    <tr className="bg-muted/50 border-b border-border">
-                                        <th className="p-2 font-semibold text-muted-foreground">Name</th>
-                                        <th className="p-2 font-semibold text-muted-foreground">Email</th>
-                                        <th className="p-2 font-semibold text-muted-foreground">Status</th>
-                                        <th className="p-2 font-semibold text-muted-foreground">Submitted</th>
-                                        <th className="p-2 text-right font-semibold text-muted-foreground">Actions</th>
-                                    </tr>
-                                </thead>
-                                {/* Table rows */}
-                                <tbody>
-                                    {filteredRequests.map((row) => {
-                                        const isRowBusy = busy && actionId === row.id;  // true  iff this row is being modified (to display the spinner pn the correct row)
-                                        return (
-                                            <tr
-                                                key={row.id}
-                                                className="border-b border-border last:border-b-0 transition-colors hover:bg-primary/5"
-                                            >
-                                                {/* Name column */}
-                                                <td className="p-2">
-                                                    <span className="block truncate font-medium text-foreground">
-                                                        {row.name || `${row.firstName} ${row.lastName}`.trim() || "—"}
-                                                    </span>
-                                                </td>
-                                                {/* Email column */}
-                                                <td className="p-2">
-                                                    <span className="block truncate text-muted-foreground">
-                                                        {row.email || "—"}
-                                                    </span>
-                                                </td>
-                                                {/* Status column */}
-                                                <td className="p-1">
-                                                    <StatusBadge status={statusForBadge(row.status)} />
-                                                </td>
-                                                {/* Submitted column */}
-                                                <td className="p-2 tabular-nums text-muted-foreground">
-                                                    {new Date(row.createdAt).toLocaleString(undefined, {
-                                                        dateStyle: "medium",
-                                                        timeStyle: "short",
-                                                    })}
-                                                </td>
-                                                {/* Actions column */}
-                                                <td className="py-2 px-0">
-                                                    <div className="flex items-center justify-end gap-1">
-                                                        {/* Accept button */}
-                                                        <LoadingButton
-                                                            type="button"
-                                                            size="sm"
-                                                            loading={isRowBusy && isApproving}
-                                                            disabled={!canManage || busy}
-                                                            onClick={() => handleApprove(row)}
-                                                            className="cursor-pointer border border-emerald-500/25 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-300"
-                                                        >
-                                                            <Check className="h-3 w-3" />
-                                                            <span className="hidden sm:inline">Accept</span>
-                                                        </LoadingButton>
-                                                        {/* Decline button */}
-                                                        <LoadingButton
-                                                            type="button"
-                                                            size="sm"
-                                                            variant="secondary"
-                                                            loading={isRowBusy && isRejecting}
-                                                            disabled={!canManage || busy}
-                                                            onClick={() => handleDecline(row)}
-                                                            className="cursor-pointer border border-rose-500/25 bg-rose-500/10 text-rose-700 hover:bg-rose-500/15 dark:text-rose-300"
-                                                        >
-                                                            <X className="h-3 w-3" />
-                                                            <span className="hidden sm:inline">Decline</span>
-                                                        </LoadingButton>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
-                                    }
-                                </tbody>
-                            </table>
+                        // If there are requests, show them in the table
+                        <div className="py-3">
+                            <TeacherJoinRequestsTable
+                                requests={joinRequests ?? []}
+                                canManage={canManage}
+                                busy={busy}
+                                actionId={actionId}
+                                isApproving={isApproving}
+                                isRejecting={isRejecting}
+                                onApprove={handleApprove}
+                                onDecline={handleDecline}
+                            />
                         </div>
                     )}
                 </section>

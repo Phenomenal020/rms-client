@@ -92,33 +92,6 @@ export function DashboardRequestsTableSkeleton({
     );
 }
 
-// skeleton matching Record Requests table
-export function DashboardRequestsTableRowsSkeleton({
-    columns = 5,
-    rows = TABLE_ROW_COUNT,
-    cellClassName = "p-2",
-}: {
-    columns?: number;
-    rows?: number;
-    cellClassName?: string;
-}) {
-    return (
-        <>
-            {Array.from({ length: rows }).map((_, rowIndex) => (
-                <tr key={rowIndex} className="border-b border-border last:border-b-0">
-                    {Array.from({ length: columns }).map((_, colIndex) => (
-                        <td key={colIndex} className={cellClassName}>
-                            <Skeleton
-                                className={tableCellSkeletonClass(colIndex, columns)}
-                            />
-                        </td>
-                    ))}
-                </tr>
-            ))}
-        </>
-    );
-}
-
 // Generic dashboard loading shell:
 export function DashboardLoading() {
     return (
@@ -131,7 +104,6 @@ export function DashboardLoading() {
             <SecuritySetupModal />
             <DashboardCardsSkeleton />
             <DashboardRequestsTableSkeleton variant="org" title="Pending Requests" />
-            <DashboardRequestsTableSkeleton variant="org" title="Recent Activity" />
         </div>
     );
 }

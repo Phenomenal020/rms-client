@@ -41,9 +41,9 @@ export default function SettingsPage() {
 
         </div>
 
-        {/* Profile sections — continuous scroll */}
+        {/* Profile sections — tabbed layout */}
         <div className="w-full mx-auto">
-          <TeacherProfileTabs /> {/* Used to be tabs, now continuous scroll */}
+          <TeacherProfileTabs />
         </div>
 
       </div>

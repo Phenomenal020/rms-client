@@ -10,108 +10,96 @@ import { useSWRConfig } from "swr";
 import { Card, CardContent } from "@/shadcn/ui/card";
 import { Button } from "@/shadcn/ui/button";
 import { AddClassModal } from "./add-class-modal";
-import { EditClassModal } from "./edit-class-modal";
 import { ClassesTable } from "./classes-table";
 import { ClassesLoadingTable } from "./classes-loading-table";
 import SmallTermText from "@/shared-components/small-term-text";
 import { SecuritySetupModal } from "@/shared-components/security-setup-modal";
 import { ConfirmDialog } from "@/shared-components/confirm-dialog";
-import type { getClassPayload, createClassPayload, updateClassPayload } from "@/types/classes";
-import { getSubjects, getClasses, getTerms, getOrgMembers } from "@/fetcher/queries";
-import { getApiErrorMessage, getHttpStatus, useCreateClass, useUpdateClass, useDeleteClass } from "@/fetcher/mutations";
+import type { getClassPayload, createClassPayload } from "@/types/classes";
+import { getOrgMembers, getClasses, getActiveTerm } from "@/fetcher/queries";
+import { getApiErrorMessage, useCreateClass, useDeleteClass } from "@/fetcher/mutations";
 import { handleAuthRedirect } from "@/utils/auth-redirect";
 import { ErrorBanner } from "@/shared-components/error-banner";
 import { EmptyNoEntry } from "@/shared-components/empty-noentry";
-import { ORG_MEMBERS_KEY, SUBJECTS_KEY, TERMS_KEY, classesKey } from "@/fetcher/keys";
-import type { singleGetSubjectPayload } from "@/types/subjects";
-import { singleTermPayload } from "@/types/term";
+import { ORG_MEMBERS_KEY, ACTIVE_TERM_KEY, classesKey } from "@/fetcher/keys";
 import { useUser } from "@/contexts/user-context";
 
-// Single subject schema (empty first time or fetched from db)
-const singleSubjectSchema = z.object({
-    id: z.string().trim().min(1, { message: "Subject id is required" }),
-    name: z.string().trim().min(1, { message: "Subject name is required" }),
-    department: z.string().trim(),
-    createdAt: z.string().trim(),
-    updatedAt: z.string().trim(),
-});
+// // Single subject schema (empty first time or fetched from db)
+// const singleSubjectSchema = z.object({
+//     id: z.string().trim().min(1, { message: "Subject id is required" }),
+//     name: z.string().trim().min(1, { message: "Subject name is required" }),
+//     department: z.string().trim(),
+//     createdAt: z.string().trim(),
+//     updatedAt: z.string().trim(),
+// });
 
 // Create/add class zod schema
 const addClassSchema = z.object({
     name: z.string().trim().max(64, { message: "Class name should not be more than 64 characters" }).min(1, { message: "Class name is required" }),
     formTeacherId: z.string().nullable(),
-    subjects: z.array(singleSubjectSchema).optional(),
 });
 export type CreateClassValues = z.infer<typeof addClassSchema>;
 
-// Edit class zod schema (extends add class schema with class id field)
-const editClassSchema = addClassSchema.extend({
-    id: z.string().trim().min(1, { message: "Class id is required" }),
-});
-export type EditClassValues = z.infer<typeof editClassSchema>;
+// // Edit class zod schema (extends add class schema with class id field)
+// const editClassSchema = addClassSchema.extend({
+//     id: z.string().trim().min(1, { message: "Class id is required" }),
+// });
+// export type EditClassValues = z.infer<typeof editClassSchema>;
 
 export function ClassesForm() {
+    // for redirection
     const router = useRouter();
     const pathname = usePathname();
+    // for manual retries
     const { mutate } = useSWRConfig();
 
     // Org admin gate
     const { user } = useUser();
     const canManage = user?.role === "orgadmin" && !(user?.twoFactorEnabled === true) && user?.emailVerified === true;
 
-    // Add dialog state
+    // Add dialog state and add form
     const [isAddOpen, setIsAddOpen] = useState(false);
     const addForm = useForm<CreateClassValues>({
         resolver: zodResolver(addClassSchema),
-        defaultValues: { name: "", formTeacherId: "", subjects: [] },
+        defaultValues: { name: "", formTeacherId: "" },
     });
 
-    // Edit dialog state
-    const [isEditOpen, setIsEditOpen] = useState(false);
-    const [editingClass, setEditingClass] = useState<getClassPayload | null>(null);
+    // Delete dialog state and class to delete
     const [classToDelete, setClassToDelete] = useState<getClassPayload | null>(null);
-    const editForm = useForm<EditClassValues>({
-        resolver: zodResolver(editClassSchema),
-        defaultValues: { id: "", name: "", formTeacherId: "", subjects: [] },
-    });
 
-    // Fetch subjects and terms from API (subjects load in parallel with terms)
-    const { data: subjects, error: subjectsError, statusCode: subjectsStatusCode } = getSubjects();
-    const { data: termsData, error: termsError, isLoading: isLoadingTerms, statusCode: termsStatusCode } = getTerms();
-    const termsReady = !isLoadingTerms;
-    const activeTermId = (termsData as singleTermPayload[] | undefined)?.find((term) => term.status === "ACTIVE")?.id ?? null;
+    // Fetch the active term from the api. Extract the id for the next request
+    const { data: activeTerm, error: activeTermError, isLoading: isLoadingActiveTerm, statusCode: activeTermStatusCode } = getActiveTerm();
+    const activeTermId = activeTerm?.id ?? null;
 
-    // Wait for terms before fetching classes — avoids a redundant request without termId
-    const { data: classes, error: classesError, isLoading: isLoadingClasses, statusCode: classesStatusCode } = getClasses(
-        termsReady ? activeTermId : undefined,
-    );
-    const { teachers, error: teachersError, statusCode: teachersStatusCode } = getOrgMembers();
+    // Wait for the active term before fetching classes with subject assignments — avoids a redundant request without termId
+    // If there is an active term, this fetches the classes with subject assignments for that term.
+    // If there is no active term, we use undefined to suspend the fetch while waiting for the active term to resolve.
+    const { data: classes = [], error: classesError, isLoading: isLoadingClasses, statusCode: classesStatusCode } = getClasses(activeTermId ? activeTermId : undefined);
+    const classList = classes ?? [];
+    // Also get the teachers in the organisation
+    const { teachers = [], error: teachersError, statusCode: teachersStatusCode } = getOrgMembers();
 
     // Error handling: split critical (table) vs auxiliary (modals) fetch failures
-    const classList = (classes ?? []) as getClassPayload[];
-    const criticalLoadError = termsError ?? classesError;
-    const auxiliaryLoadError = subjectsError ?? teachersError;
+    const criticalLoadError = activeTermError ?? classesError;
+    const auxiliaryLoadError = teachersError;  // teachers are used by the add modal. They don't affect the table itself.
 
     // Skeleton only while terms or initial classes fetch is in flight
-    const isCriticalLoading =
-        isLoadingTerms || (termsReady && isLoadingClasses && classList.length === 0);
+    const isCriticalLoading = isLoadingActiveTerm || (!isLoadingActiveTerm && isLoadingClasses && classList.length === 0);
 
     // Retry all fetches: revalidate cached data for terms, classes, subjects, and teachers
     function retryAllFetches() {
-        void mutate(TERMS_KEY);
-        void mutate(SUBJECTS_KEY);
+        void mutate(ACTIVE_TERM_KEY);
         void mutate(ORG_MEMBERS_KEY);
         void mutate(classesKey(activeTermId));
     }
 
     // Look for redirection errors and redirect to the appropriate page
     useEffect(() => {
-        const fetchError = termsError ?? classesError ?? subjectsError ?? teachersError;
+        const fetchError = activeTermError ?? classesError ?? teachersError;
         if (!fetchError) return;
         const status = [
-            termsError ? termsStatusCode : null,
+            activeTermError ? activeTermStatusCode : null,
             classesError ? classesStatusCode : null,
-            subjectsError ? subjectsStatusCode : null,
             teachersError ? teachersStatusCode : null,
         ].find((code) => code === 401 || code === 403);
         if (status === 401) {
@@ -119,65 +107,38 @@ export function ClassesForm() {
         } else if (status === 403) {
             router.replace("/forbidden");
         }
-    }, [termsError, classesError, subjectsError, teachersError, termsStatusCode, classesStatusCode, subjectsStatusCode, teachersStatusCode, router, pathname]);
+    }, [activeTermError, classesError, teachersError, activeTermStatusCode, classesStatusCode, teachersStatusCode, router, pathname]);
 
+    // add/delete class mutation hooks
     const { trigger: createClass, isMutating: isCreating, error: createClassError } = useCreateClass();
-    const { trigger: updateClass, isMutating: isUpdating, error: updateClassError } = useUpdateClass();
     const { trigger: deleteClass, isMutating: isDeleting, error: deleteClassError } = useDeleteClass();
 
-    // Dialog handlers
+    // open add / delete Dialog handlers
     function openAddDialog() {
         if (!canManage) return;
-        addForm.reset({ name: "", formTeacherId: "", subjects: [] });
+        addForm.reset({ name: "", formTeacherId: "" });
         setIsAddOpen(true);
     }
-
-    function openEditDialog(cls: getClassPayload) {
-        if (!canManage) return;
-        setEditingClass(cls);
-        editForm.reset({
-            id: cls.id,
-            name: cls.name,
-            formTeacherId: cls.formTeacher?.id ?? null,
-            subjects: cls.subjects ?? [],
-        });
-        setIsEditOpen(true);
-    }
-
     function openDeleteDialog(cls: getClassPayload) {
         if (!canManage) return;
         setClassToDelete(cls);
     }
 
-    // Make api call to create new class + assign subjects to it (why we need active term)
+    // Make api call to create new class
     async function addClassHandler(values: CreateClassValues) {
         if (!canManage) return;
         const name = values.name.trim();
-        if (classList.some((cls) => cls.name.toLowerCase() === name.toLowerCase())) {
+        if (classList.some((cls: getClassPayload) => cls.name.toLowerCase() === name.toLowerCase())) {
             toast.error(`Class "${name}" already exists`);
             return;
-        }
-
-        const selectedSubjects = values.subjects ?? [];
-        if (selectedSubjects.length > 20) {
-            toast.error("Maximum of 20 subjects can be assigned to a class");
-            return;
-        }
-        if (selectedSubjects.length > 0 && !activeTermId) {
-            toast.error("An active term is required when assigning subjects to a class");
-            return;
-        }
-
+        }  // check local state for duplicate class name first
         const createClassPayload: createClassPayload = {
             name,
             formTeacherId: values.formTeacherId || null,
-            ...(selectedSubjects.length > 0 && activeTermId
-                ? { activeTermId, subjectIds: selectedSubjects.map((subject) => subject.id) }
-                : {}),
-        };
-
+        };  // Create the payload and make the api call to create the class
         try {
-            await createClass(createClassPayload);
+            const { error: createClassError } = await createClass(createClassPayload);
+            if (createClassError) throw createClassError;
             setIsAddOpen(false);
             addForm.reset();
             toast.success(`Class "${name}" added successfully`);
@@ -189,57 +150,13 @@ export function ClassesForm() {
         }
     }
 
-    // Make api call to update an existing class
-    async function editClassHandler(values: EditClassValues) {
-        if (!canManage) return;
-        if (!editingClass) return;
-
-        const id = values.id;
-        const name = values.name.trim();
-        if (classList.some((cls) => cls.id !== id && cls.name.toLowerCase() === name.toLowerCase())) {
-            toast.error(`Class "${name}" already exists`);
-            return;
-        }
-
-        const selectedSubjects = values.subjects ?? [];
-        if (selectedSubjects.length > 20) {
-            toast.error("Maximum of 20 subjects can be assigned to a class");
-            return;
-        }
-
-        const subjectsDirty = Boolean(editForm.formState.dirtyFields.subjects);
-        if (subjectsDirty && !activeTermId) {
-            toast.error("An active term is required when updating subject assignments");
-            return;
-        }
-
-        const updateClassPayload: updateClassPayload = {
-            id,
-            name,
-            formTeacherId: values.formTeacherId || null,
-            ...(subjectsDirty && activeTermId
-                ? { activeTermId, subjectIds: selectedSubjects.map((subject) => subject.id) }
-                : {}),
-        };
-
-        try {
-            await updateClass(updateClassPayload);
-            setIsEditOpen(false);
-            setEditingClass(null);
-            toast.success(`Class "${name}" updated successfully`);
-        } catch (err) {
-            const mutationErr = updateClassError || err;
-            if (!handleAuthRedirect(mutationErr, { router, pathname })) {
-                toast.error(getApiErrorMessage(mutationErr, `Failed to update class "${name}"`));
-            }
-        }
-    }
-
+    // Make api call to delete class
     async function deleteClassHandler() {
         if (!canManage || !classToDelete) return;
         const name = classToDelete.name;
         try {
-            await deleteClass({ id: classToDelete.id });
+            const { error: deleteClassError } = await deleteClass({ id: classToDelete.id });
+            if (deleteClassError) throw deleteClassError;
             setClassToDelete(null);
             toast.success(`Class "${name}" deleted successfully`);
         } catch (err) {
@@ -250,15 +167,15 @@ export function ClassesForm() {
         }
     }
 
+    // Loading states and control disabled state
     const addLoading = addForm.formState.isSubmitting || isCreating;
-    const editLoading = editForm.formState.isSubmitting || isUpdating;
     const deleteLoading = isDeleting;
-    const isMutating = addLoading || editLoading || deleteLoading;
-    const controlsDisabled =
-        isMutating || isCriticalLoading || !!criticalLoadError || classList.length === 0;
+    const isMutating = addLoading || deleteLoading;
+    const controlsDisabled = isMutating || isCriticalLoading || !!criticalLoadError || classList.length === 0;
 
     return (
         <>
+            {/* Classes title and description */}
             <section className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-1">
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">Classes</h1>
@@ -278,22 +195,6 @@ export function ClassesForm() {
                 readOnly={!canManage}
                 loading={addLoading}
                 teacherOptions={teachers}
-                subjectOptions={(subjects ?? []) as singleGetSubjectPayload[]}
-                canAssignSubjects={Boolean(activeTermId)}
-            />
-
-            {/* Edit class modal */}
-            <EditClassModal
-                open={isEditOpen}
-                onOpenChange={setIsEditOpen}
-                editForm={editForm}
-                onEditSubmit={editClassHandler}
-                readOnly={!canManage}
-                loading={editLoading}
-                teacherOptions={teachers}
-                subjectOptions={(subjects ?? []) as singleGetSubjectPayload[]}
-                initialSubjects={editingClass?.subjects ?? []}
-                canAssignSubjects={Boolean(activeTermId)}
             />
 
             {/* Delete confirmation */}
@@ -347,7 +248,7 @@ export function ClassesForm() {
                         ) : criticalLoadError ? (
                             // If terms or classes fail to load, show the critical error banner
                             <ErrorBanner
-                                title={classesError && !termsError ? "Could not load classes" : "Could not load page data"}
+                                title={classesError && !activeTermError ? "Could not load classes" : "Could not load page data"}
                                 message={getApiErrorMessage(criticalLoadError, "Failed to load classes. Please try again.")}
                                 onRetry={retryAllFetches}
                             />
@@ -382,7 +283,6 @@ export function ClassesForm() {
                                             canManage={canManage}
                                             isMutating={isMutating}
                                             disabled={controlsDisabled}
-                                            onEditClass={openEditDialog}
                                             onDeleteClass={openDeleteDialog}
                                         />
                                     </div>

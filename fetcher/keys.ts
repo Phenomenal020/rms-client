@@ -15,6 +15,7 @@ export const USER_PROFILE_KEY = "/api/v1/users/profile";  // PATCH user profile
 
 // ----------------------------- Terms / grading / assessment -----------------------------
 export const TERMS_KEY = "/api/v1/terms";  // Get all terms for the orgadmin's school
+export const ACTIVE_TERM_KEY = "/api/v1/terms/active";  // Get the active term for the orgadmin's school
 export const GRADING_SYSTEM_KEY = "/api/v1/grading-system";
 export const ASSESSMENT_STRUCTURE_KEY = "/api/v1/assessment-structure";
 
@@ -96,10 +97,27 @@ export function classByIdPath(id: string) {
     return `${CLASSES_KEY}/${encodeURIComponent(id)}`;
 }  // id in path. PATCH a class
 
+export function classKey(classId: string, termId: string) {
+    return `${CLASSES_KEY}/${encodeURIComponent(classId)}?termId=${encodeURIComponent(termId)}`;
+}  // GET a class by id for a term
+
+export function classSubjectAssignmentsPath(classId: string) {
+    return `${CLASSES_KEY}/${encodeURIComponent(classId)}/subject-assignments`;
+}  // PATCH subject-class assignments for a class
+
 export function teacherClassesKey(termId: string) {
     return `/api/v1/student-view/classes?termId=${encodeURIComponent(termId)}`;
 }
 
+export function teacherSubjectAssignmentsKey(termId: string) {
+    return `/api/v1/subject-view/subject-assignments?termId=${encodeURIComponent(termId)}`;
+}
+
+export const SUBJECT_RECORD_KEY = "/api/v1/subject-view/subject-record";
+
+export function subjectRecordKey(assignmentId: string, termId: string) {
+    return `${SUBJECT_RECORD_KEY}?assignmentId=${encodeURIComponent(assignmentId)}&termId=${encodeURIComponent(termId)}`;
+}
 
 
 
@@ -123,6 +141,9 @@ export const ORGANISATION_ADD_MEMBER_KEY = "/api/v1/organisation/add-member";
 export const STUDENT_VIEW_EXPORT_KEY = "/api/v1/student-view/export";
 export const STUDENT_VIEW_SAVE_SCORES_KEY = "/api/v1/student-view/save-scores";
 export const SUBJECT_VIEW_SAVE_SCORES_KEY = "/api/v1/subject-view/save-scores";
+export const SUBJECT_VIEW_SAVE_SCORES_BY_ID_KEY = "/api/v1/subject-view/save-scores-by-id";
+export const SUBJECT_VIEW_UNLOCK_ASSIGNMENT_KEY = "/api/v1/subject-view/assignment/unlock";
+export const SUBJECT_VIEW_LOCK_ASSIGNMENT_KEY = "/api/v1/subject-view/assignment/lock";
 
 
 

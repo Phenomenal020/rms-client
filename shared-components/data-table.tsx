@@ -136,6 +136,17 @@ type DataTableProps<TData extends RowData> = {
     getBodyRowClassName?: (row: TData) => string | undefined;
 };
 
+function safeRowModelRows<T>(
+    getModel: () => { rows?: T[] | null } | null | undefined,
+): T[] {
+    try {
+        const rows = getModel()?.rows;
+        return Array.isArray(rows) ? rows : [];
+    } catch {
+        return [];
+    }
+}
+
 // The function that creates the data table
 export function DataTable<TData extends RowData>({
     data,
@@ -161,6 +172,8 @@ export function DataTable<TData extends RowData>({
     bodyRowClassName,
     getBodyRowClassName,
 }: DataTableProps<TData>) {
+    const tableData = data ?? [];
+
     // Sorting state (controlled)
     const [sorting, setSorting] = React.useState<SortingState>(defaultSorting);
     // Column filtering state (controlled)
@@ -174,7 +187,7 @@ export function DataTable<TData extends RowData>({
     // Create the table
     const table = useTable({
         features: TABLE_FEATURES,
-        data,
+        data: tableData,
         columns,
         getRowId,
         state: { sorting, columnFilters, columnVisibility, rowSelection },
@@ -188,8 +201,12 @@ export function DataTable<TData extends RowData>({
     // Get the filter column, value, selected count, total count, and page count for useful data to display in the toolbar
     const filterColumn = table.getColumn(searchColumn);
     const filterValue = (filterColumn?.getFilterValue() as string) ?? "";
-    const selectedCount = table.getFilteredSelectedRowModel().rows.length;
-    const totalCount = table.getFilteredRowModel().rows.length;
+    // v9: selected row model is null until row selection is used — guard when disabled
+    const selectedCount = enableRowSelection
+        ? safeRowModelRows(() => table.getFilteredSelectedRowModel()).length
+        : 0;
+    const totalCount = safeRowModelRows(() => table.getFilteredRowModel()).length;
+    const pageRows = safeRowModelRows(() => table.getRowModel());
     const pageCount = table.getPageCount();
 
 
@@ -333,8 +350,8 @@ export function DataTable<TData extends RowData>({
                     </TableHeader>
                     {/* Table body */}
                     <TableBody>
-                        {table.getRowModel().rows.length ? (
-                            table.getRowModel().rows.map((row) => (
+                        {pageRows.length ? (
+                            pageRows.map((row) => (
                                 <TableRow
                                     key={row.id}
                                     data-state={row.getIsSelected() ? "selected" : undefined}

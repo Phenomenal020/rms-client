@@ -1,6 +1,7 @@
 "use client";
 
 import type { AcademicTerm } from "@/types/drizzle";
+import { formatStatPercent } from "./helpers";
 
 // SubjectInfo — summary block above the results table (parallel role to StudentStats area)
 interface SubjectInfoProps {
@@ -45,31 +46,19 @@ export function SubjectInfo({
         {/* Maximum Score */}
         <p className="text-sm lg:text-base">
           <span className="font-semibold text-muted-foreground">Maximum Score: </span>
-          <span className="text-foreground">{subjectStats?.maximum ?? "N/A"}%</span>
-        </p>
-
-        {/* Session */}
-        <p className="text-sm lg:text-base">
-          <span className="font-semibold text-muted-foreground">Session: </span>
-          <span className="text-foreground">{academicYear || "N/A"}</span>
+          <span className="text-foreground">{formatStatPercent(subjectStats?.maximum)}</span>
         </p>
 
         {/* Average Score */}
         <p className="text-sm lg:text-base">
           <span className="font-semibold text-muted-foreground">Average Score: </span>
-          <span className="text-foreground">{subjectStats?.average ?? "N/A"}%</span>
+          <span className="text-foreground">{formatStatPercent(subjectStats?.average)}</span>
         </p>
 
         {/* Minimum Score */}
         <p className="text-sm lg:text-base">
           <span className="font-semibold text-muted-foreground">Minimum Score: </span>
-          <span className="text-foreground">{subjectStats?.minimum ?? "N/A"}%</span>
-        </p>
-
-        {/* Term */}
-        <p className="text-sm lg:text-base">
-          <span className="font-semibold text-muted-foreground">Term: </span>
-          <span className="text-foreground">{term || "N/A"}</span>
+          <span className="text-foreground">{formatStatPercent(subjectStats?.minimum)}</span>
         </p>
       </div>
     </div>

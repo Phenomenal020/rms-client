@@ -1,102 +1,184 @@
-import type { Student, AssessmentStructure, Subject, AssessmentScore } from "@/types/drizzle";
+import type { AssessmentStructure } from "@/types/drizzle";
+import type { SubjectRecordScoreRow, SubjectRecordStudentRow, TeacherSubjectAssignmentRow } from "@/fetcher/queries";
 
-type SubjectRow = Subject & { enrolled?: boolean; subjectId?: string };
+// Fallback for a score that has not been entered yet
+export const NO_SCORE = -1;
 
-function matchesSubjectId(row: SubjectRow, subjectId: string): boolean {
-  const rowSubjectId = row.subjectId ?? row.subject?.subjectId;
-  return rowSubjectId === subjectId;
+// Format the score display
+export function formatScoreDisplay(value: number): string {
+  return value === NO_SCORE ? "-" : String(value);
 }
 
-// ---------------------------------------------------------------------------
-// Subject-view helpers (parallel role to students-view utils/scoreFns)
-// ---------------------------------------------------------------------------
+// Format the percentage display
+export function formatStatPercent(value: number | undefined | null): string {
+  if (value == null || value === NO_SCORE) return "-";
+  return `${value}%`;
+}
 
-// Students enrolled in the subject (respects `enrolled` on the junction when present)
-export const getEnrolledStudents = (
-  subjectId: string | null,
-  students: Student[],
-): Student[] => {
-  if (!subjectId) return [];
-
-  return (students || []).filter((student) =>
-    student.subjects?.some((s: SubjectRow) => {
-      if (!matchesSubjectId(s, subjectId)) return false;
-      if (typeof s.enrolled === "boolean") return s.enrolled;
-      return true;
-    }),
+// Get the score value for a given assessment structure id. If there is no score yet for the assessment structure type, set it to NO_SCORE (-1)
+export function getAssessmentScoreValue(
+  studentScores: SubjectRecordScoreRow[],
+  assessmentStructureId: string,
+): number {
+  const entry = studentScores.find(
+    (score) => score.assessmentStructureId === assessmentStructureId,
   );
+  return entry?.score ?? NO_SCORE;
+}
+
+// Sum scores across the full assessment structure; returns NO_SCORE if any component is missing.
+export function getStudentTotalFromScores(
+  studentScores: SubjectRecordScoreRow[],
+  assessmentStructure: AssessmentStructure[] = [],
+): number {
+  if (!assessmentStructure.length) return NO_SCORE;
+
+  let total = 0;
+  for (const structure of assessmentStructure) {
+    const value = getAssessmentScoreValue(studentScores, structure.id);
+    if (value === NO_SCORE) return NO_SCORE;
+    total += value;
+  }
+  return total;
+}
+
+// Filter the students by their enrollment status
+export const getEnrolledStudents = (
+  students: SubjectRecordStudentRow[],
+): SubjectRecordStudentRow[] => {
+  return (students ?? []).filter((student) => student.enrolled);
 };
 
-// Scores for one student in the selected subject, keyed by assessment type + total
+// Get the scores and total score for a student
+// Eg, {
+//   ca: 30,      // per assessment type (lowercase key from structure.type)
+//   exam: 50,
+//   project: 20,
+//   total: 100   // sum of all individual scores above
+// }
 export const getStudentScores = (
-  subjectId: string | null,
-  student: Student | null,
+  student: SubjectRecordStudentRow | null,
   assessmentStructure: AssessmentStructure[] = [],
 ): Record<string, number> => {
+  // When no scores are available, return a record with total score set to -1 and each assessment type score set to -1
   const emptyScores = (): Record<string, number> => {
-    const result: Record<string, number> = { total: 0 };
+    const result: Record<string, number> = { total: NO_SCORE };
     (assessmentStructure || []).forEach((assessment) => {
-      result[assessment.type.toLowerCase()] = 0;
+      result[assessment.type.toLowerCase()] = NO_SCORE;
     });
     return result;
   };
 
-  if (!subjectId || !student || !student.subjects) {
-    return emptyScores();
-  }
+  // If no student is provided, return the empty scores record
+  if (!student) return emptyScores();
 
-  const studentSubject = student.subjects.find((s: SubjectRow) =>
-    matchesSubjectId(s, subjectId),
-  );
-  const assessment = studentSubject?.assessments?.[0];
-  if (!studentSubject || !assessment) return emptyScores();
-
+  // Otherwise, build per-type scores and a total (NO_SCORE when any component is missing)
   const scores: Record<string, number> = { total: 0 };
+  let missingCols = 0;
 
   (assessmentStructure || []).forEach((structure) => {
     const key = structure.type.toLowerCase();
-    const entry = assessment.scores?.find(
-      (score: AssessmentScore) =>
-        score.assessmentStructureId === structure.id ||
-        score.assessmentStructure?.type === structure.type,
-    );
-    const scoreValue = entry?.score || 0;
+    const scoreValue = getAssessmentScoreValue(student.scores, structure.id);
     scores[key] = scoreValue;
-    scores.total += scoreValue;
+    if (scoreValue === NO_SCORE) {
+      missingCols += 1;
+    } else {
+      scores.total += scoreValue;
+    }
   });
-
+  // If all assessment type scores are missing, set the total score to NO_SCORE (-1)
+  if (missingCols === assessmentStructure.length) {
+    scores.total = NO_SCORE;
+  }
   return scores;
 };
 
-// Aggregate stats for the subject column (enrolled students only)
+// Calculate the average, minimum, and maximum scores for a subject
 export const calculateSubjectStats = (
-  subjectId: string | null,
-  enrolledStudents: Student[],
+  enrolledStudents: SubjectRecordStudentRow[],
   assessmentStructure: AssessmentStructure[] = [],
-): {
-  average: number;
-  minimum: number;
-  maximum: number;
-} | null => {
-  if (!subjectId || !enrolledStudents || enrolledStudents.length === 0) {
+): { average: number; minimum: number; maximum: number } | null => {
+  // If no enrolled students, return null
+  if (!enrolledStudents || enrolledStudents.length === 0) {
     return null;
   }
 
-  const totals = enrolledStudents.map((student) => {
-    const score = getStudentScores(subjectId, student, assessmentStructure);
-    return score.total;
-  });
+  // Get the total scores for each enrolled student
+  const totals = enrolledStudents.map((student) =>
+    getStudentScores(student, assessmentStructure).total,
+  );
 
-  if (totals.length === 0) return null;
+  const validTotals = totals.filter((total) => total !== NO_SCORE);
+  if (validTotals.length === 0) {
+    return {
+      average: NO_SCORE,
+      minimum: NO_SCORE,
+      maximum: NO_SCORE,
+    };
+  }
 
-  const sum = totals.reduce((acc, score) => acc + score, 0);
-  const average = sum / totals.length;
-  const minimum = Math.min(...totals);
-  const maximum = Math.max(...totals);
+  const sum = validTotals.reduce((acc, score) => acc + score, 0);
+  const average = sum / validTotals.length;
+  const minimum = Math.min(...validTotals);
+  const maximum = Math.max(...validTotals);
 
   return {
     average: Math.round(average * 100) / 100,
     minimum: Math.round(minimum * 100) / 100,
     maximum: Math.round(maximum * 100) / 100,
   };
+};
+
+
+type SubjectViewUser = {
+  id?: string;
+  role?: string;
+  twoFactorEnabled?: boolean | null;
+  emailVerified?: boolean | null;
+} | null | undefined;
+
+// define verification status for a user (extends beyond BA's verification to include role and 2fa status)
+const isVerifiedTeacher = (user: SubjectViewUser): boolean =>
+  user?.role === "user" || user?.role === "orgadmin" &&
+  !(user?.twoFactorEnabled === true) &&
+  user?.emailVerified === true;
+
+// function to determine if the user can lock/unlock this component
+// User is verified, 2fa authenticated, and is the form teacher of the selected class
+export const getCanLockUnlock = (
+  user: SubjectViewUser,
+  selectedClassId: string | null,
+  assignmentRows: TeacherSubjectAssignmentRow[],
+): boolean => {
+  // user is not verified, not authenticated, or has no selected class
+  if (!isVerifiedTeacher(user) || !user?.id || !selectedClassId) {
+    return false;
+  }
+  // get the selected class assignment (form teacher is the same on every row for a class)
+  const selectedClassAssignment = assignmentRows.find(
+    (assignment) => assignment.classId === selectedClassId,
+  );
+  if (!selectedClassAssignment) return false;
+  // check if the user is the form teacher of the selected class
+  return selectedClassAssignment.formTeacherId === user.id;
+};
+
+// function to determine if the user can edit this component
+// User is verified, 2fa authenticated, and is the assigned teacher of the selected subject class assignment
+export const getCanEdit = (
+  user: SubjectViewUser,
+  assignmentId: string | null,
+  assignmentRows: TeacherSubjectAssignmentRow[],
+): boolean => {
+  // user is not verified, not authenticated, or has no assignment
+  if (!isVerifiedTeacher(user) || !user?.id || !assignmentId) {
+    return false;
+  }
+  // get the selected assignment
+  const selectedAssignment = assignmentRows.find(
+    (assignment) => assignment.assignmentId === assignmentId,
+  );
+  if (!selectedAssignment) return false;
+  // check if the user is the assigned teacher of the selected assignment
+  return selectedAssignment.assignedTeacherId === user.id;
 };

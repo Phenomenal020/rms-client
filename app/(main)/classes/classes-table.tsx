@@ -1,15 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { type ColumnDef } from "@tanstack/react-table";
 import { BookOpen, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/shadcn/ui/button";
-import {
-    DataTable,
-    getPaginatedSerialNumber,
-    SortableHeader,
-    TABLE_FEATURES,
-} from "@/shared-components/data-table";
+import { DataTable, getPaginatedSerialNumber, SortableHeader, TABLE_FEATURES } from "@/shared-components/data-table";
 import type { getClassPayload } from "@/types/classes";
 
 // Classes table props
@@ -18,7 +14,6 @@ type ClassesTableProps = {
     canManage: boolean;
     isMutating: boolean;
     disabled?: boolean;
-    onEditClass: (cls: getClassPayload) => void;
     onDeleteClass: (cls: getClassPayload) => void;
 };
 
@@ -27,7 +22,6 @@ export function ClassesTable({
     canManage,
     isMutating,
     disabled = false,
-    onEditClass,
     onDeleteClass,
 }: ClassesTableProps) {
     // define columns of your table
@@ -102,7 +96,7 @@ export function ClassesTable({
                 // Subjects column: sortable by count
                 {
                     id: "subjects",
-                    accessorFn: (row) => row.subjects.length,
+                    accessorFn: (row) => row.subjectClassAssignments?.length,
                     enableSorting: true,
                     header: ({ column }) => (
                         <SortableHeader
@@ -113,16 +107,30 @@ export function ClassesTable({
                             }
                         />
                     ),
-                    cell: ({ row }) =>
-                        row.original.subjects.length === 0 ? (
-                            <span className="text-xs italic text-muted-foreground">None assigned</span>
-                        ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                    cell: ({ row }) => {
+                        const cls = row.original;
+                        if (cls.subjectClassAssignments?.length === 0) {
+                            return (
+                                <Link
+                                    href={`/classes/${cls.id}`}
+                                    className="text-xs italic text-muted-foreground hover:text-foreground hover:underline"
+                                >
+                                    None assigned
+                                </Link>
+                            );
+                        }
+
+                        return (
+                            <Link
+                                href={`/classes/${cls.id}`}
+                                className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/15 transition-colors"
+                            >
                                 <BookOpen className="h-3 w-3" />
-                                {row.original.subjects.length} subject
-                                {row.original.subjects.length !== 1 ? "s" : ""}
-                            </span>
-                        ),
+                                {cls.subjectClassAssignments?.length ?? 0} subject
+                                {cls.subjectClassAssignments?.length !== 1 ? "s" : ""}
+                            </Link>
+                        );
+                    },
                 },
                 // Actions column: edit and delete
                 {
@@ -139,18 +147,20 @@ export function ClassesTable({
                         // If the user can make changes, show edit and delete buttons.
                         return (
                             <div className="flex items-center justify-end gap-1">
+                                {/* Edit button */}
                                 <Button
-                                    type="button"
+                                    asChild
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => onEditClass(cls)}
                                     disabled={isMutating}
                                     className="cursor-pointer border border-blue-500/25 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300 text-sm lg:text-base"
-                                    aria-label="Edit class"
                                 >
-                                    <Pencil className="h-3 w-3" />
-                                    <span className="hidden sm:inline">Edit</span>
+                                    <Link href={`/classes/${cls.id}`} aria-label="Edit class">
+                                        <Pencil className="h-3 w-3" />
+                                        <span className="hidden sm:inline">Edit</span>
+                                    </Link>
                                 </Button>
+                                {/* Delete button */}
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -168,7 +178,7 @@ export function ClassesTable({
                     },
                 },
             ] satisfies ColumnDef<typeof TABLE_FEATURES, getClassPayload>[],
-        [canManage, isMutating, onDeleteClass, onEditClass],
+        [canManage, isMutating, onDeleteClass],
     );
 
     // Finally, render the classes table with meaningful defaults

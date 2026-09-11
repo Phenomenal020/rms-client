@@ -7,10 +7,10 @@ import useSWRMutation from "swr/mutation"
 import type { UserData } from "@/types/updateProfile"
 import type { CreateTermPayload, UpdateTermPayload, DeleteTermPayload, SaveGradingSystemPayload } from "@/types/term"
 import type { createSingleStudent, updateSingleStudent, deleteSingleStudent } from "@/types/students"
-import type { SaveClassRecordExportPayload, SaveStudentScoresPayload, SaveSubjectScoresPayload } from "@/types/view"
+import type { SaveClassRecordExportPayload, SaveStudentScoresPayload, SaveSubjectScoresPayload, SaveSubjectScoresByIdPayload, UnlockSubjectAssignmentPayload, LockSubjectAssignmentPayload } from "@/types/view"
 import type { AddMemberPayload } from "@/types/organisation"
 import type { createSubjectPayload, updateSubjectPayload, deleteSubjectPayload } from "@/types/subjects";
-import type { createClassPayload, updateClassPayload, deleteClassPayload } from "@/types/classes";
+import type { createClassPayload, updateClassPayload, deleteClassPayload, saveSubjectClassAssignmentPayload } from "@/types/classes";
 import type { createAssessmentStructurePayload, updateAssessmentStructurePayload } from "@/types/term";
 import type { SaveEnrollmentPayload } from "@/types/enrollments";
 import type {
@@ -44,10 +44,15 @@ import {
     // classes keys
     CLASSES_KEY,
     classByIdPath,  // <-- Requires id in path
+    classSubjectAssignmentsPath,
     // student-view / subject-view keys
     STUDENT_VIEW_EXPORT_KEY,
     STUDENT_VIEW_SAVE_SCORES_KEY,
     SUBJECT_VIEW_SAVE_SCORES_KEY,
+    SUBJECT_VIEW_SAVE_SCORES_BY_ID_KEY,
+    SUBJECT_VIEW_UNLOCK_ASSIGNMENT_KEY,
+    SUBJECT_VIEW_LOCK_ASSIGNMENT_KEY,
+    SUBJECT_RECORD_KEY,
     CLASS_RECORD_KEY,
     // record requests keys
     RECORD_ACCEPT_KEY,
@@ -595,6 +600,25 @@ export function useUpdateClass() {
     return { trigger, isMutating, error, data };
 }
 
+// save one subject-class assignment — PATCH /api/v1/classes/:id/subject-assignments
+export function useSaveSubjectClassAssignment() {
+    const { mutate } = useSWRConfig();
+    const { trigger, isMutating, error, data } = useSWRMutation(
+        CLASSES_KEY,
+        async (_url, { arg }: { arg: saveSubjectClassAssignmentPayload }) => {
+            const { id, ...body } = arg;
+            const response = await axiosInstance.patch(classSubjectAssignmentsPath(id), body);  //  /api/v1/classes/:id/subject-assignments
+            return response.data;
+        },
+        {
+            onSuccess: () => {
+                mutate(startsWithKey(CLASSES_KEY), undefined, { revalidate: true });
+            },
+        },
+    );
+    return { trigger, isMutating, error, data };
+}
+
 // delete a class — DELETE /api/v1/classes/:id
 export function useDeleteClass() {
     const { mutate } = useSWRConfig();
@@ -777,6 +801,76 @@ export function useSaveSubjectScores() {
     );
     return {
         saveSubjectScores: trigger,
+        isMutating,
+        error,
+        data,
+    };
+}
+
+// unlock subject assignment — PATCH /api/v1/subject-view/assignment/unlock
+export function useUnlockSubjectAssignment() {
+    const { mutate } = useSWRConfig();
+    const { trigger, isMutating, error, data } = useSWRMutation(
+        SUBJECT_VIEW_UNLOCK_ASSIGNMENT_KEY,
+        async (url, { arg }: { arg: UnlockSubjectAssignmentPayload }) => {
+            const response = await axiosInstance.patch(url, arg);
+            return response.data;
+        },
+        {
+            onSuccess: () => {
+                mutate(startsWithKey(SUBJECT_RECORD_KEY));
+            },
+        },
+    );
+    return {
+        unlockSubjectAssignment: trigger,
+        isMutating,
+        error,
+        data,
+    };
+}
+
+// lock subject assignment — PATCH /api/v1/subject-view/assignment/lock
+export function useLockSubjectAssignment() {
+    const { mutate } = useSWRConfig();
+    const { trigger, isMutating, error, data } = useSWRMutation(
+        SUBJECT_VIEW_LOCK_ASSIGNMENT_KEY,
+        async (url, { arg }: { arg: LockSubjectAssignmentPayload }) => {
+            const response = await axiosInstance.patch(url, arg);
+            return response.data;
+        },
+        {
+            onSuccess: () => {
+                mutate(startsWithKey(SUBJECT_RECORD_KEY));
+            },
+        },
+    );
+    return {
+        lockSubjectAssignment: trigger,
+        isMutating,
+        error,
+        data,
+    };
+}
+
+// save subject scores by assessment score id — POST /api/v1/subject-view/save-scores-by-id
+export function useSaveSubjectScoresById() {
+    const { mutate } = useSWRConfig();
+    const { trigger, isMutating, error, data } = useSWRMutation(
+        SUBJECT_VIEW_SAVE_SCORES_BY_ID_KEY,
+        async (url, { arg }: { arg: SaveSubjectScoresByIdPayload }) => {
+            const response = await axiosInstance.post(url, arg);
+            return response.data;
+        },
+        {
+            onSuccess: () => {
+                mutate(startsWithKey(SUBJECT_RECORD_KEY));
+                mutate(startsWithKey(CLASS_RECORD_KEY));
+            },
+        },
+    );
+    return {
+        saveSubjectScoresById: trigger,
         isMutating,
         error,
         data,

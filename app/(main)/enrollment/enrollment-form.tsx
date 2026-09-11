@@ -17,22 +17,24 @@ import { EnrollmentTable } from "./enrollment-table";
 import { cn } from "@/lib/utils";
 import { subjectClassAssignmentPayload, subjectAssignment } from "@/types/enrollments";
 import { getApiErrorMessage, getHttpStatus, useSaveEnrollment } from "@/fetcher/mutations";
-import { getEnrollments, getSubjectClassAssignments, getTerms } from "@/fetcher/queries";
+import { getActiveTerm, getEnrollments, getSubjectClassAssignments, getTerms } from "@/fetcher/queries";
 import { TERMS_KEY, classEnrollmentsKey, studentEnrollmentsKey } from "@/fetcher/keys";
 import { useUser } from "@/contexts/user-context";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
 import { enrollmentPayload } from "@/types/students";
-import { singleTermPayload } from "@/types/term";
 import { handleAuthRedirect } from "@/utils/auth-redirect";
 
+// Enrollment student type
 export type EnrollmentStudent = {
     studentId: string;
     name: string;
     enrolledSubjectIds: string[];
 };
 
+// Enrollment form component
 export function EnrollmentForm() {
+    // For redirection and manual retries
     const router = useRouter();
     const pathname = usePathname();
     const { mutate } = useSWRConfig();
@@ -42,30 +44,29 @@ export function EnrollmentForm() {
     const canManage = user?.role === "orgadmin" && !(user?.twoFactorEnabled === true) && user?.emailVerified === true;
 
     // Fetch terms, then class assignments for the active term
-    const { data: termsData, error: termsError, isLoading: isLoadingTerms } = getTerms();
-    const termsReady = !isLoadingTerms;
-    const activeTermId = (termsData as singleTermPayload[] | undefined)?.find((term) => term.status === "ACTIVE")?.id ?? null;
-    const { data: classes, error: classesError, isLoading: isLoadingClasses } = getSubjectClassAssignments(
-        termsReady ? activeTermId : null,
-    );
+    const { data: activeTermData, error: activeTermError, isLoading: isLoadingActiveTerm } = getActiveTerm();
+    const activeTermId = activeTermData?.id ?? null;
+    const { data: classes, error: classesError, isLoading: isLoadingClasses } = getSubjectClassAssignments(activeTermId);
 
+    // State for the selected class and editing student
     const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
     const [editingStudent, setEditingStudent] = useState<EnrollmentStudent | null>(null);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [classPickerOpen, setClassPickerOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
 
-    const { data: enrollmentsData, error: enrollmentsError, isLoading: isLoadingStudents } = getEnrollments(
-        selectedClassId,
-        activeTermId,
-    );
+    // Fetch enrollments for the selected class and active term
+    const { data: enrollmentsData, error: enrollmentsError, isLoading: isLoadingStudents } = getEnrollments(selectedClassId, activeTermId);
 
+    // Mutation hook to save an enrollment
     const { trigger: triggerSaveEnrollment, isMutating: isSavingEnrollment, error: saveEnrollmentError } = useSaveEnrollment();
 
+    // Class list and enrollment list
     const classList = (classes ?? []) as subjectClassAssignmentPayload[];
     const enrollmentList = (enrollmentsData ?? []) as enrollmentPayload[];
 
-    const isTermsInitialLoading = isLoadingTerms && termsData == null;
+    // Loading states
+    const isTermsInitialLoading = isLoadingActiveTerm && activeTermData == null;
     const isClassesInitialLoading = Boolean(activeTermId) && isLoadingClasses && classes == null;
     const isStudentsInitialLoading = Boolean(selectedClassId) && isLoadingStudents && enrollmentsData == null;
 
@@ -80,8 +81,9 @@ export function EnrollmentForm() {
         }
     }
 
+    // Handle redirection errors
     useEffect(() => {
-        const fetchError = termsError ?? classesError ?? enrollmentsError;
+        const fetchError = activeTermError ?? classesError ?? enrollmentsError;
         if (!fetchError) return;
         const status = getHttpStatus(fetchError);
         if (status === 401) {
@@ -89,16 +91,19 @@ export function EnrollmentForm() {
         } else if (status === 403) {
             router.replace("/forbidden");
         }
-    }, [termsError, classesError, enrollmentsError, router, pathname]);
+    }, [activeTermError, classesError, enrollmentsError, router, pathname]);
 
+    // Filter classes based on search query
     const filteredClasses = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
         return q ? classList.filter((cls) => cls.name.toLowerCase().includes(q)) : classList;
     }, [classList, searchQuery]);
 
+    // Get the selected class and its assignments
     const selectedClass = classList.find((cls) => cls.classId === selectedClassId) ?? null;
     const classAssignments: subjectAssignment[] = selectedClass?.assignments ?? [];
 
+    // Get the students for the selected class
     const studentsForClass: EnrollmentStudent[] = useMemo(() => {
         if (enrollmentList.length <= 0) return [];
         const allowedAssignmentIds = new Set(classAssignments.map((a) => a.assignmentId));
@@ -113,17 +118,20 @@ export function EnrollmentForm() {
         }));
     }, [enrollmentList, classAssignments]);
 
+    // Reset editing student and modal when the selected class changes
     useEffect(() => {
         setEditingStudent(null);
         setIsEditOpen(false);
     }, [selectedClassId]);
 
+    // Open the edit enrollment modal
     function openEditDialog(student: EnrollmentStudent) {
         if (!canManage) return;
         setEditingStudent(student);
         setIsEditOpen(true);
     }
 
+    // Save the enrollment
     async function saveEnrollmentHandler(studentId: string, enrolledSubjectIds: string[]) {
         if (!canManage) return;
         if (!selectedClassId) {
@@ -150,8 +158,9 @@ export function EnrollmentForm() {
         }
     }
 
+    // Loading states for the class picker
     const isShellLoading = isTermsInitialLoading || isClassesInitialLoading;
-    const classPickerDisabled = isShellLoading || !!termsError || (!!classesError && classList.length === 0);
+    const classPickerDisabled = isShellLoading || !!activeTermError || (!!classesError && classList.length === 0);
 
     return (
         <>
@@ -267,11 +276,11 @@ export function EnrollmentForm() {
                         {/* If terms are loading and there is no cached data, show the skeleton */}
                         {isTermsInitialLoading ? (
                             <EnrollmentLoadingTable />
-                        ) : termsError ? (
+                        ) : activeTermError ? (
                             // If there is an error loading terms, show the error banner
                             <ErrorBanner
                                 title="Could not load term data"
-                                message={getApiErrorMessage(termsError, "Failed to load terms. Please try again.")}
+                                message={getApiErrorMessage(activeTermError, "Failed to load terms. Please try again.")}
                                 onRetry={retryAllFetches}
                             />
                         ) : !activeTermId ? (

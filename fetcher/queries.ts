@@ -435,6 +435,11 @@ export function getSubjectClassAssignments(termId: string | null) {
     return { data: null, error: null, isLoading, isValidating, statusCode: null };
 }
 
+export type TeacherClassRow = {
+  id: string;
+  name: string;
+};
+
 // Get all classes for a given form teacher (teacher route)
 export function getTeacherClasses(termId: string, enabled: boolean = true) {
     const key =
@@ -464,6 +469,7 @@ export type TeacherSubjectAssignmentRow = {
     subjectId: string;
     subjectName: string;
     assignedTeacherId: string | null;
+    locked: boolean;
 };
 export function getTeacherSubjectAssignments(termId: string, enabled: boolean = true) {
     const key =
@@ -514,8 +520,6 @@ export type SubjectRecordPayload = {
     subjectId: string;
     subjectName: string;
     locked: boolean;
-    lockExpiresAt: string | null;
-    isEffectivelyLocked: boolean;
     students: SubjectRecordStudentRow[];
 };
 export function getSubjectRecord(
@@ -564,12 +568,34 @@ export function getSubjectRecord(
 
 
 // ---------------------------- Class Record -----------------------------------
-/** Payload from GET /api/v1/student-view/class-record (matches student-view.service getClassRecord). */
+/** One subject row on a student's class record (GET /api/v1/student-view/class-record). */
+export type ClassRecordSubjectRow = {
+    subjectId: string;
+    subjectClassAssignmentId: string;
+    enrolled: boolean;
+    subject: { subjectId: string; name: string };
+    assessments: Array<{
+        assessmentId: string;
+        scores: Array<{ assessmentStructureId: string; score: number }>;
+    }>;
+};
+
+/** One student on a class record. */
+export type ClassRecordStudentRow = {
+    id: string;
+    firstName: string;
+    middleName: string | null;
+    lastName: string;
+    classId: string | null;
+    subjects: ClassRecordSubjectRow[];
+};
+
+/** Payload from GET /api/v1/student-view/class-record. */
 export type ClassRecordPayload = {
     classId: string;
     className: string;
     assignments: { assignmentId: string; subjectId: string; subjectName: string }[];
-    students: unknown[];
+    students: ClassRecordStudentRow[];
 };
 // Get the class record for a given class and term (null classId or termId suspends the fetch)
 export function getClassRecord(

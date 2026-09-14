@@ -25,19 +25,33 @@ export default function Dashboard() {
 
     // Active organisation — required before using the dashboard
     const { data: activeOrganization, isPending: isActiveOrganizationPending, error: activeOrganizationError } = authClient.useActiveOrganization();
+    const hasActiveOrg = !isActiveOrganizationPending && !!activeOrganization;
+
+    console.log("user active organisation", activeOrganization);
 
     // Get dashboard stats (for the cards)
-    const { data: dashboardStats, isLoading: isDashboardStatsLoading } = getOrganisationDashboard(!!user && !isAdmin);
+    const { data: dashboardStats, isLoading: isDashboardStatsLoading } = getOrganisationDashboard(
+        !isAdmin && hasActiveOrg,
+    );
 
     // Redirect non-platform admin users without an active organisation to onboarding
+    // If they are not even authenticated, SessionGate on layout will redirect them to the sign-in page.
+    // Therefore, it's safe to assume that at this point, the user is already authenticated.
     useEffect(() => {
-        if (isUserLoading || isActiveOrganizationPending) return; // stay while waiting for loading to complete
-        if (!user || isAdmin) return; // if there is no user or the user is an admin, stay. No redirect needed.
-        // if (!activeOrganization) router.replace("/onboarding");  // at this point, if the user is not an admin and has no active organisation, redirect to onboarding
-    }, [isUserLoading, isActiveOrganizationPending, user, isAdmin, activeOrganization, router]);
+        if (isActiveOrganizationPending) return; // stay while waiting for the active organisation to load
+        if (isAdmin) return; // if the user is an admin, stay. No redirect needed. Stay.
+        if (!isUserLoading && !isActiveOrganizationPending && !activeOrganization) router.replace("/onboarding");  // at this point, if the user is not an admin and has no active organisation, redirect to onboarding
+    }, [isActiveOrganizationPending, isAdmin, activeOrganization, router]);
 
-    // If the user is loading, or the user is not an admin and the active organisation is pending, or the user is not an admin and the dashboard stats are loading, show the loading screen
-    if (isUserLoading || (!isAdmin && isActiveOrganizationPending) || (!isAdmin && isDashboardStatsLoading)) {
+    // Non admins: never show dashboard skeleton until the active organisation is loaded
+    if (!isAdmin && isActiveOrganizationPending) return null;
+
+    // If they do nothave an active organisation, return null
+    // Gate the dashboard content while redirecting to onboarding
+    if (!isAdmin && !activeOrganization) return null;
+
+    // If the the active organisation is pending, or the user is not an admin and the dashboard stats are loading, show the loading screen
+    if (!isAdmin && isDashboardStatsLoading) {
         return (
             <main className="min-h-screen w-full bg-background px-4 py-6 md:px-6 md:py-10">
                 <div className="mx-auto w-full max-w-5xl">
@@ -46,9 +60,6 @@ export default function Dashboard() {
             </main>
         );
     }
-
-    // Gate the dashboard content while redirecting to onboarding
-    if (user && !isAdmin && !activeOrganization) return null;
 
     // Dashboard card data
     const dashboardItems = [

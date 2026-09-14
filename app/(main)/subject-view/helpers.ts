@@ -140,7 +140,7 @@ type SubjectViewUser = {
 // define verification status for a user (extends beyond BA's verification to include role and 2fa status)
 const isVerifiedTeacher = (user: SubjectViewUser): boolean =>
   user?.role === "user" || user?.role === "orgadmin" &&
-  !(user?.twoFactorEnabled === true) &&
+  user?.twoFactorEnabled === true &&
   user?.emailVerified === true;
 
 // function to determine if the user can lock/unlock this component

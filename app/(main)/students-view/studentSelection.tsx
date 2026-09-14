@@ -1,117 +1,132 @@
 import { Button } from "@/shadcn/ui/button";
 import { Card, CardContent } from "@/shadcn/ui/card";
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/shadcn/ui/select";
-import { User, ArrowLeft, ArrowRight } from "lucide-react";
-import type { Student } from "@/types/drizzle";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shadcn/ui/select";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import type { ClassRecordStudentRow } from "@/fetcher/queries";
 
-// Interface for the StudentSelection component props
+export type TeacherClassOption = {
+  id: string;
+  name: string;
+};
+
 interface StudentSelectionProps {
-    goToPreviousStudent: () => void;
-    goToNextStudent: () => void;
-    currentStudentIndex: number;
-    setCurrentStudentIndex: (index: number) => void;
-    students: Student[];
-    setSelectedStudent: (student: Student | null) => void;
-    selectedStudent: Student | null;
-    isGlobalEditing: boolean;
+  goToPreviousStudent: () => void;
+  goToNextStudent: () => void;
+  currentStudentIndex: number;
+  setCurrentStudentIndex: (index: number) => void;
+  students: ClassRecordStudentRow[];
+  setSelectedStudent: (student: ClassRecordStudentRow | null) => void;
+  selectedStudent: ClassRecordStudentRow | null;
+  teacherClasses: TeacherClassOption[];
+  selectedClassId: string | null;
+  onSelectedClassChange: (classId: string) => void;
 }
 
-// StudentSelection component
+function getStudentDisplayName(student: ClassRecordStudentRow | null): string {
+  if (!student) return "";
+  return [student.firstName, student.middleName, student.lastName]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export function StudentSelection({
-    goToPreviousStudent,
-    goToNextStudent,
-    currentStudentIndex,
-    setCurrentStudentIndex,
-    students = [],  // default to an empty array
-    setSelectedStudent,
-    selectedStudent,
-    isGlobalEditing,
+  goToPreviousStudent,
+  goToNextStudent,
+  currentStudentIndex,
+  setCurrentStudentIndex,
+  students = [],
+  setSelectedStudent,
+  selectedStudent,
+  selectedClassId,
+  onSelectedClassChange,
+  teacherClasses,
 }: StudentSelectionProps) {
+  if (teacherClasses.length === 0) return null;
+  return (
+    <Card className="mb-6">
+      <div className="flex items-center justify-between">
+        {/* Class Selection */}
+        <CardContent className="p-2 md:p-4">
+          <Select
+            value={selectedClassId ?? ""}
+            onValueChange={onSelectedClassChange}
+          >
+            <SelectTrigger className="w-full sm:w-56">
+              <SelectValue placeholder="Select class" />
+            </SelectTrigger>
+            <SelectContent>
+              {teacherClasses.map((cls) => (
+                <SelectItem key={cls.id} value={cls.id}>
+                  {cls.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
 
-    // Helper function to get the full name of a student
-    const getName = (student: Student | null): string => {
-        if (!student) return "";
-        const parts = [
-            student.firstName,
-            student.middleName ? ` ${student.middleName[0]}. ` : "",
-            student.lastName
-        ].filter(Boolean);
-        return parts.join(" ");
-    }
+        <CardContent className="p-2 md:p-4 flex items-center justify-between">
+          {/* Student Selection */}
+          <div className="flex items-center gap-1 sm:gap-2 text-sm">
+            <Select
+              value={selectedStudent?.id ?? ""}
+              onValueChange={(studentId) => {
+                const index = students.findIndex((s) => s.id === studentId);
+                const student = students[index];
+                if (student) {
+                  setSelectedStudent(student);
+                  setCurrentStudentIndex(index);
+                }
+              }}
+            >
+              <SelectTrigger className="w-48 sm:w-64">
+                <SelectValue placeholder="Select student" />
+              </SelectTrigger>
+              <SelectContent>
+                {students.length > 0 ? (
+                  students.map((student) => (
+                    <SelectItem key={student.id} value={student.id}>
+                      {getStudentDisplayName(student)}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="" disabled>
+                    No students available
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
 
-    return (
-        <Card className="mb-6">
-            <CardContent className="p-2 md:p-4">
-                <div className="flex items-center justify-between">
-
-                    {/* Student Selection Dropdown - updates the selected student and the current student index */}
-                    <div className="flex items-center gap-1 sm:gap-2 md:gap-4 w-[70%] text-sm lg:text-base">
-
-                        {/* Student Icon */}
-                        {/* <User className="w-5 h-5 text-muted-foreground" /> */}
-
-                        {/* Student Selection Dropdown - Show student names in a dropdown */}
-                        <Select
-                            value={selectedStudent?.id ?? ""}
-                            onValueChange={(studentId) => {
-                                const index = students.findIndex((s) => s.id === studentId);
-                                const student = students[index];
-                                if (student) {
-                                    setSelectedStudent(student);
-                                    setCurrentStudentIndex(index);
-                                }
-                            }}
-                        >
-                            {/* Select Dropdown Trigger */}
-                            <SelectTrigger className="w-48 sm:w-64">
-                                <SelectValue placeholder="Select student" />
-                            </SelectTrigger>
-
-                            {/* Select Dropdown Content */}
-                            <SelectContent>
-                                {students && students.length > 0 ? (
-                                    students.map((student) => (
-                                        <SelectItem
-                                            disabled={isGlobalEditing}
-                                            key={student.id}
-                                            value={student.id}
-                                        >
-                                            {getName(student)}
-                                        </SelectItem>
-                                    ))
-                                ) : (
-                                    <SelectItem value="" disabled>No students available</SelectItem>
-                                )}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-
-                    {/* Previous and Next Student Buttons - navigate through the students */}
-                    <div className="flex gap-1 sm:gap-2">
-                        {/* Previous Student Button */}
-                        <Button
-                            onClick={goToPreviousStudent}
-                            disabled={currentStudentIndex === 0 || !students || students.length === 0 || isGlobalEditing}
-                            variant="outline"
-                            size="icon-sm"
-                            className="border-border text-foreground hover:bg-muted"
-                        >
-                            <ArrowLeft className="w-2 h-2 sm:w-4 sm:h-4" />
-                        </Button>
-                        {/* Next Student Button */}
-                        <Button
-                            onClick={goToNextStudent}
-                            disabled={!students || currentStudentIndex === students.length - 1 || isGlobalEditing}
-                            variant="outline"
-                            size="icon-sm"
-                            className="border-border text-foreground hover:bg-muted"
-                        >
-                            <ArrowRight className="w-2 h-2 sm:w-4 sm:h-4" />
-                        </Button>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-    )
+          <div className="flex gap-0.5 sm:gap-2">
+            {/* Previous Student Button */}
+            <Button
+              onClick={goToPreviousStudent}
+              disabled={currentStudentIndex === 0 || students.length === 0}
+              variant="outline"
+              size="icon-sm"
+              className="border-border text-foreground hover:bg-muted cursor-pointer"
+            >
+              <ArrowLeft className="w-2 h-2 sm:w-4 sm:h-4" />
+            </Button>
+            {/* Next Student Button */}
+            <Button
+              onClick={goToNextStudent}
+              disabled={students.length === 0 || currentStudentIndex === students.length - 1}
+              variant="outline"
+              size="icon-sm"
+              className="border-border text-foreground hover:bg-muted cursor-pointer"
+            >
+              <ArrowRight className="w-2 h-2 sm:w-4 sm:h-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </div>
+    </Card>
+  );
 }

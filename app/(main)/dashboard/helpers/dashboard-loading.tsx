@@ -94,6 +94,7 @@ export function DashboardRequestsTableSkeleton({
 
 // Generic dashboard loading shell:
 export function DashboardLoading() {
+    console.log("DashboardLoading");
     return (
         <div
             className="space-y-6 pb-4 sm:space-y-10 sm:pb-6"

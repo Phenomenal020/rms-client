@@ -368,7 +368,7 @@ export default function SubjectsComponent({ school, activeTermId, activeTerm }: 
               key={selectedAssignmentId ?? "no-assignment"}
               assignmentId={selectedAssignmentId!}
               termId={activeTermId}
-              isEffectivelyLocked={subjectRecord?.isEffectivelyLocked ?? true}
+              isEffectivelyLocked={subjectRecord?.locked ?? true}
               enrolledStudents={enrolledStudents}
               getGrade={getGrade}
               getRemark={getRemark}

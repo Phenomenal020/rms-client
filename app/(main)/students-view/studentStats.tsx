@@ -1,29 +1,30 @@
-// Type definitions
+import {
+  formatScoreDisplay,
+  formatStatPercent,
+  NO_SCORE,
+  type StudentPerformanceStats,
+} from "./helpers";
+
 interface StudentStatsProps {
-  studentStats: {
-    totalMarks: number;
-    maxPossibleMarks: number;
-    average: number;
-    overallGrade: string | null;
-    overallRemark: string | null;
-    totalStudents?: number;
-  };
+  studentStats: StudentPerformanceStats;
   studentName: string;
   className?: string;
 }
 
-export const StudentStats = ({ studentStats, studentName, className }: StudentStatsProps) => {
+export function StudentStats({ studentStats, studentName, className }: StudentStatsProps) {
+  const gradeDisplay =
+    studentStats.average === NO_SCORE
+      ? "-"
+      : (studentStats.overallGrade ?? "-");
+
   return (
     <div className="mb-6">
-      {/* Header */}
       <h4 className="text-base sm:text-lg font-bold text-foreground mb-1 md:mb-2">
         PERFORMANCE SUMMARY
       </h4>
 
-      {/* Content Grid - stacks on mobile, 2 columns on sm+ */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
-
-        {/* Student Name */}
+        {/* Name */}
         <p className="text-sm lg:text-base">
           <span className="font-semibold text-muted-foreground">Name: </span>
           <span className="text-foreground">{studentName}</span>
@@ -32,13 +33,15 @@ export const StudentStats = ({ studentStats, studentName, className }: StudentSt
         {/* Class */}
         <p className="text-sm lg:text-base">
           <span className="font-semibold text-muted-foreground">Class: </span>
-          <span className="text-foreground">{className}</span>
+          <span className="text-foreground">{className ?? "N/A"}</span>
         </p>
 
         {/* Total Marks */}
         <p className="text-sm lg:text-base">
           <span className="font-semibold text-muted-foreground">Total Marks: </span>
-          <span className="text-foreground">{studentStats.totalMarks}</span>
+          <span className="text-foreground">
+            {formatScoreDisplay(studentStats.totalMarks)}
+          </span>
         </p>
 
         {/* Position */}
@@ -47,20 +50,20 @@ export const StudentStats = ({ studentStats, studentName, className }: StudentSt
           <span className="text-foreground">N/A</span>
         </p>
 
-        {/* Average Score */}
+        {/* Average */}
         <p className="text-sm lg:text-base">
           <span className="font-semibold text-muted-foreground">Average: </span>
-          <span className="text-foreground">{studentStats.average}%</span>
+          <span className="text-foreground">
+            {formatStatPercent(studentStats.average)}
+          </span>
         </p>
 
-        {/* Overall Grade */}
+        {/* Grade */}
         <p className="text-sm lg:text-base">
           <span className="font-semibold text-muted-foreground">Grade: </span>
-          <span className="text-foreground">{studentStats.overallGrade}</span>
+          <span className="text-foreground">{gradeDisplay}</span>
         </p>
-
       </div>
-
     </div>
   );
 }

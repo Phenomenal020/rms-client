@@ -53,7 +53,7 @@ export function SubjectsForm() {
 
     // Check the user is an org admin and has two-factor enabled
     const { user } = useUser();
-    const canManage = user?.role === "orgadmin" && user?.twoFactorEnabled === true;
+    const canManage = user?.role === "orgadmin" && user?.twoFactorEnabled === true && user?.emailVerified === true;
 
     // Fetch subjects for the organisation
     const { data: subjects, isLoading: isLoadingSubjects, error: subjectsError } = getSubjects();

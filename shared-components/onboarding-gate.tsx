@@ -31,10 +31,10 @@ export function OnboardingGate({
         if (isLoading) return;
 
         // if no valid session (finished loading and no user), redirect to sign-in
-        // if (!user) {
-        //     router.replace(`/sign-in?redirect=${encodeURIComponent(pathname)}`);
-        //     return;
-        // }
+        if (!user) {
+            router.replace(`/sign-in?redirect=${encodeURIComponent(pathname)}`);
+            return;
+        }
 
         // Already onboarded — leave onboarding
         if (isOnboarded) {

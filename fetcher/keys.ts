@@ -138,9 +138,6 @@ export const ORGANISATION_ADD_MEMBER_KEY = "/api/v1/organisation/add-member";
 
 
 // ----------------------------- Student view / subject view -----------------------------
-export const STUDENT_VIEW_EXPORT_KEY = "/api/v1/student-view/export";
-export const STUDENT_VIEW_SAVE_SCORES_KEY = "/api/v1/student-view/save-scores";
-export const SUBJECT_VIEW_SAVE_SCORES_KEY = "/api/v1/subject-view/save-scores";
 export const SUBJECT_VIEW_SAVE_SCORES_BY_ID_KEY = "/api/v1/subject-view/save-scores-by-id";
 export const SUBJECT_VIEW_UNLOCK_ASSIGNMENT_KEY = "/api/v1/subject-view/assignment/unlock";
 export const SUBJECT_VIEW_LOCK_ASSIGNMENT_KEY = "/api/v1/subject-view/assignment/lock";

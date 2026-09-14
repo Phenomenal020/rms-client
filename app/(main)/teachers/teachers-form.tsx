@@ -99,8 +99,9 @@ export function TeachersForm() {
         try {
             const { error } = await addMemberClient({ email: normalisedEmail });
             if (error) throw error;
-            toast.success(`${normalisedEmail} added to the organisation.`);
+            void mutate(ORG_MEMBERS_KEY);
             setIsTeacherDialogOpen(false);
+            toast.success(`${normalisedEmail} added to the organisation.`);
             addForm.reset();
         } catch (err) {
             if (!handleAuthRedirect(err, { router, pathname })) {
@@ -117,6 +118,7 @@ export function TeachersForm() {
                 memberIdOrEmail: email,
             });
             if (error) throw error;  //if error, throw it
+            void mutate(ORG_MEMBERS_KEY);
             setIsEditDialogOpen(false);
             setEditingTeacher(null);
             toast.success("Member removed from organisation.");

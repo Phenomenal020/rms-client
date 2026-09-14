@@ -40,7 +40,7 @@ export function ClassSubjectsContent() {
 
   // Org admin gate — same rules as the classes list page
   const { user } = useUser();
-  const canManage = user?.role === "orgadmin" && !(user?.twoFactorEnabled === true) && user?.emailVerified === true;
+  const canManage = user?.role === "orgadmin" && user?.twoFactorEnabled === true && user?.emailVerified === true;
 
   // Extract the class id from the URL
   const { classId } = useParams();

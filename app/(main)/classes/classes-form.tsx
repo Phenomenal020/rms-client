@@ -55,7 +55,7 @@ export function ClassesForm() {
 
     // Org admin gate
     const { user } = useUser();
-    const canManage = user?.role === "orgadmin" && !(user?.twoFactorEnabled === true) && user?.emailVerified === true;
+    const canManage = user?.role === "orgadmin" && user?.twoFactorEnabled === true && user?.emailVerified === true;
 
     // Add dialog state and add form
     const [isAddOpen, setIsAddOpen] = useState(false);

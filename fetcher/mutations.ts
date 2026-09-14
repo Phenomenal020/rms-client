@@ -7,7 +7,7 @@ import useSWRMutation from "swr/mutation"
 import type { UserData } from "@/types/updateProfile"
 import type { CreateTermPayload, UpdateTermPayload, DeleteTermPayload, SaveGradingSystemPayload } from "@/types/term"
 import type { createSingleStudent, updateSingleStudent, deleteSingleStudent } from "@/types/students"
-import type { SaveClassRecordExportPayload, SaveStudentScoresPayload, SaveSubjectScoresPayload, SaveSubjectScoresByIdPayload, UnlockSubjectAssignmentPayload, LockSubjectAssignmentPayload } from "@/types/view"
+import type { SaveSubjectScoresByIdPayload, UnlockSubjectAssignmentPayload, LockSubjectAssignmentPayload } from "@/types/view"
 import type { AddMemberPayload } from "@/types/organisation"
 import type { createSubjectPayload, updateSubjectPayload, deleteSubjectPayload } from "@/types/subjects";
 import type { createClassPayload, updateClassPayload, deleteClassPayload, saveSubjectClassAssignmentPayload } from "@/types/classes";
@@ -46,9 +46,6 @@ import {
     classByIdPath,  // <-- Requires id in path
     classSubjectAssignmentsPath,
     // student-view / subject-view keys
-    STUDENT_VIEW_EXPORT_KEY,
-    STUDENT_VIEW_SAVE_SCORES_KEY,
-    SUBJECT_VIEW_SAVE_SCORES_KEY,
     SUBJECT_VIEW_SAVE_SCORES_BY_ID_KEY,
     SUBJECT_VIEW_UNLOCK_ASSIGNMENT_KEY,
     SUBJECT_VIEW_LOCK_ASSIGNMENT_KEY,
@@ -741,72 +738,7 @@ export function useSaveEnrollment() {
 
 
 
-// ---------------------------- Class Record / Scores -----------------------------------
-// Submit class record snapshot for export / admin approval — POST /api/v1/student-view/export
-export function useSaveRecord() {
-    const { mutate } = useSWRConfig();
-    const { trigger, isMutating, error, data } = useSWRMutation(
-        STUDENT_VIEW_EXPORT_KEY,
-        async (url, { arg }: { arg: SaveClassRecordExportPayload }) => {
-            const response = await axiosInstance.post(url, arg);
-            return response.data;
-        },
-        {
-            onSuccess: () => {
-                mutate(startsWithKey(RECORD_REQUESTS_KEY));
-                mutate(ORGANISATION_DASHBOARD_KEY);
-            },
-        },
-    );
-    return {
-        saveRecord: trigger,
-        isMutating,
-        error,
-        data,
-    };
-}
-
-// save student assessment scores — POST /api/v1/student-view/save-scores
-export function useSaveStudentScores() {
-    const { trigger, isMutating, error, data } = useSWRMutation(
-        STUDENT_VIEW_SAVE_SCORES_KEY,
-        async (url, { arg }: { arg: SaveStudentScoresPayload }) => {
-            const response = await axiosInstance.post(url, arg);
-            return response.data;
-        },
-    );
-    return {
-        saveStudentScores: trigger,
-        isMutating,
-        error,
-        data,
-    };  // refetch manually triggered in ResultsComponent.tsx
-}
-
-// save subject assessment scores — POST /api/v1/subject-view/save-scores
-export function useSaveSubjectScores() {
-    const { mutate } = useSWRConfig();
-    const { trigger, isMutating, error, data } = useSWRMutation(
-        SUBJECT_VIEW_SAVE_SCORES_KEY,
-        async (url, { arg }: { arg: SaveSubjectScoresPayload }) => {
-            const response = await axiosInstance.post(url, arg);
-            return response.data;
-        },
-        {
-            onSuccess: () => {
-                // invalidate class-record cache so subject/student views see fresh scores
-                mutate(startsWithKey(CLASS_RECORD_KEY));
-            },
-        },
-    );
-    return {
-        saveSubjectScores: trigger,
-        isMutating,
-        error,
-        data,
-    };
-}
-
+// ---------------------------- Subject scores (subject-view) -----------------------------------
 // unlock subject assignment — PATCH /api/v1/subject-view/assignment/unlock
 export function useUnlockSubjectAssignment() {
     const { mutate } = useSWRConfig();

@@ -41,7 +41,7 @@ export function EnrollmentForm() {
 
     // Org admin gate
     const { user } = useUser();
-    const canManage = user?.role === "orgadmin" && !(user?.twoFactorEnabled === true) && user?.emailVerified === true;
+    const canManage = user?.role === "orgadmin" && user?.twoFactorEnabled === true && user?.emailVerified === true;
 
     // Fetch terms, then class assignments for the active term
     const { data: activeTermData, error: activeTermError, isLoading: isLoadingActiveTerm } = getActiveTerm();

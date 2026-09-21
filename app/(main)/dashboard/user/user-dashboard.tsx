@@ -3,7 +3,7 @@
 import { StatusBadge } from "../helpers/dashboard-badge";
 import { DashboardSessions } from "../helpers/dashboard-sessions";
 import { DashboardRequestsTableSkeleton } from "../helpers/dashboard-loading";
-import { getRecentRequests, getTerms } from "@/fetcher/queries";
+import { getTerms } from "@/fetcher/queries";
 import type { singleTermPayload } from "@/types/term";
 import { Button } from "@/shadcn/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shadcn/ui/tabs";
@@ -11,7 +11,7 @@ import { ErrorBanner } from "@/shared-components/error-banner";
 import { EmptyPending } from "@/shared-components/empty-pending";
 import { EmptyNoEntry } from "@/shared-components/empty-noentry";
 import { useSWRConfig } from "swr";
-import { recordRequestsKey } from "@/fetcher/keys";
+// import { recordRequestsKey } from "@/fetcher/keys";
 import { getApiErrorMessage } from "@/fetcher/mutations";
 
 // Map record status to badge text
@@ -32,7 +32,7 @@ export function UserDashboard() {
         (termsData as singleTermPayload[])?.find((t) => t.status === "ACTIVE")?.id ?? null;
 
     // Use that to get record requests. Teachers receive only their own record requests from this endpoint.
-    const { data: recentRequests, error, isLoading } = getRecentRequests(activeTermId);
+    // const { data: recentRequests, error, isLoading } = getRecentRequests(activeTermId);
 
     return (
         <Tabs defaultValue="requests" className="pb-6">
@@ -55,88 +55,6 @@ export function UserDashboard() {
                         actionLabel="Set up term"
                         actionHref="/term"
                     />
-                ) : isLoading && (recentRequests?.length ?? 0) === 0 ? (
-                    <DashboardRequestsTableSkeleton variant="user" rows={3} />
-                ) : error ? (
-                    <ErrorBanner
-                        title="Could not load requests"
-                        message={getApiErrorMessage(error, "Failed to load your record requests. Please try again.")}
-                        onRetry={() => {
-                            if (activeTermId) {
-                                void mutate(recordRequestsKey(activeTermId));
-                            }
-                        }}
-                    />
-                ) : recentRequests && recentRequests.length > 0 ? (
-                    <div className="overflow-x-auto rounded-sm border border-border bg-card shadow-md">
-                        <table className="min-w-[440px] w-full table-fixed border-collapse text-sm md:text-base">
-                            <thead>
-                                <tr className="border-b border-border bg-muted/50">
-                                    <th className="w-[25%] p-3 text-left text-sm font-semibold uppercase tracking-wider text-muted-foreground md:text-base">
-                                        Class
-                                    </th>
-                                    <th className="w-[20%] p-3 text-left text-sm font-semibold uppercase tracking-wider text-muted-foreground md:text-base">
-                                        Status
-                                    </th>
-                                    <th className="w-[40%] p-3 text-left text-sm font-semibold uppercase tracking-wider text-muted-foreground md:text-base">
-                                        Date &amp; Time
-                                    </th>
-                                    <th className="w-[15%] p-3 text-left text-sm font-semibold uppercase tracking-wider text-muted-foreground md:text-base">
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {recentRequests.map((row) => (
-                                    <tr
-                                        key={row.id}
-                                        className="border-b border-border last:border-b-0 transition-colors hover:bg-muted/40"
-                                    >
-                                        <td className="p-3 text-foreground">
-                                            {row.className}
-                                        </td>
-                                        <td className="p-1">
-                                            <StatusBadge status={recordStatusForBadge(row.status)} />
-                                        </td>
-                                        <td className="p-3 tabular-nums text-muted-foreground">
-                                            {new Date(row.createdAt).toLocaleString(undefined, {
-                                                dateStyle: "medium",
-                                                timeStyle: "short",
-                                            })}
-                                        </td>
-                                        <td className="p-1">
-                                            {row.status === "PENDING" ? (
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    className="cursor-pointer"
-                                                >
-                                                    Cancel
-                                                </Button>
-                                            ) : row.status === "ACCEPTED" ? (
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    disabled
-                                                    className="bg-emerald-600 text-white"
-                                                >
-                                                    Review
-                                                </Button>
-                                            ) : (
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="cursor-pointer border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300"
-                                                >
-                                                    Review
-                                                </Button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
                 ) : (
                     <EmptyPending
                         embedded

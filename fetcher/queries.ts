@@ -2,6 +2,7 @@
 
 import useSWR from "swr"
 import { fetcher } from "@/fetcher/fetcher"
+import { getOrgMembersCacheKey, mapOrgMembersToTeachers, toOrgMembersQueryResult } from "@/fetcher/org-members-helpers"
 import { authClient } from "@/src/auth-client"
 import type { SessionListItem } from "@/src/auth-client"
 import type { subjectClassAssignmentPayload } from "@/types/enrollments";
@@ -33,8 +34,8 @@ import {
     teacherClassesKey, // <-- Requires termId in query
     classRecordKey, // <-- Requires classId and termId in query
     // record requests keys
-    recordRequestsKey, // <-- Requires termId in query
-    recordByRequestIdKey, // <-- Requires requestId in query
+    // recordRequestsKey, // <-- Requires termId in query
+    // recordByRequestIdKey, // <-- Requires requestId in query
     // onboarding requests keys
     ONBOARDING_REQUESTS_KEY,
     ONBOARDING_JOIN_REQUESTS_KEY,
@@ -134,17 +135,14 @@ export function getCurrentSessionToken(enabled: boolean = true) {
 // Org members for teacher dropdowns (Better Auth — not REST /api/v1).
 export function getOrgMembers(enabled: boolean = true) {
     const { data, error, isLoading } = useSWR(
-        enabled ? ORG_MEMBERS_KEY : null,
+        getOrgMembersCacheKey(enabled),
         async () => {
             const { data, error } = await authClient.organization.listMembers({ query: {} });
             if (error) throw error;  // force the error to be thrown and added to loadingError state
-            if (!data?.members) {
-                throw new Error("Failed to load organisation members");
-            }
-            return data.members.map((m) => m.user as teacherOption);
+            return mapOrgMembersToTeachers({ members: data.members.map((member) => ({ user: { id: member.user.id, name: member.user.name, email: member.user.email, image: member.user.image ?? null } })) });  // return the data mapped to teacherOption[]
         },
     );
-    return { teachers: data ?? [], error, isLoading, statusCode: error ? error.status ?? null : 200 };
+    return toOrgMembersQueryResult(data, error, isLoading);
 }
 
 // Get the authenticated user's identity row — role, name, email, schoolId, etc.
@@ -643,75 +641,75 @@ export function getClassRecord(
 
 
 // ---------------------------- Record Requests -----------------------------------
-/** One row from GET /api/v1/record/requests?termId=… (pending class-record export requests). */
-export type PendingRecordRequestRow = {
-    id: string;
-    status: string;
-    createdAt: string;
-    classId: string;
-    className: string;
-    formTeacherId: string;
-    formTeacherName: string;
-};
-// Get pending class-record export requests for the authenticated org admin's school and term.
-export function getRecentRequests(termId: string | null, enabled: boolean = true) {
-    const key =
-        enabled && termId
-            ? recordRequestsKey(termId)  // construct the key with the termId
-            : null;
-    const { data, error, isLoading, isValidating } = useSWR(key, fetcher);
+// /** One row from GET /api/v1/record/requests?termId=… (pending class-record export requests). */
+// export type PendingRecordRequestRow = {
+//     id: string;
+//     status: string;
+//     createdAt: string;
+//     classId: string;
+//     className: string;
+//     formTeacherId: string;
+//     formTeacherName: string;
+// };
+// // Get pending class-record export requests for the authenticated org admin's school and term.
+// export function getRecentRequests(termId: string | null, enabled: boolean = true) {
+//     const key =
+//         enabled && termId
+//             ? recordRequestsKey(termId)  // construct the key with the termId
+//             : null;
+//     const { data, error, isLoading, isValidating } = useSWR(key, fetcher);
 
-    // Case 1: HTTP 2xx + envelope
-    if (data?.success) {
-        return {
-            data: (data.data ?? []) as PendingRecordRequestRow[],
-            error: null,
-            isLoading,
-            isValidating,
-            statusCode: data.statusCode,
-        };
-    }
-    // Case 2 and 3: HTTP 4xx/5xx or client/network failure
-    if (error) {
-        const queryError = getQueryError(error, "Failed to fetch record requests");
-        return { data: null, error: queryError.error, isLoading, isValidating, statusCode: queryError.statusCode };
-    }
-    // First load / disabled key: no data and no error yet
-    return { data: null, error: null, isLoading, isValidating, statusCode: null };
-}
+//     // Case 1: HTTP 2xx + envelope
+//     if (data?.success) {
+//         return {
+//             data: (data.data ?? []) as PendingRecordRequestRow[],
+//             error: null,
+//             isLoading,
+//             isValidating,
+//             statusCode: data.statusCode,
+//         };
+//     }
+//     // Case 2 and 3: HTTP 4xx/5xx or client/network failure
+//     if (error) {
+//         const queryError = getQueryError(error, "Failed to fetch record requests");
+//         return { data: null, error: queryError.error, isLoading, isValidating, statusCode: queryError.statusCode };
+//     }
+//     // First load / disabled key: no data and no error yet
+//     return { data: null, error: null, isLoading, isValidating, statusCode: null };
+// }
 
-// Get the record for a given requestId (null requestId suspends the fetch. orgadmin route)
-export function getRecord(requestId: string | null, enabled: boolean = true) {
-    const key =
-        enabled && requestId
-            ? recordByRequestIdKey(requestId)  // construct the key with the requestId
-            : null;
-    const { data, error, isLoading, isValidating } = useSWR(key, fetcher);
+// // Get the record for a given requestId (null requestId suspends the fetch. orgadmin route)
+// export function getRecord(requestId: string | null, enabled: boolean = true) {
+//     const key =
+//         enabled && requestId
+//             ? recordByRequestIdKey(requestId)  // construct the key with the requestId
+//             : null;
+//     const { data, error, isLoading, isValidating } = useSWR(key, fetcher);
 
-    // Case 1: HTTP 2xx + envelope: Can have null if no record exists yet. Anything else should be null
-    if (data?.success) {
-        return {
-            data: data.data?.content ?? null,
-            error: null,
-            isLoading,
-            isValidating,
-            statusCode: data.statusCode,
-        };
-    }
-    // Case 2 and 3: HTTP 4xx/5xx or client/network failure
-    if (error) {
-        const queryError = getQueryError(error, "Failed to fetch record");
-        return {
-            data: null,
-            error: queryError.error,
-            isLoading,
-            isValidating,
-            statusCode: queryError.statusCode,
-        };
-    }
-    // First load / disabled key: no data and no error yet
-    return { data: null, error: null, isLoading, isValidating, statusCode: null };
-}
+//     // Case 1: HTTP 2xx + envelope: Can have null if no record exists yet. Anything else should be null
+//     if (data?.success) {
+//         return {
+//             data: data.data?.content ?? null,
+//             error: null,
+//             isLoading,
+//             isValidating,
+//             statusCode: data.statusCode,
+//         };
+//     }
+//     // Case 2 and 3: HTTP 4xx/5xx or client/network failure
+//     if (error) {
+//         const queryError = getQueryError(error, "Failed to fetch record");
+//         return {
+//             data: null,
+//             error: queryError.error,
+//             isLoading,
+//             isValidating,
+//             statusCode: queryError.statusCode,
+//         };
+//     }
+//     // First load / disabled key: no data and no error yet
+//     return { data: null, error: null, isLoading, isValidating, statusCode: null };
+// }
 
 
 

@@ -132,6 +132,7 @@ export function classRecordKey(classId: string, termId: string) {
 
 
 // ----------------------------- Organisation -----------------------------
+export const ORG_REMOVE_MEMBER_KEY = "org-remove-member";
 export const ORGANISATION_ADD_MEMBER_KEY = "/api/v1/organisation/add-member";
 
 
@@ -146,26 +147,26 @@ export const SUBJECT_VIEW_LOCK_ASSIGNMENT_KEY = "/api/v1/subject-view/assignment
 
 
 // ----------------------------- Record exports -----------------------------
-export const RECORD_REQUESTS_KEY = "/api/v1/record/requests";
-export const RECORD_RECORD_KEY = "/api/v1/record/record";
-export const RECORD_ACCEPT_KEY = "/api/v1/record/accept";
-export const RECORD_REJECT_KEY = "/api/v1/record/reject";
+// export const RECORD_REQUESTS_KEY = "/api/v1/record/requests";
+// export const RECORD_RECORD_KEY = "/api/v1/record/record";
+// export const RECORD_ACCEPT_KEY = "/api/v1/record/accept";
+// export const RECORD_REJECT_KEY = "/api/v1/record/reject";
 
-export function recordRequestsKey(termId: string) {
-    return `${RECORD_REQUESTS_KEY}?termId=${encodeURIComponent(termId)}`;
-}
+// export function recordRequestsKey(termId: string) {
+//     return `${RECORD_REQUESTS_KEY}?termId=${encodeURIComponent(termId)}`;
+// }
 
-export function recordByRequestIdKey(requestId: string) {
-    return `${RECORD_RECORD_KEY}?requestId=${encodeURIComponent(requestId)}`;
-}
+// export function recordByRequestIdKey(requestId: string) {
+//     return `${RECORD_RECORD_KEY}?requestId=${encodeURIComponent(requestId)}`;
+// }
 
-export function recordAcceptPath(requestId: string) {
-    return `${RECORD_ACCEPT_KEY}?requestId=${encodeURIComponent(requestId)}`;
-}
+// export function recordAcceptPath(requestId: string) {
+//     return `${RECORD_ACCEPT_KEY}?requestId=${encodeURIComponent(requestId)}`;
+// }
 
-export function recordRejectPath(requestId: string) {
-    return `${RECORD_REJECT_KEY}?requestId=${encodeURIComponent(requestId)}`;
-}
+// export function recordRejectPath(requestId: string) {
+//     return `${RECORD_REJECT_KEY}?requestId=${encodeURIComponent(requestId)}`;
+// }
 
 
 

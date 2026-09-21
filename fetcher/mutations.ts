@@ -2,29 +2,33 @@
 "use client";
 // 
 import { axiosInstance } from "@/fetcher/fetcher"
+import {
+    invalidateOrgMembersAfterAdd,
+    invalidateOrgMembersAfterRemove,
+    postAddMemberRequest,
+    postRemoveMemberRequest,
+    toAddMemberHookResult,
+    toRemoveMemberHookResult,
+} from "@/fetcher/org-members-helpers"
 import { useSWRConfig } from "swr"
 import useSWRMutation from "swr/mutation"
 import type { UserData } from "@/types/updateProfile"
 import type { CreateTermPayload, UpdateTermPayload, DeleteTermPayload, SaveGradingSystemPayload } from "@/types/term"
 import type { createSingleStudent, updateSingleStudent, deleteSingleStudent } from "@/types/students"
 import type { SaveSubjectScoresByIdPayload, UnlockSubjectAssignmentPayload, LockSubjectAssignmentPayload } from "@/types/view"
-import type { AddMemberPayload } from "@/types/organisation"
+import type { AddMemberPayload, RemoveMemberPayload } from "@/types/organisation"
 import type { createSubjectPayload, updateSubjectPayload, deleteSubjectPayload } from "@/types/subjects";
 import type { createClassPayload, updateClassPayload, deleteClassPayload, saveSubjectClassAssignmentPayload } from "@/types/classes";
 import type { createAssessmentStructurePayload, updateAssessmentStructurePayload } from "@/types/term";
 import type { SaveEnrollmentPayload } from "@/types/enrollments";
-import type {
-    createOnboardingRequestPayload,
-    createTeacherJoinRequestPayload,
-    AcceptTeacherJoinRequestPayload,
-    RejectRequestPayload,
-} from "@/types/onboarding";
+import type { createOnboardingRequestPayload, createTeacherJoinRequestPayload, AcceptTeacherJoinRequestPayload, RejectRequestPayload } from "@/types/onboarding";
 import {
     // users and organisation keys
     USER_SESSION_KEY,
     USER_PROFILE_KEY,
     USER_WITH_RELATIONS_KEY,
     ORG_MEMBERS_KEY,
+    ORG_REMOVE_MEMBER_KEY,
     ORGANISATION_ADD_MEMBER_KEY,
     ORGANISATION_DASHBOARD_KEY,
     // terms, grading system, and assessment structure keys
@@ -52,12 +56,12 @@ import {
     SUBJECT_RECORD_KEY,
     CLASS_RECORD_KEY,
     // record requests keys
-    RECORD_ACCEPT_KEY,
-    RECORD_REJECT_KEY,
-    RECORD_REQUESTS_KEY,
-    recordByRequestIdKey,  // <-- Requires requestId in query
-    recordAcceptPath,  // <-- Requires requestId in query
-    recordRejectPath,  // <-- Requires requestId in query
+    // RECORD_ACCEPT_KEY,
+    // RECORD_REJECT_KEY,
+    // RECORD_REQUESTS_KEY,
+    // recordByRequestIdKey,  // <-- Requires requestId in query
+    // recordAcceptPath,  // <-- Requires requestId in query
+    // recordRejectPath,  // <-- Requires requestId in query
     // onboarding requests keys
     ONBOARDING_REQUESTS_KEY,
     ONBOARDING_CREATE_REQUEST_KEY,
@@ -146,22 +150,30 @@ export function useAddMember() {
     const { mutate } = useSWRConfig();
     const { trigger, isMutating, error, data } = useSWRMutation(
         ORGANISATION_ADD_MEMBER_KEY,
-        async (url, { arg }: { arg: AddMemberPayload }) => {
-            const response = await axiosInstance.post(url, arg);
-            return response.data;
-        },
+        async (url, { arg }: { arg: AddMemberPayload }) =>
+            postAddMemberRequest(url, arg, (path, body) => axiosInstance.post(path, body)),
         {
             onSuccess: () => {
-                mutate(ORG_MEMBERS_KEY);  // invalidate the org members key to refetch the org members
+                invalidateOrgMembersAfterAdd(mutate);
             },
         },
     );
-    return {
-        addMemberClient: trigger,
-        isMutating,
-        error,
-        data,
-    };
+    return toAddMemberHookResult(trigger, isMutating, error, data);
+}
+
+// remove member from organisation — Better Auth organization.removeMember
+export function useRemoveMember() {
+    const { mutate } = useSWRConfig();
+    const { trigger, isMutating, error, data } = useSWRMutation(
+        ORG_REMOVE_MEMBER_KEY,
+        async (_key, { arg }: { arg: RemoveMemberPayload }) => postRemoveMemberRequest(arg),
+        {
+            onSuccess: () => {
+                invalidateOrgMembersAfterRemove(mutate);
+            },
+        },
+    );
+    return toRemoveMemberHookResult(trigger, isMutating, error, data);
 }
 
 
@@ -813,66 +825,66 @@ export function useSaveSubjectScoresById() {
 
 
 // ---------------------------- Record Requests -----------------------------------
-type RejectRecordPayload = {
-    requestId: string;
-    rejectionReason: string;
-};
+// type RejectRecordPayload = {
+//     requestId: string;
+//     rejectionReason: string;
+// };
 
-// Org admin accept — PATCH /api/v1/record/accept?requestId=...
-export function useAcceptRequest() {
-    const { mutate } = useSWRConfig();
-    const { trigger, isMutating, error, data } = useSWRMutation(
-        RECORD_ACCEPT_KEY,
-        async (_url, { arg: requestId }: { arg: string }) => {
-            const response = await axiosInstance.patch(recordAcceptPath(requestId));
-            return response.data;
-        },
-        {
-            onSuccess: (response) => {
-                const requestId = response?.data?.id;
-                mutate(startsWithKey(RECORD_REQUESTS_KEY), undefined, { revalidate: true });
-                mutate(ORGANISATION_DASHBOARD_KEY);
-                if (requestId) {
-                    mutate(recordByRequestIdKey(requestId));
-                }
-            },
-        },
-    );
-    return {
-        acceptRequest: trigger,
-        isMutating,
-        error,
-        data,
-    };
-}
+// // Org admin accept — PATCH /api/v1/record/accept?requestId=...
+// export function useAcceptRequest() {
+//     const { mutate } = useSWRConfig();
+//     const { trigger, isMutating, error, data } = useSWRMutation(
+//         RECORD_ACCEPT_KEY,
+//         async (_url, { arg: requestId }: { arg: string }) => {
+//             const response = await axiosInstance.patch(recordAcceptPath(requestId));
+//             return response.data;
+//         },
+//         {
+//             onSuccess: (response) => {
+//                 const requestId = response?.data?.id;
+//                 mutate(startsWithKey(RECORD_REQUESTS_KEY), undefined, { revalidate: true });
+//                 mutate(ORGANISATION_DASHBOARD_KEY);
+//                 if (requestId) {
+//                     mutate(recordByRequestIdKey(requestId));
+//                 }
+//             },
+//         },
+//     );
+//     return {
+//         acceptRequest: trigger,
+//         isMutating,
+//         error,
+//         data,
+//     };
+// }
 
-// Org admin reject — PATCH /api/v1/record/reject?requestId=...
-export function useRejectRequest() {
-    const { mutate } = useSWRConfig();
-    const { trigger, isMutating, error, data } = useSWRMutation(
-        RECORD_REJECT_KEY,
-        async (_url, { arg: { requestId, rejectionReason } }: { arg: RejectRecordPayload }) => {
-            const response = await axiosInstance.patch(
-                recordRejectPath(requestId),
-                { rejectionReason },
-            );
-            return response.data;
-        },
-        {
-            onSuccess: (response) => {
-                const requestId = response?.data?.id;
-                mutate(startsWithKey(RECORD_REQUESTS_KEY), undefined, { revalidate: true });
-                mutate(ORGANISATION_DASHBOARD_KEY);
-                if (requestId) {
-                    mutate(recordByRequestIdKey(requestId));
-                }
-            },
-        },
-    );
-    return {
-        rejectRequest: trigger,
-        isMutating,
-        error,
-        data,
-    };
-}
+// // Org admin reject — PATCH /api/v1/record/reject?requestId=...
+// export function useRejectRequest() {
+//     const { mutate } = useSWRConfig();
+//     const { trigger, isMutating, error, data } = useSWRMutation(
+//         RECORD_REJECT_KEY,
+//         async (_url, { arg: { requestId, rejectionReason } }: { arg: RejectRecordPayload }) => {
+//             const response = await axiosInstance.patch(
+//                 recordRejectPath(requestId),
+//                 { rejectionReason },
+//             );
+//             return response.data;
+//         },
+//         {
+//             onSuccess: (response) => {
+//                 const requestId = response?.data?.id;
+//                 mutate(startsWithKey(RECORD_REQUESTS_KEY), undefined, { revalidate: true });
+//                 mutate(ORGANISATION_DASHBOARD_KEY);
+//                 if (requestId) {
+//                     mutate(recordByRequestIdKey(requestId));
+//                 }
+//             },
+//         },
+//     );
+//     return {
+//         rejectRequest: trigger,
+//         isMutating,
+//         error,
+//         data,
+//     };
+// }

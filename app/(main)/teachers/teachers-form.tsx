@@ -19,14 +19,15 @@ import { EmptyNoEntry } from "@/shared-components/empty-noentry";
 import { useUser } from "@/contexts/user-context";
 import { TeachersTable } from "./teachers-table";
 import { getOrgMembers, ORG_MEMBERS_KEY } from "@/fetcher/queries";
-import { getApiErrorMessage, getHttpStatus, useAddMember } from "@/fetcher/mutations";
+import { getApiErrorMessage, useAddMember, useRemoveMember } from "@/fetcher/mutations";
 import { handleAuthRedirect } from "@/utils/auth-redirect";
-import { authClient } from "@/src/auth-client";
 import type { teacherOption } from "@/types/classes";
 import { TeachersLoadingTable } from "./teachers-loading-table";
+import { canManage as canManageTeachers } from "@/shared-components/can-manage";
+import { prepareAddTeacherMember, resolveMembersFetchAuthRedirect } from "./add-teacher-helpers";
 
 // Add Member Schema — email only; the member's name comes from their BA profile
-const addTeacherSchema = z.object({
+export const addTeacherSchema = z.object({
     email: z.email({ message: "Valid email is required" }),
 });
 export type AddTeacherValues = z.infer<typeof addTeacherSchema>;
@@ -40,7 +41,7 @@ export function TeachersForm() {
 
     // Check the user is an org admin with 2FA and a verified email
     const { user } = useUser();
-    const canManage = user?.role === "orgadmin" && user?.twoFactorEnabled === true && user?.emailVerified === true;
+    const canManage = canManageTeachers(user);
 
     // Dialog and search state
     const [isTeacherDialogOpen, setIsTeacherDialogOpen] = useState(false);
@@ -51,8 +52,9 @@ export function TeachersForm() {
     const { teachers, error: membersError, isLoading: isLoadingMembers } = getOrgMembers();
     const teacherList = (teachers ?? []) as teacherOption[];
 
-    // Add teacher mutation hook
+    // Add / remove teacher mutation hooks
     const { addMemberClient, isMutating: isAddingMember } = useAddMember();
+    const { removeMemberClient, isMutating: isRemovingMember } = useRemoveMember();
 
     // Add teacher form with resolver and default values
     const addForm = useForm<AddTeacherValues>({
@@ -65,15 +67,14 @@ export function TeachersForm() {
         void mutate(ORG_MEMBERS_KEY);
     }
 
-    // Redirect on auth errors
+    // Redirect on auth errors: Checks if the error is a 401 or 403 and redirects to the sign-in or forbidden page
     useEffect(() => {
-        if (!membersError) return;
-        const status = getHttpStatus(membersError);
-        if (status === 401) {
-            router.replace(`/sign-in?redirect=${pathname}`);
-        } else if (status === 403) {
+        const authRedirect = resolveMembersFetchAuthRedirect(membersError, pathname);
+        if (authRedirect.redirect === "sign-in") {
+            router.replace(authRedirect.url);
+        } else if (authRedirect.redirect === "forbidden") {
             router.replace("/forbidden");
-        }
+        }  // else, dp nothing (no redirect if there is no error or it is not a 401 or 403)
     }, [membersError, router, pathname]);
 
     // Open add/edit teacher dialogs
@@ -88,17 +89,21 @@ export function TeachersForm() {
         setIsEditDialogOpen(true);
     }
 
-    // Add teacher handler
+    // Add teacher handler: prepares the email for the api call: Checks if the user can manage teachers, checks if the email is a duplicate, and extracts the normalised email for the API call
     async function addMember(formData: AddTeacherValues) {
-        if (!canManage) return;
-        const normalisedEmail = formData.email.trim().toLowerCase();
-        if (teacherList.some((teacher) => teacher.email.toLowerCase() === normalisedEmail)) {
-            addForm.setError("email", { message: "A teacher with this email already exists" });
+        // Prepare the email for the API call
+        const prepared = prepareAddTeacherMember(formData, teacherList, canManage);
+        // If the user cannot manage teachers, return
+        if (prepared.action === "no-op") return;
+        // If the email is a duplicate, set the error and return
+        if (prepared.action === "duplicate-error") {
+            addForm.setError("email", { message: prepared.message });
             return;
         }
+        // extract the normalised email for the API call
+        const normalisedEmail = prepared.email;
         try {
-            const { error } = await addMemberClient({ email: normalisedEmail });
-            if (error) throw error;
+            await addMemberClient({ email: normalisedEmail });
             void mutate(ORG_MEMBERS_KEY);
             setIsTeacherDialogOpen(false);
             toast.success(`${normalisedEmail} added to the organisation.`);
@@ -114,15 +119,11 @@ export function TeachersForm() {
     async function removeMember(email: string) {
         if (!canManage) return;
         try {
-            const { error } = await authClient.organization.removeMember({
-                memberIdOrEmail: email,
-            });
-            if (error) throw error;  //if error, throw it
-            void mutate(ORG_MEMBERS_KEY);
+            await removeMemberClient({ memberIdOrEmail: email });
             setIsEditDialogOpen(false);
             setEditingTeacher(null);
             toast.success("Member removed from organisation.");
-        } catch (err) { // catch the error here
+        } catch (err) {
             if (!handleAuthRedirect(err, { router, pathname })) {
                 toast.error(getApiErrorMessage(err, "Failed to remove member. Please try again."));
             }
@@ -162,6 +163,7 @@ export function TeachersForm() {
                 onOpenChange={setIsEditDialogOpen}
                 teacher={editingTeacher}
                 removeMember={removeMember}
+                removing={isRemovingMember}
                 canManage={canManage}
                 user={user}
             />

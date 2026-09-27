@@ -80,7 +80,7 @@ export function SecuritySetupModal() {
         <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); else setOpen(true); }}>
 
             {/* Full-width alert banner — same layout as email verification alert */}
-            <div className="w-full rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800/50 dark:bg-yellow-950/30">
+            <div className="w-full rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800/50 dark:bg-yellow-950/30 text-sm">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
                         <ShieldCheck className="size-5 shrink-0 text-yellow-600 dark:text-yellow-400" />
@@ -89,7 +89,7 @@ export function SecuritySetupModal() {
                         </span>
                     </div>
                     <DialogTrigger asChild>
-                        <Button size="sm" className="shrink-0 self-start sm:self-auto">
+                        <Button size="xs" className="shrink-0 self-start sm:self-auto text-sm">
                             Enable 2FA
                         </Button>
                     </DialogTrigger>

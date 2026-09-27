@@ -2,6 +2,7 @@
 import VerifyEmailButton from "../shared/verify-email-button";
 import TeacherProfileTabs from "./teacher-profile-tabs";
 import type { Metadata } from "next";
+// import { forbidden, unauthorized } from "next/navigation";
 
 // page metadata: title and description
 export const metadata: Metadata = {
@@ -11,6 +12,10 @@ export const metadata: Metadata = {
 
 // page component (Server Component - no data fetching here)
 export default function SettingsPage() {
+
+  // Testing unauthorized(401) and forbidden(403) functions
+  // unauthorized()  // so sign in
+  // forbidden()  // you simply don't have the permissions to access this page
 
   // return the main layout
   return (
@@ -36,9 +41,9 @@ export default function SettingsPage() {
 
         </div>
 
-        {/* Profile sections — continuous scroll */}
+        {/* Profile sections — tabbed layout */}
         <div className="w-full mx-auto">
-          <TeacherProfileTabs /> {/* Used to be tabs, now continuous scroll */}
+          <TeacherProfileTabs />
         </div>
 
       </div>

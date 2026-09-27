@@ -18,12 +18,12 @@ export const SchoolHeader = ({
                 {school.name}
             </h1>
 
-            {/* School Motto */}
+            {/* School Motto
             {school.metadata?.motto && (
                 <p className="text-base sm:text-lg md:text-xl text-foreground italic">
                     {school.metadata?.motto}
                 </p>
-            )}
+            )} */}
 
             {/* School Address */}
             {school.metadata?.address && (

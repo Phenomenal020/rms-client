@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useUser } from "@/contexts/user-context";
 import { Skeleton } from "@/shadcn/ui/skeleton";
 import { Card, CardContent } from "@/shadcn/ui/card";
+import { getUserWithRelations } from "@/fetcher/queries";
 
 type OnboardingGateProps = {
     children: ReactNode;
@@ -18,7 +19,7 @@ export function OnboardingGate({
     fallback = <OnboardingLoading />,
     redirectTo = "/dashboard",
 }: OnboardingGateProps) {
-    const { user, isLoading } = useUser();
+    const { user, isLoading } = getUserWithRelations();
     const router = useRouter();
     const pathname = usePathname();
     const onboardingStatus = user?.onboardingStatus;
@@ -30,10 +31,10 @@ export function OnboardingGate({
         if (isLoading) return;
 
         // if no valid session (finished loading and no user), redirect to sign-in
-        // if (!user) {
-        //     router.replace(`/sign-in?redirect=${encodeURIComponent(pathname)}`);
-        //     return;
-        // }
+        if (!user) {
+            router.replace(`/sign-in?redirect=${encodeURIComponent(pathname)}`);
+            return;
+        }
 
         // Already onboarded — leave onboarding
         if (isOnboarded) {

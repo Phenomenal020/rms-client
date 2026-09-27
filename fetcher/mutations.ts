@@ -2,29 +2,33 @@
 "use client";
 // 
 import { axiosInstance } from "@/fetcher/fetcher"
+import {
+    invalidateOrgMembersAfterAdd,
+    invalidateOrgMembersAfterRemove,
+    postAddMemberRequest,
+    postRemoveMemberRequest,
+    toAddMemberHookResult,
+    toRemoveMemberHookResult,
+} from "@/fetcher/org-members-helpers"
 import { useSWRConfig } from "swr"
 import useSWRMutation from "swr/mutation"
 import type { UserData } from "@/types/updateProfile"
 import type { CreateTermPayload, UpdateTermPayload, DeleteTermPayload, SaveGradingSystemPayload } from "@/types/term"
 import type { createSingleStudent, updateSingleStudent, deleteSingleStudent } from "@/types/students"
-import type { SaveClassRecordExportPayload, SaveStudentScoresPayload, SaveSubjectScoresPayload } from "@/types/view"
-import type { AddMemberPayload } from "@/types/organisation"
+import type { SaveSubjectScoresByIdPayload, UnlockSubjectAssignmentPayload, LockSubjectAssignmentPayload } from "@/types/view"
+import type { AddMemberPayload, RemoveMemberPayload } from "@/types/organisation"
 import type { createSubjectPayload, updateSubjectPayload, deleteSubjectPayload } from "@/types/subjects";
-import type { createClassPayload, updateClassPayload, deleteClassPayload } from "@/types/classes";
+import type { createClassPayload, updateClassPayload, deleteClassPayload, saveSubjectClassAssignmentPayload } from "@/types/classes";
 import type { createAssessmentStructurePayload, updateAssessmentStructurePayload } from "@/types/term";
 import type { SaveEnrollmentPayload } from "@/types/enrollments";
-import type {
-    createOnboardingRequestPayload,
-    createTeacherJoinRequestPayload,
-    AcceptTeacherJoinRequestPayload,
-    RejectRequestPayload,
-} from "@/types/onboarding";
+import type { createOnboardingRequestPayload, createTeacherJoinRequestPayload, AcceptTeacherJoinRequestPayload, RejectRequestPayload } from "@/types/onboarding";
 import {
     // users and organisation keys
     USER_SESSION_KEY,
     USER_PROFILE_KEY,
     USER_WITH_RELATIONS_KEY,
     ORG_MEMBERS_KEY,
+    ORG_REMOVE_MEMBER_KEY,
     ORGANISATION_ADD_MEMBER_KEY,
     ORGANISATION_DASHBOARD_KEY,
     // terms, grading system, and assessment structure keys
@@ -44,18 +48,20 @@ import {
     // classes keys
     CLASSES_KEY,
     classByIdPath,  // <-- Requires id in path
+    classSubjectAssignmentsPath,
     // student-view / subject-view keys
-    STUDENT_VIEW_EXPORT_KEY,
-    STUDENT_VIEW_SAVE_SCORES_KEY,
-    SUBJECT_VIEW_SAVE_SCORES_KEY,
+    SUBJECT_VIEW_SAVE_SCORES_BY_ID_KEY,
+    SUBJECT_VIEW_UNLOCK_ASSIGNMENT_KEY,
+    SUBJECT_VIEW_LOCK_ASSIGNMENT_KEY,
+    SUBJECT_RECORD_KEY,
     CLASS_RECORD_KEY,
     // record requests keys
-    RECORD_ACCEPT_KEY,
-    RECORD_REJECT_KEY,
-    RECORD_REQUESTS_KEY,
-    recordByRequestIdKey,  // <-- Requires requestId in query
-    recordAcceptPath,  // <-- Requires requestId in query
-    recordRejectPath,  // <-- Requires requestId in query
+    // RECORD_ACCEPT_KEY,
+    // RECORD_REJECT_KEY,
+    // RECORD_REQUESTS_KEY,
+    // recordByRequestIdKey,  // <-- Requires requestId in query
+    // recordAcceptPath,  // <-- Requires requestId in query
+    // recordRejectPath,  // <-- Requires requestId in query
     // onboarding requests keys
     ONBOARDING_REQUESTS_KEY,
     ONBOARDING_CREATE_REQUEST_KEY,
@@ -144,22 +150,30 @@ export function useAddMember() {
     const { mutate } = useSWRConfig();
     const { trigger, isMutating, error, data } = useSWRMutation(
         ORGANISATION_ADD_MEMBER_KEY,
-        async (url, { arg }: { arg: AddMemberPayload }) => {
-            const response = await axiosInstance.post(url, arg);
-            return response.data;
-        },
+        async (url, { arg }: { arg: AddMemberPayload }) =>
+            postAddMemberRequest(url, arg, (path, body) => axiosInstance.post(path, body)),
         {
             onSuccess: () => {
-                mutate(ORG_MEMBERS_KEY);  // invalidate the org members key to refetch the org members
+                invalidateOrgMembersAfterAdd(mutate);
             },
         },
     );
-    return {
-        addMemberClient: trigger,
-        isMutating,
-        error,
-        data,
-    };
+    return toAddMemberHookResult(trigger, isMutating, error, data);
+}
+
+// remove member from organisation — Better Auth organization.removeMember
+export function useRemoveMember() {
+    const { mutate } = useSWRConfig();
+    const { trigger, isMutating, error, data } = useSWRMutation(
+        ORG_REMOVE_MEMBER_KEY,
+        async (_key, { arg }: { arg: RemoveMemberPayload }) => postRemoveMemberRequest(arg),
+        {
+            onSuccess: () => {
+                invalidateOrgMembersAfterRemove(mutate);
+            },
+        },
+    );
+    return toRemoveMemberHookResult(trigger, isMutating, error, data);
 }
 
 
@@ -595,6 +609,25 @@ export function useUpdateClass() {
     return { trigger, isMutating, error, data };
 }
 
+// save one subject-class assignment — PATCH /api/v1/classes/:id/subject-assignments
+export function useSaveSubjectClassAssignment() {
+    const { mutate } = useSWRConfig();
+    const { trigger, isMutating, error, data } = useSWRMutation(
+        CLASSES_KEY,
+        async (_url, { arg }: { arg: saveSubjectClassAssignmentPayload }) => {
+            const { id, ...body } = arg;
+            const response = await axiosInstance.patch(classSubjectAssignmentsPath(id), body);  //  /api/v1/classes/:id/subject-assignments
+            return response.data;
+        },
+        {
+            onSuccess: () => {
+                mutate(startsWithKey(CLASSES_KEY), undefined, { revalidate: true });
+            },
+        },
+    );
+    return { trigger, isMutating, error, data };
+}
+
 // delete a class — DELETE /api/v1/classes/:id
 export function useDeleteClass() {
     const { mutate } = useSWRConfig();
@@ -717,66 +750,71 @@ export function useSaveEnrollment() {
 
 
 
-// ---------------------------- Class Record / Scores -----------------------------------
-// Submit class record snapshot for export / admin approval — POST /api/v1/student-view/export
-export function useSaveRecord() {
+// ---------------------------- Subject scores (subject-view) -----------------------------------
+// unlock subject assignment — PATCH /api/v1/subject-view/assignment/unlock
+export function useUnlockSubjectAssignment() {
     const { mutate } = useSWRConfig();
     const { trigger, isMutating, error, data } = useSWRMutation(
-        STUDENT_VIEW_EXPORT_KEY,
-        async (url, { arg }: { arg: SaveClassRecordExportPayload }) => {
-            const response = await axiosInstance.post(url, arg);
+        SUBJECT_VIEW_UNLOCK_ASSIGNMENT_KEY,
+        async (url, { arg }: { arg: UnlockSubjectAssignmentPayload }) => {
+            const response = await axiosInstance.patch(url, arg);
             return response.data;
         },
         {
             onSuccess: () => {
-                mutate(startsWithKey(RECORD_REQUESTS_KEY));
-                mutate(ORGANISATION_DASHBOARD_KEY);
+                mutate(startsWithKey(SUBJECT_RECORD_KEY));
             },
         },
     );
     return {
-        saveRecord: trigger,
+        unlockSubjectAssignment: trigger,
         isMutating,
         error,
         data,
     };
 }
 
-// save student assessment scores — POST /api/v1/student-view/save-scores
-export function useSaveStudentScores() {
+// lock subject assignment — PATCH /api/v1/subject-view/assignment/lock
+export function useLockSubjectAssignment() {
+    const { mutate } = useSWRConfig();
     const { trigger, isMutating, error, data } = useSWRMutation(
-        STUDENT_VIEW_SAVE_SCORES_KEY,
-        async (url, { arg }: { arg: SaveStudentScoresPayload }) => {
-            const response = await axiosInstance.post(url, arg);
+        SUBJECT_VIEW_LOCK_ASSIGNMENT_KEY,
+        async (url, { arg }: { arg: LockSubjectAssignmentPayload }) => {
+            const response = await axiosInstance.patch(url, arg);
             return response.data;
+        },
+        {
+            onSuccess: () => {
+                mutate(startsWithKey(SUBJECT_RECORD_KEY));
+            },
         },
     );
     return {
-        saveStudentScores: trigger,
+        lockSubjectAssignment: trigger,
         isMutating,
         error,
         data,
-    };  // refetch manually triggered in ResultsComponent.tsx
+    };
 }
 
-// save subject assessment scores — POST /api/v1/subject-view/save-scores
-export function useSaveSubjectScores() {
+// save subject scores by assessment score id — POST /api/v1/subject-view/save-scores-by-id
+export function useSaveSubjectScoresById() {
     const { mutate } = useSWRConfig();
     const { trigger, isMutating, error, data } = useSWRMutation(
-        SUBJECT_VIEW_SAVE_SCORES_KEY,
-        async (url, { arg }: { arg: SaveSubjectScoresPayload }) => {
+        SUBJECT_VIEW_SAVE_SCORES_BY_ID_KEY,
+        async (url, { arg }: { arg: SaveSubjectScoresByIdPayload }) => {
             const response = await axiosInstance.post(url, arg);
             return response.data;
         },
         {
             onSuccess: () => {
-                // invalidate class-record cache so subject/student views see fresh scores
+                mutate(startsWithKey(SUBJECT_RECORD_KEY));
                 mutate(startsWithKey(CLASS_RECORD_KEY));
             },
         },
     );
     return {
-        saveSubjectScores: trigger,
+        saveSubjectScoresById: trigger,
         isMutating,
         error,
         data,
@@ -787,66 +825,66 @@ export function useSaveSubjectScores() {
 
 
 // ---------------------------- Record Requests -----------------------------------
-type RejectRecordPayload = {
-    requestId: string;
-    rejectionReason: string;
-};
+// type RejectRecordPayload = {
+//     requestId: string;
+//     rejectionReason: string;
+// };
 
-// Org admin accept — PATCH /api/v1/record/accept?requestId=...
-export function useAcceptRequest() {
-    const { mutate } = useSWRConfig();
-    const { trigger, isMutating, error, data } = useSWRMutation(
-        RECORD_ACCEPT_KEY,
-        async (_url, { arg: requestId }: { arg: string }) => {
-            const response = await axiosInstance.patch(recordAcceptPath(requestId));
-            return response.data;
-        },
-        {
-            onSuccess: (response) => {
-                const requestId = response?.data?.id;
-                mutate(startsWithKey(RECORD_REQUESTS_KEY), undefined, { revalidate: true });
-                mutate(ORGANISATION_DASHBOARD_KEY);
-                if (requestId) {
-                    mutate(recordByRequestIdKey(requestId));
-                }
-            },
-        },
-    );
-    return {
-        acceptRequest: trigger,
-        isMutating,
-        error,
-        data,
-    };
-}
+// // Org admin accept — PATCH /api/v1/record/accept?requestId=...
+// export function useAcceptRequest() {
+//     const { mutate } = useSWRConfig();
+//     const { trigger, isMutating, error, data } = useSWRMutation(
+//         RECORD_ACCEPT_KEY,
+//         async (_url, { arg: requestId }: { arg: string }) => {
+//             const response = await axiosInstance.patch(recordAcceptPath(requestId));
+//             return response.data;
+//         },
+//         {
+//             onSuccess: (response) => {
+//                 const requestId = response?.data?.id;
+//                 mutate(startsWithKey(RECORD_REQUESTS_KEY), undefined, { revalidate: true });
+//                 mutate(ORGANISATION_DASHBOARD_KEY);
+//                 if (requestId) {
+//                     mutate(recordByRequestIdKey(requestId));
+//                 }
+//             },
+//         },
+//     );
+//     return {
+//         acceptRequest: trigger,
+//         isMutating,
+//         error,
+//         data,
+//     };
+// }
 
-// Org admin reject — PATCH /api/v1/record/reject?requestId=...
-export function useRejectRequest() {
-    const { mutate } = useSWRConfig();
-    const { trigger, isMutating, error, data } = useSWRMutation(
-        RECORD_REJECT_KEY,
-        async (_url, { arg: { requestId, rejectionReason } }: { arg: RejectRecordPayload }) => {
-            const response = await axiosInstance.patch(
-                recordRejectPath(requestId),
-                { rejectionReason },
-            );
-            return response.data;
-        },
-        {
-            onSuccess: (response) => {
-                const requestId = response?.data?.id;
-                mutate(startsWithKey(RECORD_REQUESTS_KEY), undefined, { revalidate: true });
-                mutate(ORGANISATION_DASHBOARD_KEY);
-                if (requestId) {
-                    mutate(recordByRequestIdKey(requestId));
-                }
-            },
-        },
-    );
-    return {
-        rejectRequest: trigger,
-        isMutating,
-        error,
-        data,
-    };
-}
+// // Org admin reject — PATCH /api/v1/record/reject?requestId=...
+// export function useRejectRequest() {
+//     const { mutate } = useSWRConfig();
+//     const { trigger, isMutating, error, data } = useSWRMutation(
+//         RECORD_REJECT_KEY,
+//         async (_url, { arg: { requestId, rejectionReason } }: { arg: RejectRecordPayload }) => {
+//             const response = await axiosInstance.patch(
+//                 recordRejectPath(requestId),
+//                 { rejectionReason },
+//             );
+//             return response.data;
+//         },
+//         {
+//             onSuccess: (response) => {
+//                 const requestId = response?.data?.id;
+//                 mutate(startsWithKey(RECORD_REQUESTS_KEY), undefined, { revalidate: true });
+//                 mutate(ORGANISATION_DASHBOARD_KEY);
+//                 if (requestId) {
+//                     mutate(recordByRequestIdKey(requestId));
+//                 }
+//             },
+//         },
+//     );
+//     return {
+//         rejectRequest: trigger,
+//         isMutating,
+//         error,
+//         data,
+//     };
+// }

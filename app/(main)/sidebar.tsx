@@ -79,22 +79,17 @@ const viewsItems = [
         title: 'Subject',
         url: '/subject-view',
         icon: Book,
-    },
-    // {
-    //     title: 'Spreadsheet',
-    //     url: '/spreadsheet',
-    //     icon: FileSpreadsheet,
-    // }
+    }
 ]
 
-// Internal communication
-const communicationItems = [
-    {
-        title: "Chats",
-        url: "/chats",
-        icon: MessageCircle,
-    },
-]
+// // Internal communication
+// const communicationItems = [
+//     {
+//         title: "Chats",
+//         url: "/chats",
+//         icon: MessageCircle,
+//     },
+// ]
 
 // User sidebar items
 const userSidebarItems = [
@@ -222,7 +217,7 @@ export default function AppSidebar() {
                         </>}
 
 
-                        {/* Communication — teachers and org admins */}
+                        {/* Communication — teachers and org admins
                         {(isOrgAdmin || isUser) && <>
                             <li className="px-3 py-2 mt-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                                 Communication
@@ -237,7 +232,7 @@ export default function AppSidebar() {
                                     onNavigate={toggle}
                                 />
                             ))}
-                        </>}
+                        </>} */}
 
                         {/* Result sheets group */}
                         {(isOrgAdmin || isUser) && <>

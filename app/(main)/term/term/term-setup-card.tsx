@@ -6,23 +6,26 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useSWRConfig } from "swr";
 import { Card, CardContent } from "@/shadcn/ui/card";
 import { Button } from "@/shadcn/ui/button";
 import SmallTermText from "@/shared-components/small-term-text";
 import { ErrorBanner } from "@/shared-components/error-banner";
+import { EmptyNoEntry } from "@/shared-components/empty-noentry";
 import { AddTermModal } from "./add-term-modal";
 import { EditTermModal } from "./edit-term-modal";
+import { TermSetupTable } from "./term-setup-table";
+import { TERM_LABELS } from "./term-labels";
 import { useCreateTerm, useUpdateTerm, useDeleteTerm, getApiErrorMessage } from "@/fetcher/mutations";
+import { TERMS_KEY } from "@/fetcher/keys";
 import type { singleTermPayload } from "@/types/term";
 import { SecuritySetupModal } from "@/shared-components/security-setup-modal";
 import { handleAuthRedirect } from "@/utils/auth-redirect";
 import { TermSetupTableSkeleton } from "../term-loading-skeletons";
 import { ConfirmDialog } from "@/shared-components/confirm-dialog";
 
-// Academic session options for the add-term dropdown (2023/2024 … 2035/2036)
+// Academic session options for the add-term dropdown (2025/2026 … 2035/2036)
 export const ACADEMIC_YEAR_OPTIONS = [
     "2025/2026",
     "2026/2027",
@@ -45,6 +48,7 @@ export const addTermSchema = z.object({
     endDate: z.date().optional(),
     termDays: z.number().int().min(1).optional(),
 });
+
 // Schema for editing a term (dates + days only; term/year are immutable)
 export const editTermSchema = z.object({
     startDate: z.date().optional().nullable(),
@@ -52,18 +56,12 @@ export const editTermSchema = z.object({
     termDays: z.number().int().min(1).optional().nullable(),
     status: z.enum(["ACTIVE", "DRAFT", "ARCHIVED"], { error: "Status is required" }),
 });
-// Types inferred from schemas
+
 export type AddTermValues = z.infer<typeof addTermSchema>;
 export type EditTermValues = z.infer<typeof editTermSchema>;
 
-// Display labels for the term enum
-const TERM_LABELS: Record<"FIRST" | "SECOND" | "THIRD", string> = {
-    FIRST: "First",
-    SECOND: "Second",
-    THIRD: "Third",
-};
 type TermSetupCardProps = {
-    terms: singleTermPayload[] | null;
+    terms: singleTermPayload[];
     activeTerm: singleTermPayload | null;
     canManage: boolean;
     termsError?: unknown;
@@ -71,32 +69,32 @@ type TermSetupCardProps = {
     onRetry: () => void;
 };
 
-export function TermSetupCard({ terms, activeTerm, canManage, termsError, isLoadingTerms, onRetry }: TermSetupCardProps) {
-    // hooks for redirection
+export function TermSetupCard({
+    terms,
+    activeTerm,
+    canManage,
+    termsError,
+    isLoadingTerms,
+    onRetry,
+}: TermSetupCardProps) {
     const router = useRouter();
     const pathname = usePathname();
-    // manually invalidate cache
     const { mutate } = useSWRConfig();
-
-    // error state and show term count
-    const loadError = termsError;
-    const showTermCount = !termsError && terms !== null;
 
     // Add/edit/delete dialog state
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [termToDelete, setTermToDelete] = useState<singleTermPayload | null>(null);
 
-    // Track term being edited (default is active term)
+    // Track term being edited (defaults to active term on first mount)
     const [editedTerm, setEditedTerm] = useState<singleTermPayload | null>(activeTerm);
 
     // SWR mutations: create term (POST /terms), update term (PATCH /terms/:id), delete term (DELETE /terms/:id)
     const { trigger: createTerm, isMutating: isCreating } = useCreateTerm();
     const { trigger: updateTerm, isMutating: isUpdating } = useUpdateTerm();
-    const { trigger: deleteTerm, isMutating: isDeleting, error: deleteTermError } = useDeleteTerm();
+    const { trigger: deleteTerm, isMutating: isDeleting } = useDeleteTerm();
     const isMutating = isCreating || isUpdating || isDeleting;
 
-    // Add form: Empty at first
     const addForm = useForm<AddTermValues>({
         resolver: zodResolver(addTermSchema),
         defaultValues: {
@@ -107,7 +105,7 @@ export function TermSetupCard({ terms, activeTerm, canManage, termsError, isLoad
             endDate: undefined,
         },
     });
-    // edit form: Empty at first 'cept for term (name) and academic year
+
     const editForm = useForm<EditTermValues>({
         resolver: zodResolver(editTermSchema),
         defaultValues: {
@@ -118,15 +116,15 @@ export function TermSetupCard({ terms, activeTerm, canManage, termsError, isLoad
         },
     });
 
-    // Onclick add term button, reset the add form and open the add dialog
     function openAddDialog() {
-        if (!canManage) return;  // if the user is not an orgadmin, return
+        if (!canManage) return;
         addForm.reset();
         setIsAddDialogOpen(true);
     }
+
     // Open editor for a specific row (draft / active / archived)
     function openEditDialog(row: singleTermPayload) {
-        if (!canManage) return;  // orgadmin gate
+        if (!canManage) return;
         setEditedTerm(row);
         editForm.reset({
             startDate: row.termStart ? new Date(row.termStart) : undefined,
@@ -139,9 +137,8 @@ export function TermSetupCard({ terms, activeTerm, canManage, termsError, isLoad
 
     // Create a new term
     async function handleAddTerm(values: AddTermValues) {
-        if (!canManage) return;  // orgadmin gate
+        if (!canManage) return;
         try {
-            // construct the payload and make the API call (status is set to DRAFT by default)
             await createTerm({
                 term: values.term,
                 academicYear: values.academicYear,
@@ -149,11 +146,9 @@ export function TermSetupCard({ terms, activeTerm, canManage, termsError, isLoad
                 termStart: values.startDate?.toISOString() ?? undefined,
                 termEnd: values.endDate?.toISOString() ?? undefined,
             });
-            // Hook invalidates /api/v1/term; list fetch uses /api/v1/terms
-            void mutate("/api/v1/terms");
+            void mutate(TERMS_KEY);
             setIsAddDialogOpen(false);
             addForm.reset();
-            // show a success toast
             toast.success(`Added "${TERM_LABELS[values.term]}"`);
         } catch (err) {
             if (!handleAuthRedirect(err, { router, pathname })) {
@@ -163,10 +158,9 @@ export function TermSetupCard({ terms, activeTerm, canManage, termsError, isLoad
     }
 
     // Calls PATCH /term — term.id identifies the row; only mutable fields are sent.
-    // On success, useUpdateTerm invalidates '/api/v1/term' so SWR refetches and the
-    // table row updates without any local state management.
+    // On success, useUpdateTerm invalidates TERMS_KEY so SWR refetches and the table updates.
     async function handleUpdateTerm(values: EditTermValues) {
-        if (!canManage) return;  // orgadmin gate
+        if (!canManage) return;
         const termId = editedTerm?.id;
         if (!termId) return;
         try {
@@ -177,10 +171,8 @@ export function TermSetupCard({ terms, activeTerm, canManage, termsError, isLoad
                 termStart: values.startDate?.toISOString() ?? undefined,
                 termEnd: values.endDate?.toISOString() ?? undefined,
             });
-            // close the dialog and sync form state to what we just saved (avoids stale defaultValues from first mount)
             setIsEditDialogOpen(false);
             editForm.reset(values);
-            // show a success toast
             toast.success(`Updated "${TERM_LABELS[editedTerm?.term ?? "FIRST"]} term"`);
         } catch (err) {
             if (!handleAuthRedirect(err, { router, pathname })) {
@@ -189,7 +181,6 @@ export function TermSetupCard({ terms, activeTerm, canManage, termsError, isLoad
         }
     }
 
-    // Delete a term handler
     async function handleDeleteTerm() {
         if (!canManage || !termToDelete?.id) return;
         const label = TERM_LABELS[termToDelete.term];
@@ -206,7 +197,6 @@ export function TermSetupCard({ terms, activeTerm, canManage, termsError, isLoad
 
     return (
         <>
-            {/* Component Header */}
             <section className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-1">
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">Term Setup</h1>
@@ -217,7 +207,7 @@ export function TermSetupCard({ terms, activeTerm, canManage, termsError, isLoad
             {/* Security setup modal — shown once if 2FA is not yet enabled */}
             <SecuritySetupModal />
 
-            {/* Add Term Modal */}
+            {/* Add term modal */}
             <AddTermModal
                 open={isAddDialogOpen}
                 onOpenChange={setIsAddDialogOpen}
@@ -226,7 +216,7 @@ export function TermSetupCard({ terms, activeTerm, canManage, termsError, isLoad
                 loading={isMutating}
             />
 
-            {/* Edit Term Modal */}
+            {/* Edit term modal */}
             <EditTermModal
                 open={isEditDialogOpen}
                 onOpenChange={setIsEditDialogOpen}
@@ -236,7 +226,7 @@ export function TermSetupCard({ terms, activeTerm, canManage, termsError, isLoad
                 term={editedTerm}
             />
 
-            {/* Confirm Dialog for deleting a term */}
+            {/* Delete confirmation */}
             <ConfirmDialog
                 open={termToDelete !== null}
                 onOpenChange={(open) => {
@@ -254,23 +244,27 @@ export function TermSetupCard({ terms, activeTerm, canManage, termsError, isLoad
                 onConfirm={handleDeleteTerm}
             />
 
-            {/* Term Setup Card */}
             <Card className="border shadow-md">
-                <CardContent className="space-y-4">
+                <CardContent>
                     <section className="overflow-hidden rounded-sm bg-card">
-
-                        {/* Card Header */}
-                        <div className="flex items-center justify-between gap-3">
-                            <h4 className="text-base md:text-lg font-semibold text-foreground">
-                                Term{showTermCount ? ` (${terms?.length ?? 0})` : ""}
-                            </h4>
-                            {/* Add Term Button */}
+                        {/* Term title and add button */}
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            {/* Title and description */}
+                            <div className="space-y-1">
+                                <h4 className="text-base font-semibold text-foreground md:text-lg">
+                                    Term ({terms.length})
+                                </h4>
+                                <p className="text-sm text-muted-foreground">
+                                    Create and manage academic terms for your school.
+                                </p>
+                            </div>
+                            {/* Add term button */}
                             {canManage && (
                                 <Button
                                     type="button"
                                     onClick={openAddDialog}
-                                    className="h-10 md:h-12 cursor-pointer"
-                                    disabled={isMutating || loadError !== null || isLoadingTerms}
+                                    className="h-10 cursor-pointer md:h-12"
+                                    disabled={isMutating || !!termsError || (isLoadingTerms && terms.length === 0)}
                                 >
                                     <Plus className="h-3 w-3" />
                                     Add Term
@@ -280,98 +274,38 @@ export function TermSetupCard({ terms, activeTerm, canManage, termsError, isLoad
 
                         <hr className="my-3" />
 
-                        {loadError ? (
+                        {/* If terms are loading and there is no cached data, show the skeleton */}
+                        {isLoadingTerms && terms.length === 0 ? (
+                            <TermSetupTableSkeleton />
+                        ) : termsError ? (
+                            // If there is an error loading terms, show the error banner
                             <ErrorBanner
                                 title="Could not load terms"
-                                message={getApiErrorMessage(loadError, "Failed to load terms. Please try again.")}
+                                message={getApiErrorMessage(termsError, "Failed to load terms. Please try again.")}
                                 onRetry={onRetry}
-                            />  // Todo: Replace with custom error component
-                        ) : isLoadingTerms ? (
-                            <TermSetupTableSkeleton />  //Loading skeleton component
-                        ) : !terms || terms.length === 0 ? (
-                            <div className="w-full rounded-md border-2 border-dashed border-border/80 py-16 text-center my-3">
-                                <p className="text-base font-medium text-muted-foreground">
-                                    No Term Created. Please add a term to get started.
-                                </p>
-                            </div>   // Todo: Replace with custom empty state component
+                            />
+                        ) : terms.length === 0 ? (
+                            // If there are no terms after loading, show the empty no entry component
+                            <EmptyNoEntry
+                                embedded
+                                title="No term created"
+                                description="Add an academic term to start managing sessions, assessments, and grading."
+                                actionLabel={canManage ? "Add Term" : undefined}
+                                onAction={canManage ? openAddDialog : undefined}
+                            />
                         ) : (
-                            <div className="overflow-x-auto py-3">
-                                <table className="min-w-[560px] w-full table-fixed border-collapse text-sm md:text-base text-left">
-                                    {/* Table header */}
-                                    <thead>
-                                        <tr className="bg-muted/50 border-b border-border cursor-pointer">
-                                            <th className="py-2 pr-1 w-[18%] md:w-[16%] font-semibold text-muted-foreground">Session</th>
-                                            <th className="py-2 pr-1 w-[18%] md:w-[16%] font-semibold text-muted-foreground">Term</th>
-                                            <th className="py-2 pr-1 w-[18%] md:w-[18%] font-semibold text-muted-foreground">Start Date</th>
-                                            <th className="py-2 pr-1 w-[18%] md:w-[18%] font-semibold text-muted-foreground">End Date</th>
-                                            <th className="py-2 pr-1 w-[10%] md:w-[12%] font-semibold text-muted-foreground">Days</th>
-                                            <th className="py-2 w-[18%] md:w-[20%]"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {terms.map((term) => (
-                                            <tr
-                                                key={term.id}
-                                                className={`border-b border-border last:border-b-0 transition-colors hover:bg-muted/40 ${term.status === 'ACTIVE' ? 'bg-green-500/5' : ''}`}
-                                            >
-                                                {/* Academic Year */}
-                                                <td className={`py-2 pr-1 font-medium truncate ${term.status === 'ACTIVE' ? 'border-l-2 border-green-500 pl-2' : 'pl-0'}`}>{term.academicYear}</td>
-                                                {/* Term */}
-                                                <td className="py-2 pr-1 font-medium truncate">
-                                                    <span>{TERM_LABELS[term.term]}</span>
-                                                    {term.status === 'ACTIVE' && (
-                                                        <span className="ml-2 inline-flex items-center rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
-                                                            Active
-                                                        </span>
-                                                    )}
-                                                </td>
-                                                {/* Start Date */}
-                                                <td className="py-2 pr-1 text-muted-foreground truncate">
-                                                    {term.termStart ? format(new Date(term.termStart), "MMM d, yyyy") : "—"}
-                                                </td>
-                                                {/* End Date */}
-                                                <td className="py-2 pr-1 text-muted-foreground truncate">
-                                                    {term.termEnd ? format(new Date(term.termEnd), "MMM d, yyyy") : "—"}
-                                                </td>
-                                                {/* Days */}
-                                                <td className="py-2 pr-1 truncate">{term.termDays ?? "—"}</td>
-                                                <td className="py-2 text-right">
-                                                    {canManage && (
-                                                        <div className="flex items-center justify-end gap-1">
-                                                            {/* Edit Button */}
-                                                            <Button
-                                                                type="button"
-                                                                variant="secondary"
-                                                                size="sm"
-                                                                onClick={() => openEditDialog(term)}
-                                                                disabled={isMutating || loadError !== null || isLoadingTerms}
-                                                                className="cursor-pointer border border-blue-500/25 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300 text-sm md:text-base"
-                                                            >
-                                                                <Pencil className="h-3 w-3" />
-                                                                <span className="hidden sm:inline">Edit</span>
-                                                            </Button>
-                                                            {/* Delete Button */}
-                                                            <Button
-                                                                type="button"
-                                                                variant="secondary"
-                                                                size="sm"
-                                                                onClick={() => setTermToDelete(term)}
-                                                                disabled={isMutating || loadError !== null || isLoadingTerms}
-                                                                className="cursor-pointer border border-red-500/25 bg-red-500/10 text-red-700 hover:bg-red-500/15 dark:text-red-300 text-sm md:text-base"
-                                                            >
-                                                                <Trash2 className="h-3 w-3" />
-                                                                <span className="hidden sm:inline">Delete</span>
-                                                            </Button>
-                                                        </div>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                            // Finally, if there are terms, show the term setup table
+                            <div className="py-3">
+                                <TermSetupTable
+                                    terms={terms}
+                                    canManage={canManage}
+                                    isMutating={isMutating}
+                                    disabled={isMutating || !!termsError}
+                                    onEditTerm={openEditDialog}
+                                    onDeleteTerm={setTermToDelete}
+                                />
                             </div>
                         )}
-
                     </section>
                 </CardContent>
             </Card>

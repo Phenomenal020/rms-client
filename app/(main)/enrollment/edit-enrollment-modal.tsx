@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import type { EnrollmentStudent } from "./enrollment-form";
 import type { subjectAssignment } from "@/types/enrollments";
 import { LoadingButton } from "@/shared-components/loading-button";
+import { EmptyNoEntry } from "@/shared-components/empty-noentry";
 
 type EditEnrollmentModalProps = {
     open: boolean;
@@ -80,9 +81,13 @@ export function EditEnrollmentModal({
                     </p>
 
                     {classAssignments.length === 0 ? (
-                        <p className="text-sm italic text-muted-foreground">
-                            No subjects are assigned to this class yet.
-                        </p>
+                        <EmptyNoEntry
+                            embedded
+                            title="No subjects assigned"
+                            description="No subjects are assigned to this class yet."
+                            actionLabel="Manage classes"
+                            actionHref="/classes"
+                        />
                     ) : (
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             {classAssignments.map((assignment) => (

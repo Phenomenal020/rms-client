@@ -7,6 +7,7 @@ import { UAParser } from "ua-parser-js";
 import { useRouter } from "next/navigation";
 import { Monitor, Smartphone, LogOut } from "lucide-react";
 import { toast } from "sonner";
+import { EmptyPending } from "@/shared-components/empty-pending";
 import { cn } from "@/lib/utils";
 
 // Session management component props
@@ -113,9 +114,11 @@ export function SessionManagement({ sessions, currentSessionToken }: SessionMana
                     </p>
 
                     {otherSessions.length === 0 ? (
-                        <p className="rounded-md border border-dashed border-border/80 px-4 py-6 text-center text-sm text-muted-foreground">
-                            No other active sessions
-                        </p>
+                        <EmptyPending
+                            embedded
+                            title="No other active sessions"
+                            description="You are only signed in on this device."
+                        />
                     ) : (
                         <ul className="divide-y divide-border border-y border-border">
                             {otherSessions.map((session) => (

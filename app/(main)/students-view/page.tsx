@@ -1,38 +1,41 @@
-'use client';
+"use client";
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSWRConfig } from "swr";
-import type { AcademicTerm } from "@/types/drizzle";
-import ResultsComponent from "./ResultsComponent";
-import { getTerms } from "@/fetcher/queries";
+import StudentsComponent from "./StudentsComponent";
+import { getActiveTerm } from "@/fetcher/queries";
+import { ACTIVE_TERM_KEY } from "@/fetcher/keys";
 import { getApiErrorMessage, getHttpStatus } from "@/fetcher/mutations";
 import { authClient } from "@/src/auth-client";
 import { ResultsSkeleton } from "./ResultsSkeleton";
 import { ErrorBanner } from "@/shared-components/error-banner";
+import { EmptyNoEntry } from "@/shared-components/empty-noentry";
 
 const ResultsPage = () => {
-  // Router hooks
+  // for manual retries and redirection
   const router = useRouter();
   const pathname = usePathname();
   const { mutate } = useSWRConfig();
 
-  // Data hooks: terms, school
-  const { data: terms, error: termsError, isLoading: isTermsLoading } = getTerms();
-  const academicTerm: AcademicTerm | null = terms?.find((term: AcademicTerm) => term?.status === "ACTIVE") ?? null;
-  const { data: school, error: schoolError, isPending: isSchoolPending } =
-    authClient.useActiveOrganization() ?? { data: null, error: null, isPending: false };
+  // get the active term
+  const { data: academicTerm, error: academicTermError, isLoading: isAcademicTermLoading } = getActiveTerm();
+  const activeTermId = academicTerm?.id ?? null;
 
-  // Aggregate loading states and errors
-  const shellLoadError = termsError ?? schoolError ?? null;
-  const isShellLoading = isTermsLoading || isSchoolPending;
+  // get the active school
+  const { data: school = null, error: schoolError = null, isPending: isSchoolPending = false } = authClient.useActiveOrganization()
 
-  // Retry shell fetches - retry the shell fetches if the shell load error is present
+  // combine the errors and loading states
+  const shellLoadError = academicTermError ?? schoolError ?? null;
+  const isShellLoading = isAcademicTermLoading || isSchoolPending;
+
+  // retry the shell fetches
   function retryShellFetches() {
-    void mutate("/api/v1/terms");
+    void mutate(ACTIVE_TERM_KEY);
+    // void mutate(ORG_KEY);
   }
 
-  // Handle auth redirect if error status is 401 or 403
+  // redirect if the shell is not loading and there is an error
   useEffect(() => {
     if (!shellLoadError) return;
     const status = getHttpStatus(shellLoadError);
@@ -43,12 +46,12 @@ const ResultsPage = () => {
     }
   }, [shellLoadError, router, pathname]);
 
-  // Handle loading states
+  // show the skeleton if the shell is loading
   if (isShellLoading) {
     return <ResultsSkeleton title="Result Sheet" />;
   }
 
-  // Handle shell load error
+  // show the error banner if the shell is not loading and there is an error
   if (shellLoadError !== null) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
@@ -57,7 +60,7 @@ const ResultsPage = () => {
             title="Could not load result sheet"
             message={getApiErrorMessage(
               shellLoadError,
-              "Failed to load your session, school, or academic term. Please try again.",
+              "Failed to load school or academic term. Please try again.",
             )}
             onRetry={retryShellFetches}
           />
@@ -66,44 +69,49 @@ const ResultsPage = () => {
     );
   }
 
-  // Handle no active academic term (successful fetch, no ACTIVE term)
-  if (!academicTerm) {
+  // show the empty no entry if the active term is not found
+  if (!activeTermId || !academicTerm) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-5xl mx-auto">
-          <ErrorBanner
+          <EmptyNoEntry
+            embedded
             title="No active term"
-            message="No academic term found. Please create or activate an academic term first."
-            onRetry={retryShellFetches}
+            description="An active academic term is required to view result sheets."
+            actionLabel="Set up term"
+            actionHref="/term"
           />
         </div>
       </div>
     );
   }
 
-  // Handle no school selected state
+  // show the empty no entry if the school is not found
   if (!school) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-5xl mx-auto">
-          <ErrorBanner
+          <EmptyNoEntry
+            embedded
             title="No school selected"
-            message="No school record found. Select or set up your school and try again."
-            onRetry={retryShellFetches}
+            description="An active school is required to view result sheets."
+            actionLabel="Set up school"
+            actionHref="/school"
           />
         </div>
       </div>
     );
   }
 
+  // show the students component if the shell is not loading and there is no error
   return (
-    <ResultsComponent
+    <StudentsComponent
       school={school}
-      academicTerm={academicTerm}
-      mode="view"
-      requestId={null}
+      activeTermId={activeTermId}
+      activeTerm={academicTerm}
     />
   );
 };
 
+// export the results page
 export default ResultsPage;

@@ -3,13 +3,14 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSWRConfig } from "swr";
-import type { AcademicTerm } from "@/types/drizzle";
 import SubjectsComponent from "./SubjectsComponent";
-import { getTerms } from "@/fetcher/queries";
+import { getActiveTerm } from "@/fetcher/queries";
+import { ACTIVE_TERM_KEY } from "@/fetcher/keys";
 import { getApiErrorMessage, getHttpStatus } from "@/fetcher/mutations";
 import { authClient } from "@/src/auth-client";
 import { ResultsSkeleton } from "../students-view/ResultsSkeleton";
 import { ErrorBanner } from "@/shared-components/error-banner";
+import { EmptyNoEntry } from "@/shared-components/empty-noentry";
 
 const SubjectsPage = () => {
   // Routing and manual mutation for retries
@@ -17,19 +18,19 @@ const SubjectsPage = () => {
   const pathname = usePathname();
   const { mutate } = useSWRConfig();
 
-  // Retrieve the active academic term
-  const { data: terms, error: termsError, isLoading: isTermsLoading } = getTerms();
-  const academicTerm: AcademicTerm | null = terms?.find((term: AcademicTerm) => term?.status === "ACTIVE") ?? null;
+  // Retrieve the active academic term id
+  const { data: academicTerm, error: academicTermError, isLoading: isAcademicTermLoading, statusCode: academicTermStatusCode } = getActiveTerm();
+  const activeTermId = academicTerm?.id ?? null;
   // Retrieve the active school
   const { data: school, error: schoolError, isPending: isSchoolPending } = authClient.useActiveOrganization() ?? { data: null, error: null, isPending: false };
 
   // Aggregate loading and error states
-  const shellLoadError = termsError ?? schoolError ?? null;
-  const isShellLoading = isTermsLoading || isSchoolPending;
+  const shellLoadError = academicTermError ?? schoolError ?? null;
+  const isShellLoading = isAcademicTermLoading || isSchoolPending;
 
-  // Retry the shell fetches (terms only)
+  // Retry the shell fetches (active term only)
   function retryShellFetches() {
-    void mutate("/api/v1/terms");
+    void mutate(ACTIVE_TERM_KEY);
   }
 
   // Handle 401 or 403 errors by redirecting to sign-in or forbidden page
@@ -66,37 +67,41 @@ const SubjectsPage = () => {
     );
   }
 
-  // Show error banner if no academic term is found
-  if (!academicTerm) {
+  // Show empty state if no active term is found
+  if (!activeTermId || !academicTerm) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-5xl mx-auto">
-          <ErrorBanner
+          <EmptyNoEntry
+            embedded
             title="No active term"
-            message="No academic term found. Please create or activate an academic term first."
-            onRetry={retryShellFetches}
+            description="Create or activate an academic term before viewing subject sheets."
+            actionLabel="Set up term"
+            actionHref="/term"
           />
         </div>
       </div>
     );
   }
 
-  // Show error banner if no school is found
+  // Show empty state if no school is found
   if (!school) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-5xl mx-auto">
-          <ErrorBanner
+          <EmptyNoEntry
+            embedded
             title="No school selected"
-            message="No school record found. Select or set up your school and try again."
-            onRetry={retryShellFetches}
+            description="Select or set up your school before viewing subject sheets."
+            actionLabel="Set up school"
+            actionHref="/school"
           />
         </div>
       </div>
     );
   }
 
-  return <SubjectsComponent school={school} academicTerm={academicTerm} />;
+  return <SubjectsComponent school={school} activeTermId={activeTermId} activeTerm={academicTerm} />;
 };
 
 export default SubjectsPage;

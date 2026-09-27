@@ -3,50 +3,50 @@
 
 import { Button } from "@/shadcn/ui/button";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ShieldX, LogIn } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { ArrowLeft, LogIn, ShieldX } from "lucide-react";
 
 export default function Unauthorized() {
   const pathname = usePathname();
+  const router = useRouter();
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-16">
-      <div className="mx-auto max-w-2xl text-center">
-        <div className="space-y-8">
-          {/* Icon/Illustration */}
-          <div className="flex justify-center">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-full bg-red-500/20 blur-3xl" />
-              <div className="relative flex size-32 items-center justify-center rounded-full bg-red-500/10">
-                <ShieldX className="size-16 text-red-600 dark:text-red-400" strokeWidth={1.5} />
-              </div>
-            </div>
-          </div>
+    <main className="flex min-h-svh w-full items-center justify-center bg-background px-6 py-16 text-foreground">
+      <div className="mx-auto flex max-w-md flex-col items-center text-center">
+        <span
+          className="flex size-14 items-center justify-center rounded-lg border border-border bg-muted/40"
+          aria-hidden="true"
+        >
+          <ShieldX className="size-6" />
+        </span>
 
-          {/* Content */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <h1 className="text-6xl font-bold tracking-tight text-foreground">
-                401
-              </h1>
-              <h2 className="text-3xl font-semibold text-foreground">
-                Unauthorized Access
-              </h2>
-            </div>
-            <p className="mx-auto max-w-md text-lg text-muted-foreground">
-              You are not authorized to access this page. Please sign in to continue.
-            </p>
-          </div>
+        {/* Content */}
+        <p className="mt-6 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+          Error 401
+        </p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+          Unauthorized Access
+        </h1>
+        <p className="mt-3 text-sm text-pretty text-muted-foreground">
+          You are not authorized to access this page. Please sign in to continue.
+        </p>
 
-          {/* Action Button */}
-          <div className="flex justify-center">
-            <Button asChild size="lg" className="w-full sm:w-auto cursor-pointer">
-              <Link href={`/sign-in?redirect=${pathname}`} className="flex items-center gap-2">
-                <LogIn className="size-4" />
-                Sign In
-              </Link>
-            </Button>
-          </div>
+        {/* Action Buttons */}
+        <div className="mt-8 flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
+          <Button asChild className="w-full sm:w-auto cursor-pointer">
+            <Link href={`/sign-in?redirect=${pathname}`} className="flex items-center gap-2">
+              <LogIn className="size-4" aria-hidden="true" />
+              Sign In
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto cursor-pointer"
+            onClick={() => router.back()}
+          >
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            Go Back
+          </Button>
         </div>
       </div>
     </main>

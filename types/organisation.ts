@@ -76,3 +76,7 @@ export type AddMemberPayload = {
     email: string;
     // organizationId: string;
 }
+
+export type RemoveMemberPayload = {
+    memberIdOrEmail: string;
+}

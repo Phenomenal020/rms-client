@@ -1,26 +1,31 @@
-// Home page: Simply redirects to the dashboard
+import type { Metadata } from "next";
+import "./(landing)/landing.css";
+import { LandingNav } from "./(landing)/components/landing-nav";
+import { Hero } from "./(landing)/components/hero";
+import { Features } from "./(landing)/components/features";
+import { Institutions } from "./(landing)/components/institutions";
+import { Testimonials } from "./(landing)/components/testimonials";
+import { Contact } from "./(landing)/components/contact";
+import { Footer } from "./(landing)/components/footer";
 
-"use client";
-
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+export const metadata: Metadata = {
+  title: "AiD — Multi-tenant Result Management Solution for institutions",
+  description:
+    "AiD is a multi-tenant Result Management Solution for schools, colleges and exam boards. Each institution maintains its own records, grading scheme, assessment structure, custom templates, and many more.",
+};
 
 export default function Home() {
-  const router = useRouter();
-
   return (
-    <div>
-      <h1>Home Page</h1>
-      <Link href="/sign-up">Sign Up</Link>
-      <br />
-      <br />
-      <Link href="/sign-in">Login</Link>
-      <br />
-      <br />
-      <Link href="/dashboard">Dashboard</Link>
-      <br />
-
-    </div>
+    <>
+      <LandingNav />
+      <main id="top" className="scroll-smooth">
+        <Hero />
+        <Features />
+        <Institutions />
+        <Testimonials />
+        <Contact />
+      </main>
+      <Footer />
+    </>
   );
 }

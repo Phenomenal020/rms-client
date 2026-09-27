@@ -20,7 +20,7 @@ export function TermForm() {
 
     // Org admin gate — disable management features for non-orgadmin users
     const { user } = useUser();
-    const canManage = user?.role === "orgadmin" && !(user?.twoFactorEnabled === true) && user?.emailVerified === true;
+    const canManage = user?.role === "orgadmin" && user?.twoFactorEnabled === true && user?.emailVerified === true;
 
     // Fetch the user's terms from the db and extract the active term. Other components use this active term id to fetch the grading system and assessment structure for that term.
     const { data: terms, error: termsError, isLoading: isLoadingTerms } = getTerms();

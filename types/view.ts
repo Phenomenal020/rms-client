@@ -1,32 +1,21 @@
-// Type for saving class record export (server loads the class record; do not send the full snapshot)
-export type SaveClassRecordExportPayload = {
-  classId: string;
-  academicTermId: string;
-  comment: string;
-};
-
-// Type for saving student assessment scores (student-view)
-export type SaveStudentScoresPayload = {
-    studentId: string;
+export type SaveSubjectScoresByIdPayload = {
+    assignmentId: string;
     academicTermId: string;
-    studentSubjects: Array<{
-        subjectId: string;
-        scores: Array<{
-            assessmentStructureId: string;
-            score: number;
-        }>;
+    scores: Array<{
+        assessmentScoreId?: string;
+        studentId?: string;
+        assessmentStructureId?: string;
+        score: number;
     }>;
 };
 
-// Type for saving subject assessment scores (subject-view)
-export type SaveSubjectScoresPayload = {
-    subjectId: string;
-    academicTermId: string;
-    studentsData: Array<{
-        studentId: string;
-        scores: Array<{
-            assessmentStructureId: string;
-            score: number;
-        }>;
-    }>;
+export type UnlockSubjectAssignmentPayload = {
+    assignmentId: string;
+    termId: string;
+    unlockHours: number;
+};
+
+export type LockSubjectAssignmentPayload = {
+    assignmentId: string;
+    termId: string;
 };

@@ -1,0 +1,39 @@
+Go throw each route in the main folder,
+
+EMPTY STATE
+1) /dashboard
+- No pending teacher join requests --> Use empty-pending.tsx
+- No pending record requests for this term. --> Use empty-pending.tsx
+For search results that return nothing, use empty-search.tsx 
+
+2) /school is fine. If it doesn't load, then it must be an error
+
+3) /teachers is fine. If it doesn't load, then it must be an error
+- No teachers in the db?  --> use empty-noentry.tsx
+For search results that return nothing, use empty-search.tsx 
+
+4) /subjects
+- No subjects in the db?  --> use empty-noentry.tsx
+For search results that return nothing, use empty-search.tsx 
+
+5) /term
+- No term in the db?  --> use empty-noentry.tsx. The user should then click add term.
+- For assessment structure / grading system, use empty-noentry.tsx
+For search results that return nothing, use empty-search.tsx  (if applicable)
+
+6) /classes
+- No class in the db?  --> use empty-noentry.tsx. The user should then click add class.
+For search results that return nothing, use empty-search.tsx  (if applicable)
+
+7) Likewise /enrollment
+
+8) /students-view and /subject-view are a bit involved but follow similar ideas.
+
+ERRORS:
+For Failed API/data loads (network, 500, 502, etc.) errors,
+Use the error-banner.tsx
+
+For Missing setup state (“No active term”, “No school selected”),
+use the emptys...
+
+Business-rule messages (such as “Not assigned as form teacher”) or similar suggesting an error in client behaviour, use error-banner.tsx with appropriate text content.

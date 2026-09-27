@@ -21,6 +21,7 @@ type EditTeacherModalProps = {
     onOpenChange: (open: boolean) => void;
     teacher: TeacherMember | null;
     removeMember: (email: string) => Promise<void>;
+    removing?: boolean;
     canManage?: boolean;
     user: User;
 };
@@ -30,10 +31,10 @@ export function EditTeacherModal({
     onOpenChange,
     teacher,
     removeMember,
+    removing = false,
     canManage = true,
     user,
 }: EditTeacherModalProps) {
-    const [removing, setRemoving] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
 
     // Close the details modal (and any open confirm dialog)
@@ -50,14 +51,9 @@ export function EditTeacherModal({
 
     // remove member handler — runs only after confirmation
     async function handleConfirmRemove() {
-        if (!teacher || !canManage || teacher.id === user?.id) return;
-        setRemoving(true);
-        try {
-            await removeMember(teacher.email);
-            setConfirmOpen(false);
-        } finally {
-            setRemoving(false);
-        }
+        if (!teacher || !canManage || teacher.id === user?.id || removing) return;
+        await removeMember(teacher.email);
+        setConfirmOpen(false);
     }
 
     return (

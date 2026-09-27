@@ -1,41 +1,52 @@
-import { AlertCircle, RotateCcw } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/shadcn/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/shadcn/ui/empty";
 
 type ErrorBannerProps = {
-    message: string;
-    title?: string;
-    onRetry?: () => void;
+  message: string;
+  title?: string;
+  onRetry?: () => void;
 };
 
 export function ErrorBanner({
-    message,
-    title = "Something went wrong",
-    onRetry,
+  message,
+  title = "Something went wrong",
+  onRetry,
 }: ErrorBannerProps) {
-    return (
-        <div className="w-full rounded-xl border border-destructive/30 bg-destructive/5 p-6">
-            <div className="flex flex-col items-center justify-center space-y-4 text-center">
-                <div className="flex size-14 items-center justify-center rounded-full border border-destructive/30 bg-destructive/10">
-                    <AlertCircle className="size-7 text-destructive" strokeWidth={1.5} />
-                </div>
-
-                <div className="space-y-1.5">
-                    <h3 className="text-lg font-semibold text-foreground">{title}</h3>
-                    <p className="max-w-md text-sm text-muted-foreground">{message}</p>
-                </div>
-
-                {onRetry && (
-                    <Button
-                        type="button"
-                        size="sm"
-                        onClick={onRetry}
-                        className="cursor-pointer shadow-sm hover:shadow"
-                    >
-                        <RotateCcw className="size-4" />
-                        Try again
-                    </Button>
-                )}
-            </div>
-        </div>
-    );
+  return (
+    <div className="w-full rounded-lg border border-border bg-card">
+      <Empty className="border-0">
+        <EmptyHeader>
+          <EmptyMedia
+            variant="icon"
+            className="bg-destructive/10 text-destructive"
+          >
+            <AlertCircle className="size-4" aria-hidden="true" />
+          </EmptyMedia>
+          <EmptyTitle>{title}</EmptyTitle>
+          <EmptyDescription>{message}</EmptyDescription>
+        </EmptyHeader>
+        {onRetry && (
+          <EmptyContent>
+            <Button
+              type="button"
+              size="sm"
+              className="cursor-pointer"
+              onClick={onRetry}
+            >
+              <RefreshCw className="size-4" aria-hidden="true" />
+              Try again
+            </Button>
+          </EmptyContent>
+        )}
+      </Empty>
+    </div>
+  );
 }

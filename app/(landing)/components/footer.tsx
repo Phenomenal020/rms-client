@@ -7,12 +7,6 @@ const footerLinks = {
     { href: "#testimonials", label: "Testimonials" },
     { href: "#contact", label: "Contact" },
   ],
-  // "For institutions": [
-  //   { href: "#contact", label: "Migrating your data" },
-  //   { href: "#contact", label: "Onboarding" },
-  //   { href: "#contact", label: "Status page" },
-  //   { href: "#contact", label: "Help centre" },
-  // ],
   Company: [
     { href: "#institutions", label: "Our Numbers" },
     { href: "#contact", label: "Contact" },
@@ -32,10 +26,6 @@ export function Footer() {
               Result management for institutions that keep their own records and their own
               rules.
             </p>
-            {/* <span className="mt-[18px] inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-[0.78rem] font-medium">
-              <i className="block size-[7px] rounded-full bg-[var(--ok)] shadow-[0_0_0_3px_color-mix(in_oklab,var(--ok)_20%,transparent)]" />
-              All tenants operational
-            </span> */}
           </div>
           {Object.entries(footerLinks).map(([title, links]) => (
             <div key={title}>

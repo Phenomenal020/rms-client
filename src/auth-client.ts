@@ -23,6 +23,7 @@ export const authClient = createAuthClient({
         }),
         twoFactorClient({}),
         organizationClient({}),
+        // admin plugin with custom access control
         adminClient({
             ac,
             roles: { orgadmin, admin, user },

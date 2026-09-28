@@ -20,15 +20,6 @@ export function Shell({
   );
 }
 
-// export function Eyebrow({ children }: { children: React.ReactNode }) {
-//   return (
-//     <span className="mb-[18px] inline-flex items-center gap-[7px] rounded-full bg-accent px-3 py-[5px] text-[0.8rem] font-semibold text-accent-foreground">
-//       <i className="block size-[6px] rounded-full bg-primary" />
-//       {children}
-//     </span>
-//   );
-// }
-
 export function BrandMark({ className }: { className?: string }) {
   return (
     <svg className={cn("size-7 shrink-0 rounded-md", className)} viewBox="0 0 28 28" aria-hidden="true">
@@ -148,11 +139,9 @@ export function IconBtn({
 }
 
 export function SectionHead({
-  // eyebrow,
   title,
   description,
 }: {
-  eyebrow: string;
   title: string;
   description?: string;
 }) {

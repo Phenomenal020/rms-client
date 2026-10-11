@@ -68,13 +68,16 @@ export function SignInForm() {
       { email, password, rememberMe },
       {
         async onSuccess(context) {
-          toast.success("Sign in successful");
           // If the user has 2FA enabled, redirect to the verification page
           if (context.data.twoFactorRedirect) {
+            toast.message("Check your email for a verification code.");
             router.push(`/verify-2fa?email=${encodeURIComponent(email)}`);
+            return;
           }
+
+          toast.success("Sign in successful");
           // if the user's email is not verified, redirect to the verify email page
-          else if (!context.data.user?.emailVerified) {
+          if (!context.data.user?.emailVerified) {
             router.push(`/verify-email?email=${encodeURIComponent(email)}`);
           }
           // // If the user has not been onboarded, redirect to the onboarding page

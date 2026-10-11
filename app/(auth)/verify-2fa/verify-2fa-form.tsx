@@ -3,7 +3,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/src/auth-client";
+import { USER_WITH_RELATIONS_KEY } from "@/fetcher/keys";
 import { toast } from "sonner";
+import { mutate } from "swr";
 import { LoadingButton } from "@/shared-components/loading-button";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/shadcn/ui/input-otp";
 import { Button } from "@/shadcn/ui/button";
@@ -87,8 +89,19 @@ export function Verify2FAForm({ email }: { email: string }) {
             return;
         }
 
+        // Ensure session cookie + client cache are ready before SessionGate runs on /dashboard
+        const session = await authClient.getSession();
+        await mutate(USER_WITH_RELATIONS_KEY);
+
+        const onboardingStatus = session.data?.user?.onboardingStatus;
+        if (onboardingStatus !== "APPROVED") {
+            toast.success("Verified! Complete onboarding to continue.");
+            router.replace("/onboarding");
+            return;
+        }
+
         toast.success("Verified! Redirecting…");
-        router.push("/dashboard");
+        router.replace("/dashboard");
     }
 
     return (

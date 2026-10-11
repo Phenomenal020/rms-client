@@ -6,12 +6,6 @@ import { SectionHead, Shell } from "./landing-ui";
 import { PipelineStageMockKey, StageMock } from "./stage-mocks";
 import { cn } from "@/lib/utils";
 
-// const vaults = [
-//   { initials: "KG", name: "Kestrel Grammar", db: "db_kestrel", colour: "#9a3d50", widths: ["100%", "72%", "88%", "54%"] },
-//   { initials: "AP", name: "Ashford Poly", db: "db_ashford", colour: "var(--primary)", widths: ["84%", "100%", "61%", "92%"] },
-//   { initials: "CA", name: "Chartered Analysts", db: "db_ica", colour: "#6d4aa8", widths: ["66%", "90%", "100%", "74%"] },
-// ];
-
 export function Features() {
   const [activeStage, setActiveStage] = useState(0);
   const stage = pipelineStages[activeStage];

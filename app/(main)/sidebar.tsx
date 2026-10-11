@@ -1,6 +1,6 @@
 "use client";
 
-import { School, User, Users, Book, BookOpen, FileSpreadsheet, LayoutDashboard, GitMerge, Settings, MessageCircle } from "lucide-react"
+import { School, User, Users, Book, BookOpen, LayoutDashboard, Settings } from "lucide-react"
 import { usePathname } from "next/navigation";
 import Link from "next/link"
 import { useSidebar } from "@/contexts/sidebar-context"
@@ -60,36 +60,22 @@ const orgAdminTermItems = [
         title: "Enrollment",
         url: "/enrollment",
         icon: Users,
-    },
-    {
-        title: "Promotions",
-        url: "/promotions",
-        icon: GitMerge,
     }
 ]
 
 // Result sheets
 const viewsItems = [
     {
-        title: 'Result',
+        title: 'Students',
         url: '/students-view',
         icon: BookOpen,
     },
     {
-        title: 'Subject',
+        title: 'Subjects',
         url: '/subject-view',
         icon: Book,
     }
 ]
-
-// // Internal communication
-// const communicationItems = [
-//     {
-//         title: "Chats",
-//         url: "/chats",
-//         icon: MessageCircle,
-//     },
-// ]
 
 // User sidebar items
 const userSidebarItems = [
@@ -215,24 +201,6 @@ export default function AppSidebar() {
                                 />
                             ))}
                         </>}
-
-
-                        {/* Communication — teachers and org admins
-                        {(isOrgAdmin || isUser) && <>
-                            <li className="px-3 py-2 mt-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                Communication
-                            </li>
-                            {communicationItems.map((item) => (
-                                <SidebarItem
-                                    key={item.title}
-                                    icon={<item.icon size={20} />}
-                                    text={item.title}
-                                    active={isActive(item.url)}
-                                    url={item.url}
-                                    onNavigate={toggle}
-                                />
-                            ))}
-                        </>} */}
 
                         {/* Result sheets group */}
                         {(isOrgAdmin || isUser) && <>

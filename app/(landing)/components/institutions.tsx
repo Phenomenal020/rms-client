@@ -85,34 +85,6 @@ export function Institutions() {
             ]} />
           </FigureCard>
 
-
-          {/* Result slips issued */}
-          {/* <FigureCard
-            number={
-              <>
-                <CountUp target={2.1} decimals={1} />
-                m
-              </>
-            }
-            label="result slips issued"
-            sub="Peak day: 61,400 slips released in a four-hour window without a queue."
-          >
-            <svg className="block h-[46px] w-full" viewBox="0 0 240 46" preserveAspectRatio="none" aria-hidden="true">
-              <path
-                d="M0 40 L20 38 L40 34 L60 36 L80 26 L100 30 L120 18 L140 22 L160 12 L180 20 L200 8 L220 14 L240 4 L240 46 L0 46Z"
-                className="fill-accent"
-              />
-              <path
-                d="M0 40 L20 38 L40 34 L60 36 L80 26 L100 30 L120 18 L140 22 L160 12 L180 20 L200 8 L220 14 L240 4"
-                fill="none"
-                className="stroke-chart-1"
-                strokeWidth="2"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <Legend items={[["", "Slips per month, September to August"]]} single />
-          </FigureCard> */}
-
           {/* Uptime through results week */}
           <FigureCard
             number={

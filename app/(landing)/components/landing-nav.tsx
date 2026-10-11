@@ -69,7 +69,7 @@ export function LandingNav() {
             </svg>
           </IconBtn>
 
-          <BtnPrimary href="/dashboard" className="px-3.5 py-2 text-[0.88rem] max-[760px]:hidden">
+          <BtnPrimary href="/sign-in" className="px-3.5 py-2 text-[0.88rem] max-[760px]:hidden">
             Get Started
           </BtnPrimary>
 

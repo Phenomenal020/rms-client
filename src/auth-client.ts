@@ -10,6 +10,9 @@ const onboardingStatusEnum = ["NONE", "PENDING", "APPROVED", "REJECTED", "CANCEL
 
 export const authClient = createAuthClient({
     baseURL: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth`,
+    fetchOptions: {
+        credentials: "include",
+    },
     plugins: [
         emailOTPClient(), // Email OTP plugin
         // Allow additional fields to be passed to the sign up form
@@ -23,6 +26,7 @@ export const authClient = createAuthClient({
         }),
         twoFactorClient({}),
         organizationClient({}),
+        // admin plugin with custom access control
         adminClient({
             ac,
             roles: { orgadmin, admin, user },

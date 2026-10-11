@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { getSessionCookie } from 'better-auth/cookies'
 
 // This function can be marked `async` if using `await` inside
 export async function proxy(request: NextRequest) {
@@ -8,11 +9,9 @@ export async function proxy(request: NextRequest) {
 
     // check if the pathname is in the protected routes
     if(protectedRoutes.some(route => pathname.startsWith(route))) {
-        // get the session cookie from the request
-        const sessionCookie = request.cookies.get("better-auth.session_token");
+        const sessionToken = getSessionCookie(request.headers);
 
-        // if the session cookie is not found, redirect to the sign-in page
-        if(!sessionCookie) {
+        if (!sessionToken) {
             return NextResponse.redirect(new URL("/sign-in", request.url));
         }
     }

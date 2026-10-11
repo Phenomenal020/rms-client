@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { getSessionCookie } from 'better-auth/cookies'
+
+function hasBetterAuthSessionCookie(request: NextRequest): boolean {
+    return request.cookies.getAll().some(({ name }) =>
+        name === 'better-auth.session_token' ||
+        name === '__Secure-better-auth.session_token' ||
+        name.startsWith('better-auth.session_token.') ||
+        name.startsWith('__Secure-better-auth.session_token.'),
+    );
+}
 
 // This function can be marked `async` if using `await` inside
 export async function proxy(request: NextRequest) {
@@ -9,9 +17,7 @@ export async function proxy(request: NextRequest) {
 
     // check if the pathname is in the protected routes
     if(protectedRoutes.some(route => pathname.startsWith(route))) {
-        const sessionToken = getSessionCookie(request.headers);
-
-        if (!sessionToken) {
+        if (!hasBetterAuthSessionCookie(request)) {
             return NextResponse.redirect(new URL("/sign-in", request.url));
         }
     }

@@ -1,5 +1,4 @@
 // Page level gates to protected routes based on user role
-
 "use client";
 
 import { useEffect, type ReactNode } from "react";
@@ -18,6 +17,8 @@ export function SessionGate({
     redirectTo = "/sign-in",
 }: SessionGateProps) {
     const { user, isLoading } = useUser();
+    console.log('debugging user', user);
+    console.log('debugging isLoading', isLoading);
     const router = useRouter();
     const isAuthenticated = (!isLoading && user);
 

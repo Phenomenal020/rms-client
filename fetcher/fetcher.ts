@@ -1,8 +1,7 @@
 import axios from 'axios';
-import { getApiOrigin } from '@/src/api-base-url';
 
 export const axiosInstance = axios.create({
-    baseURL: getApiOrigin(),
+    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
     withCredentials: true,
 })
 

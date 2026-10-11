@@ -4,12 +4,13 @@ import { emailOTPClient, inferAdditionalFields, twoFactorClient } from "better-a
 import { organizationClient } from "better-auth/client/plugins"
 import { adminClient } from "better-auth/client/plugins"
 import { ac, orgadmin, admin, user } from "./permissions";
+import { getApiOrigin } from "./api-base-url";
 
 const onboardingStatusEnum = ["NONE", "PENDING", "APPROVED", "REJECTED", "CANCELLED"];
 
 
 export const authClient = createAuthClient({
-    baseURL: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth`,
+    baseURL: `${getApiOrigin()}/api/auth`,
     fetchOptions: {
         credentials: "include",
     },

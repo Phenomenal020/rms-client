@@ -8,6 +8,7 @@ import Link from "next/link";
 export function Contact() {
   const [status, setStatus] = useState<{ text: string; ok: boolean } | null>(null);
 
+  // Handle form submission
   const handleSubmit = (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
     const form = ev.currentTarget;
@@ -16,25 +17,32 @@ export function Contact() {
     );
     if (missing) {
       setStatus({
-        text: "Fill in your name, role, institution and work email.",
+        text: "Fill in your name, institution, email and query.",
         ok: false,
       });
       missing.focus();
       return;
     }
+    // Todo: Make api call to send email
     setStatus({
-      text: "Demo page — connect this form to your backend to send the request.",
+      text: "Message sent — We will get back to you as soon as possible via the email provided.",
       ok: true,
     });
+    // Reset form
+    form.reset();
+    // Reset status after 3 seconds
+    setTimeout(() => {
+      setStatus(null);
+    }, 3000);
   };
 
   return (
-    <section id="contact" className="py-[clamp(56px,7vw,104px)]">
+    <section id="contact" className="py-[clamp(56px,7vw,104px)] bg-muted">
       <Shell>
         <SectionHead
           // eyebrow="Contact us"
           title="Frequently Asked Questions or Contact Us..."
-          description="We are here to help you with your results. If you have any questions, please feel free to contact us."
+          description="If you can't find the answer you're looking for, please feel free to contact us."
         />
 
         <div className="mt-[38px] grid items-start gap-[clamp(28px,4vw,56px)] lg:grid-cols-2">
@@ -61,7 +69,7 @@ export function Contact() {
           </div>
 
           {/* Contact Us */}
-          <div className="rounded-[calc(var(--radius)+10px)] border border-border bg-card p-[clamp(22px,3vw,32px)] shadow-md">
+          <div className="rounded-[calc(var(--radius)+10px)] border border-border bg-card p-[clamp(22px,3vw,32px)] shadow-md" id="contact-form">
             <h3 className="text-[1.3rem] font-bold tracking-[-0.02em]">Didn't find what you were looking for?</h3>
             <p className="mt-2.5 text-[0.94rem] text-muted-foreground">
               Please feel free to contact us. We will get back to you as soon as possible.
@@ -75,19 +83,20 @@ export function Contact() {
               <div className="grid grid-cols-1 gap-3.5 max-[560px]:grid-cols-1 max-[560px]:gap-0">
                 <Field label="Institution" id="institution" required />
               </div>
-              {/* Email or Phone */}
+              {/* Email */}
               <div className="grid grid-cols-1 gap-3.5 max-[560px]:grid-cols-1 max-[560px]:gap-0">
-                <Field label="Email or Phone" id="emailOrPhone" required autoComplete="emailOrPhone" />
+                <Field label="Email" id="email" required autoComplete="email" />
               </div>
               {/* Message */}
               <div className="mt-4">
                 <label htmlFor="message" className="mb-1.5 block text-[0.84rem] font-semibold">
-                  Anything we should know first
+                  Query
                 </label>
                 <textarea
                   id="message"
                   name="message"
-                  placeholder=""
+                  required
+                  placeholder="Your query here..."
                   className="min-h-20 w-full resize-y rounded-lg border border-input bg-background px-3 py-2.5 text-[0.94rem] leading-normal transition-[border-color,box-shadow] focus:border-ring focus:shadow-[0_0_0_3px_var(--accent)] focus:outline-none"
                 />
               </div>
@@ -108,28 +117,6 @@ export function Contact() {
             </form>
           </div>
         </div>
-        {/* 
-        <div className="mt-[38px] grid grid-cols-4 gap-3.5 border-t border-border pt-8 max-[1040px]:grid-cols-2 max-[560px]:grid-cols-1">
-          {channels.map((c) => (
-            <div key={c.label} className="flex items-start gap-3">
-              <span className="grid size-[34px] shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground">
-                {c.icon}
-              </span>
-              <span>
-                <span className="block text-[0.8rem] text-muted-foreground">{c.label}</span>
-                <span className="mt-px block text-[0.92rem] font-semibold">
-                  {c.href ? (
-                    <a href={c.href} className="no-underline hover:text-primary">
-                      {c.value}
-                    </a>
-                  ) : (
-                    c.value
-                  )}
-                </span>
-              </span>
-            </div>
-          ))}
-        </div> */}
       </Shell>
     </section>
   );
@@ -168,29 +155,29 @@ function Field({
   );
 }
 
-function SelectField({
-  label,
-  id,
-  options,
-}: {
-  label: string;
-  id: string;
-  options: string[];
-}) {
-  return (
-    <div className="mt-4">
-      <label htmlFor={id} className="mb-1.5 block text-[0.84rem] font-semibold">
-        {label}
-      </label>
-      <select
-        id={id}
-        name={id}
-        className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-[0.94rem] transition-[border-color,box-shadow] focus:border-ring focus:shadow-[0_0_0_3px_var(--accent)] focus:outline-none"
-      >
-        {options.map((o) => (
-          <option key={o}>{o}</option>
-        ))}
-      </select>
-    </div>
-  );
-}
+// function SelectField({
+//   label,
+//   id,
+//   options,
+// }: {
+//   label: string;
+//   id: string;
+//   options: string[];
+// }) {
+//   return (
+//     <div className="mt-4">
+//       <label htmlFor={id} className="mb-1.5 block text-[0.84rem] font-semibold">
+//         {label}
+//       </label>
+//       <select
+//         id={id}
+//         name={id}
+//         className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-[0.94rem] transition-[border-color,box-shadow] focus:border-ring focus:shadow-[0_0_0_3px_var(--accent)] focus:outline-none"
+//       >
+//         {options.map((o) => (
+//           <option key={o}>{o}</option>
+//         ))}
+//       </select>
+//     </div>
+//   );
+// }

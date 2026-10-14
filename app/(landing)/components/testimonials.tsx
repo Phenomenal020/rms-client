@@ -47,16 +47,16 @@ export function Testimonials() {
   }, [getCurrentIndex]);
 
   return (
-    <section id="reviews" className="border-y border-border bg-muted py-[clamp(56px,7vw,104px)]">
+    <section id="testimonials" className="border-y border-border bg-muted py-[clamp(56px,7vw,104px)]">
       <Shell>
+        {/* Section header */}
         <div className="flex flex-wrap items-end justify-between gap-5">
-        <SectionHead
-          // eyebrow="Twelve months to August 2026"
-          title="From the people who use AiD..."
-          description="Hear from our customers about their experience using AiD to manage their results."
-        />
+          <SectionHead
+            title="From the people who use AiD"
+            description="Hear from our customers about their experience using AiD to manage their results."
+          />
 
-          {/* Navigation buttons */}
+          {/* Navigation arrow buttons */}
           <div className="flex gap-2">
             <IconBtn
               aria-label="Previous review"
@@ -79,6 +79,8 @@ export function Testimonials() {
           </div>
         </div>
 
+
+        {/* Testimonials Wrapper */}
         <div
           ref={railRef}
           tabIndex={0}
@@ -90,14 +92,6 @@ export function Testimonials() {
               key={t.name}
               className="flex w-[min(400px,84vw)] shrink-0 snap-start flex-col rounded-[calc(var(--radius)+10px)] border border-border bg-card p-6"
             >
-              {/* <div className="mb-[18px] flex items-baseline gap-2.5 border-b border-border pb-4">
-                <b className="whitespace-nowrap font-mono text-[1.45rem] font-medium tracking-[-0.02em] text-primary">
-                  {t.metric}
-                </b>
-                <span className="text-[0.8rem] leading-snug text-muted-foreground">
-                  {t.metricLabel}
-                </span>
-              </div> */}
               <blockquote className="m-0 text-base leading-[1.62] mb-3">{t.quote}</blockquote>
               <figcaption className="mt-auto flex items-center gap-[11px] pt-[22px]">
                 <span

@@ -4,21 +4,8 @@ import { Toaster } from "sonner";
 import { Metadata } from "next";
 import { ThemeProvider } from "next-themes";
 import Providers from "@/fetcher/Providers";
-import { UserProvider } from "@/contexts/user-context";
 import { TooltipProvider } from "@/shadcn/ui/tooltip";
 import { Oxanium } from "next/font/google";
-
-// // Geist font
-// const geistSans = Geist({
-//   variable: "--font-geist-sans",
-//   subsets: ["latin"],
-// });
-
-// // Geist Mono font
-// const geistMono = Geist_Mono({
-//   variable: "--font-geist-mono",
-//   subsets: ["latin"],
-// });
 
 // Oxanium font
 const oxanium = Oxanium({

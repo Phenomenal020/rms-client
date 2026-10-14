@@ -1,111 +1,20 @@
-export type Tenant = {
-  org: string;
-  tabLabel: string;
-  initials: string;
-  domain: string;
-  colour: string;
-  meta: [string, string][];
-  cols: [string, string, string];
-  rows: [string, string, string][];
-  sumK: string;
-  sumV: string;
-  seal: string;
-};
-
-export const tenants: Tenant[] = [
-  {
-    org: "Kestrel Grammar School",
-    tabLabel: "Kestrel Grammar",
-    initials: "KG",
-    domain: "kestrel.tabula.school",
-    colour: "#9A3D50",
-    meta: [
-      ["Student", "Amara Bello · Y11"],
-      ["Term", "Summer 2026"],
-      ["Position", "4 of 118"],
-    ],
-    cols: ["Subject", "Mark", "Grade"],
-    rows: [
-      ["Mathematics", "91", "A*"],
-      ["English Literature", "78", "A"],
-      ["Physics", "84", "A"],
-      ["History", "69", "B"],
-      ["French", "72", "B"],
-    ],
-    sumK: "Average mark",
-    sumV: "78.8%",
-    seal: "Signed by the head teacher",
-  },
-  {
-    org: "Ashford Polytechnic",
-    tabLabel: "Ashford Polytechnic",
-    initials: "AP",
-    domain: "results.ashfordpoly.ac",
-    colour: "oklch(0.6231 0.1880 259.8145)",
-    meta: [
-      ["Student", "T. Mensah · HND/22/0417"],
-      ["Session", "2025/26 · Sem 2"],
-      ["Standing", "Good"],
-    ],
-    cols: ["Course", "Units", "Points"],
-    rows: [
-      ["Structural Analysis II", "3", "4.00"],
-      ["Fluid Mechanics", "3", "3.50"],
-      ["Engineering Maths", "2", "4.00"],
-      ["Technical Drawing", "2", "3.00"],
-      ["Industrial Law", "1", "3.50"],
-    ],
-    sumK: "Cumulative GPA",
-    sumV: "3.68 / 4.00",
-    seal: "Released by senate",
-  },
-  {
-    org: "Institute of Chartered Analysts",
-    tabLabel: "Chartered Analysts",
-    initials: "CA",
-    domain: "candidates.icanalysts.org",
-    colour: "#6D4AA8",
-    meta: [
-      ["Candidate", "Reg. 44-92018"],
-      ["Sitting", "June 2026 · Level II"],
-      ["Attempt", "First"],
-    ],
-    cols: ["Paper", "Scaled", "Outcome"],
-    rows: [
-      ["Financial Reporting", "642", "Distinction"],
-      ["Quantitative Methods", "588", "Merit"],
-      ["Ethics & Standards", "611", "Distinction"],
-      ["Portfolio Theory", "502", "Pass"],
-    ],
-    sumK: "Overall result",
-    sumV: "Pass with merit",
-    seal: "Verified by the board",
-  },
-];
-
+// Pipeline Stages
 export type PipelineStage = {
-  title: string;
-  body: string;
   pts: string[];
-  mockKey: "setup" | "grading" | "enrollment" | "output" | "release";
+  mockKey: "setup" | "grading" | "enrollment" | "output" | "compliance";
 };
 export const pipelineStages: PipelineStage[] = [
   // Setup step
   {
-    title: "Admin and Teachers sign up",
-    body: "Admin is responsible for onboarding members of staff, including form teachers, and subject teachers.",
     pts: [
-      "Admin sets up school, assigns teachers to classes and subjects, and students to classes",
-      "Admin also sets up grading system and assessment structure",
-      "Form Teacher manages results for their class",
+      "Admin sets up your school and assigns teachers to classes",
+      "Form Teachers manage results for their classes",
       "Subject teachers manage results for their subjects",
     ],
     mockKey: "setup",
   },
   // Grading step
   {
-    title: "Custom Grading and Assessment Structure",
-    body: "Admin sets up grading system and assessment structure, including letter grades, weighted CGPA, pass/fail cut-off, and more.",
     pts: [
       "Admin sets up the grading system",
       "Grades are calculated according to the grading system",
@@ -115,8 +24,6 @@ export const pipelineStages: PipelineStage[] = [
   },
   // Enrollment step
   {
-    title: "Enrollment and Result Entry",
-    body: "Admin enrolls students into classes, and subject teachers enter results for their subjects. Form Teachers oversee the process and ensure compliance.",
     pts: [
       "Admin enrolls students into classes",
       "Subject teachers enter results for their subjects",
@@ -126,8 +33,6 @@ export const pipelineStages: PipelineStage[] = [
   },
   // Output step
   {
-    title: "Custom Templates and Outputs",
-    body: "Admin sets up custom templates and master sheet templates. Teachers use a simple interface to enter results and generate outputs. Admin can generate final results using custom templates.",
     pts: [
       "Admin sets up custom templates and master sheet templates",
       "Teachers use a simple interface to enter results and generate outputs",
@@ -136,45 +41,41 @@ export const pipelineStages: PipelineStage[] = [
     mockKey: "output",
   },
   {
-    title: "Release and Compliance",
-    body: "Students and parents can check results through any means required by the school: Scratch cards, SMS, or in-print. Results are released and saved forever for future reference.",
     pts: [
-      "Admin sets up release times per class or cohort",
-      "Results are released and saved forever for future reference",
-      "Admin can generate final results using custom templates",
+      "Results are sent to the approved channels for release",
+      "Everything is logged and audited to ensure compliance",
+      "Backups are available for future reference",
     ],
-    mockKey: "release",
+    mockKey: "compliance",
   },
 ];
 
 
-export const clientInstitutions: [string, string][] = [
-  ["St Michael The Arch Angel Academy", "#9A3D50"],
-  ["Brightstar Academy", "#6D4AA8"],
-  // ["Institute of Chartered Analysts", "#6D4AA8"],
-  // ["Northgate Academy Trust", "var(--chart-3)"],
-  // ["Marisol International College", "#0F7C6C"],
-  // ["Whitby Hall Sixth Form", "var(--chart-4)"],
-  // ["Cedar Ridge University", "#B4762A"],
-  // ["St. Alban's Collegiate", "var(--chart-2)"],
-  // ["Riverstone Technical Institute", "#4A6FA5"],
-  // ["The Linden Schools Group", "var(--chart-5)"],
-];
+// Our numbers
+export type Numbers = {
+  teachers: number,
+  institutions: number,
+  availability_sla: number,
+  sustainable_commitment: number,
+}
+export const ourNumbers: Numbers = {
+  teachers: 20,
+  institutions: 3,
+  availability_sla: 99.9,
+  sustainable_commitment: 250000,
+}
 
+
+// Testimonials
 export type Testimonial = {
-  metric: string;
-  metricLabel: string;
   quote: string;
   initials: string;
   colour: string;
   name: string;
   role: string;
 };
-
 export const testimonials: Testimonial[] = [
   {
-    metric: "14 → 4",
-    metricLabel: "days from last paper to signed broadsheet",
     quote:
       "We used to lose the first fortnight of every term to collating marks. This year the broadsheet was signed off four days after the last paper, and I spent the rest of the week on timetabling instead.",
     initials: "KG",
@@ -183,8 +84,6 @@ export const testimonials: Testimonial[] = [
     role: "Exam officer, Kestrel Grammar School",
   },
   {
-    metric: "6",
-    metricLabel: "grading exceptions configured in one afternoon",
     quote:
       "Our CGPA rules have six exceptions and every vendor before this one told us to change them. Tabula let us configure the exceptions in an afternoon, and the numbers came out matching our old manual sheets exactly.",
     initials: "AP",
@@ -193,8 +92,6 @@ export const testimonials: Testimonial[] = [
     role: "Registrar, Ashford Polytechnic",
   },
   {
-    metric: "61k",
-    metricLabel: "candidates in the first hour, no queue",
     quote:
       "Sixty thousand candidates hit the portal in the first hour and nothing wobbled. What sold the board, though, was the audit log — every mark change has a name and a timestamp against it.",
     initials: "CA",
@@ -203,8 +100,14 @@ export const testimonials: Testimonial[] = [
     role: "Head of technology, Institute of Chartered Analysts",
   },
   {
-    metric: "9 years",
-    metricLabel: "of historic results migrated before go-live",
+    quote:
+      "Nine years of results sat in spreadsheets across four shared drives. They imported all of it, reconciled it against our printed transcripts and showed us the twelve rows that did not match.",
+    initials: "NA",
+    colour: "var(--chart-3)",
+    name: "Peter Marsh",
+    role: "Data lead, Northgate Academy Trust",
+  },
+  {
     quote:
       "Nine years of results sat in spreadsheets across four shared drives. They imported all of it, reconciled it against our printed transcripts and showed us the twelve rows that did not match.",
     initials: "NA",
@@ -212,54 +115,151 @@ export const testimonials: Testimonial[] = [
     name: "Helen Marsh",
     role: "Data lead, Northgate Academy Trust",
   },
+  {
+    quote:
+      "Nine years of results sat in spreadsheets across four shared drives. They imported all of it, reconciled it against our printed transcripts and showed us the twelve rows that did not match.",
+    initials: "NA",
+    colour: "var(--chart-3)",
+    name: "Helen Ojukwu",
+    role: "Data lead, Northgate Academy Trust",
+  }
 ];
 
+
+// Pricing Plans
+export type PricingPlan = {
+  id: "regular" | "sustainable" | "custom";
+  name: string;
+  tagline: string;
+  priceLabel: string;
+  priceDetail?: string;
+  features: string[];
+  cta: string;
+  highlighted?: boolean;
+  badge?: string;
+};
+export const pricingPlans: PricingPlan[] = [
+  {
+    id: "regular",
+    name: "Regular",
+    tagline: "Everything you need to automate your results process.",
+    priceLabel: "N100,000 per 500 students",
+    priceDetail: "Billed annually. Negotiable for small schools.",
+    features: [
+      "Full pipeline: setup, grading, enrollment, and release",
+      "Custom templates and master sheets",
+      "Audit log and compliance exports",
+      "On-demand and backup copies for up to 10 years",
+      "Lightning fast email support",
+    ],
+    cta: "Get started",
+  },
+  {
+    id: "sustainable",
+    name: "Sustainable",
+    tagline: "Promote sustainability and get our support.",
+    priceLabel: "50% cashback on Regular",
+    priceDetail: "Applied by default for qualifying schools.",
+    features: [
+      "Full pipeline: setup, grading, enrollment, and release",
+      "Custom templates and master sheets",
+      "Audit log and compliance exports",
+      "On-demand and backup copies for up to 10 years",
+      "Lightning fast email support",
+      "50% cashback to support sustainable initiatives",
+      "Free sustainabilty training and support"
+    ],
+    cta: "Get started",
+    highlighted: true,
+    badge: "50% cashback",
+  },
+  {
+    id: "custom",
+    name: "Custom",
+    tagline: "For institiutions with unique needs or scale.",
+    priceLabel: "Pricing based on your needs",
+    priceDetail: "Contact us to discuss your needs.",
+    features: [
+      "Dedicated infrastructure and data isolation",
+      "Custom pipeline according to your unique needs",
+      "Custom templates and master sheets",
+      "Audit log and compliance exports",
+      "On-demand and backup copies for up to 10 years",
+      "Lightning fast email support",
+    ],
+    cta: "Contact us",
+  },
+];
+
+
+// Frequently Asked Questions
 export type FaqItem = {
   question: string;
   answer: string;
 };
-
 export const faqItems: FaqItem[] = [
   {
-    question: "How long does setup take?",
+    question: "What is this product?",
     answer:
-      "Two to three weeks for a single institution. Week one is your grading rules, transcript layout and user roles. Week two is importing students and historic results. Most tenants run a parallel term alongside their old process before switching fully.",
+      "Teachers Aid is a results management system for primary and secondary schools. Institutions who use this product can automate their results process, from setup to release. Pilot tests suggests that this can reduce the time taken to release results by up to 80%, making results available in hours instead of days.  It can also completely remove the need for paper.",
   },
   {
-    question: "Can we keep our own grading rules?",
+    question: "What is multi-tenancy?",
     answer:
-      "Yes, including the awkward ones. Weighted coursework splits, capped resits, best-of-two attempts, credit-weighted CGPA and pass/merit/distinction bands are all configurable per tenant. If a rule cannot be expressed in the builder we add it as a formula, and it runs the same way every term after that.",
+      "Multi-tenancy means multiple institutions use the same product. For instance, School A and School B can use the same product while keeping their data separate. Multi-tenancy is key to making the product much more affordable and scalable. We also offer a dedicated plan for institutions that have unique requirements.",
   },
   {
-    question: "What happens to our historic results?",
+    question: "Is it safe to use this product?",
     answer:
-      "We import from spreadsheets or a database dump, recompute every grade using your rules, and show you a reconciliation report of any row that does not match your existing transcripts. You sign off on that report before the tenant goes live.",
+      "Short answer? yes. We built the software with security best practices - Principle of Least Privilege, Separation of Duties, Auditing and Logging, Multi-Factor Authentication, etc. However, we understand that security incidents can occur. Therefore, we regularly test and monitor our system for vulnerabilities and potential security breaches to fix them before they can be exploited. In the event of a security incident, we have a structured response plan (see our terms of service)"
   },
   {
-    question: "Where is our data stored?",
+    question: "How is my data stored?",
     answer:
-      "In the region you pick at signup, in a database used only by your institution, encrypted with keys not shared with any other tenant. Daily backups stay in the same region. You can export everything as CSV or PDF at any time, including on the day you leave.",
+      "Your data is stored following best practices. We encrypt data at rest and in transit, maintain multiple backups, and regularly audit our system for data access and integrity. We also provide secure channels for institutions who wish to migrate their data to their own infrastructure."
   },
   {
-    question: "Can students see results on a phone?",
+    question: "How does this product scale?",
     answer:
-      "The portal is built for phones first, since that is where results day actually happens. Students and parents sign in to see current and past results, and release is scheduled per class so nothing appears an hour early by accident.",
+      "The product is built for scale. Built on top of very mature cloud infrastructure, we have robust autoscaling policies and monitoring in place to scale with demand, ensuring that the product can handle any traffic spike without compromising on performance.",
   },
   {
-    question: "What does it cost?",
+    question: "What does this have to do with sustainability?",
     answer:
-      "Priced per enrolled student per year, billed to the institution, with migration included rather than charged as a separate project. Groups and academy trusts pay once across all their sites. We quote on the walkthrough call, once we know your numbers.",
+      'As "space nerds", we are passionate about sustainability. In our universe of billions upon billions of galaxies and many more planets, this "rock" is the only one we can live on (at least for now). With depleting resources and increasing population, the need for sustainable solutions is more important than ever. Therefore, we are committed to making our products very efficient and as sustainable as possible.',
   },
   {
-    question: "Will it hold up on results day?",
+    question: 'What counts as "sustainable commitment"?',
     answer:
-      "Release traffic is the one load we design for. Result pages are pre-rendered before the release time and served from cache, so a hundred thousand students arriving at 09:00 read static files rather than hitting your database.",
+      'We offer a sustainable plan for our clients to incentivise sustainable practices. We will give you 50% cashback on your subscription if you commit to sustainable practices. This can be investing in technologies that improve employee well-being, reducing paper usage, and sustainability training and awareness programmes.',
+  },
+  {
+    question: 'How do I protect my result sheets from tampering?',
+    answer:
+      'We understand that result sheets are a valuable asset to our clients and in the wrong hands can compromise the integrity of their processes. Therefore, we offer a simple interface for result imputation. Clients who want to use custom templates must register a verified email address to which custom result sheets are sent when results are released. We also provide rollback mechanisms and comprehensive audit logging to revert to the previous version of the result sheet if tampering is detected.',
+  },
+  {
+    question: 'Do you offer scratch cards or share links?',
+    answer:
+      'At the moment, we do not. However, based on our customer needs, this could be available in the future. In the meantime, our custom plan can incorporate this feature if you need it.',
+  },
+  // {
+  //   question: 'Do you offer AI assistance?',
+  //   answer:
+  //     'After careful consideration, we decided not to offer AI assistance in the regular and sustainable plans. This is in line with our mission to make the product very affordable, and AI only makes this moe expensive. However, we are constantly listening to our customers and will consider adding this feature in the future if it is requested by a significant number of users.',
+  // },
+  {
+    question: 'Describe your pricing models',
+    answer:
+      'Our pricing models are based on flexibility. We understand that each institution has unique needs and requirements. Therefore, we offer a range of plans to choose from. We also offer a custom plan for institutions that have very unique requirements or need dedicated infrastructure.',
   },
 ];
 
+
+// Navigation Links
 export const navLinks = [
-  { href: "#about", label: "About" },
-  { href: "#institutions", label: "Institutions" },
-  { href: "#reviews", label: "Reviews" },
+  { href: "#pipeline", label: "About" },
+  { href: "#testimonials", label: "Reviews" },
+  { href: "#pricing", label: "Pricing" },
   { href: "#contact", label: "Contact" },
 ];

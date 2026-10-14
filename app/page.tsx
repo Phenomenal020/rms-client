@@ -5,6 +5,7 @@ import { Hero } from "./(landing)/components/hero";
 import { Features } from "./(landing)/components/features";
 import { Institutions } from "./(landing)/components/institutions";
 import { Testimonials } from "./(landing)/components/testimonials";
+import { Pricing } from "./(landing)/components/pricing";
 import { Contact } from "./(landing)/components/contact";
 import { Footer } from "./(landing)/components/footer";
 
@@ -23,6 +24,7 @@ export default function Home() {
         <Features />
         <Institutions />
         <Testimonials />
+        <Pricing />
         <Contact />
       </main>
       <Footer />

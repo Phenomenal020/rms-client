@@ -11,18 +11,20 @@ export function Features() {
   const stage = pipelineStages[activeStage];
 
   return (
-    <section id="about" className="border-y border-border bg-muted py-[clamp(56px,7vw,104px)]">
+    <section id="pipeline" className="border-y border-border bg-muted py-[clamp(56px,7vw,104px)]">
       <Shell>
+        {/* Section header */}
         <SectionHead
-          title="The pipeline in a nutshell..."
-          description="School Admin sets up the school including classes, teachers, students,  grading system and assessment structure. Form Teacher manages results for their class, and subject teachers manage results for their subjects. Everything gets logged and audited to ensure compliance. Separation of concerns. No paper trail needed."
+          title="The pipeline in a nutshell"
+          description="Your school admin sets up the school including classes, teachers, students, grading system and assessment structure. Everything gets logged and audited to ensure compliance."
         />
 
         <div
-          className="mt-9 flex overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="my-8 flex overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-w-[776px] ml-0"
           role="tablist"
           aria-label="Stages of the results pipeline"
         >
+          {/* Pipeline stages */}
           {pipelineStages.map((s, i) => (
             <button
               key={s.mockKey}
@@ -44,6 +46,7 @@ export function Features() {
               className="group min-w-[152px] flex-1 cursor-pointer border-0 bg-transparent p-0 text-left"
             >
               <span className="mb-3 flex items-center gap-2">
+                {/* Pipeline stage number */}
                 <span
                   className={cn(
                     "grid size-[30px] shrink-0 place-items-center rounded-full border border-border bg-background font-mono text-[0.78rem] font-medium text-muted-foreground transition-[background,border-color,color,box-shadow] duration-200",
@@ -60,30 +63,29 @@ export function Features() {
                 )}
               </span>
 
+              {/* Pipeline stage title */}
               <span
                 className={cn(
                   "block pr-4 text-[0.95rem] font-semibold text-muted-foreground transition-colors group-hover:text-foreground",
                   activeStage === i && "text-foreground"
                 )}
               >
-                {["Setup", "Grading", "Enrollment", "Output", "Release"][i]}
+                {["Setup", "Grading", "Enrollment", "Output", "Compliance"][i]}
               </span>
             </button>
           ))}
         </div>
 
+        {/* Pipeline stage panel */}
         <div
           id="stagePanel"
           role="tabpanel"
           aria-labelledby={`s${activeStage}`}
           tabIndex={0}
-          className="mt-7 grid items-center gap-[clamp(24px,4vw,48px)] rounded-[calc(var(--radius)+10px)] border border-border bg-card p-[clamp(22px,3vw,38px)] shadow-sm lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]"
+          className="mt-4 grid items-center gap-[clamp(24px,4vw,48px)] rounded-sm border-border bg-card p-[clamp(22px,3vw,38px)] shadow-sm lg:grid-cols-[minmax(0,0.90fr)_minmax(0,1.15fr)]"
         >
+          {/* Pipeline stages points list */}
           <div>
-            <h3 className="mb-3 text-[clamp(1.25rem,2vw,1.6rem)] font-bold tracking-[-0.02em] leading-[1.12]">
-              {stage.title}
-            </h3>
-            <p className="text-muted-foreground">{stage.body}</p>
             <ul className="mt-5 grid list-none gap-2 p-0">
               {stage.pts.map((pt) => (
                 <li key={pt} className="flex items-start gap-2 text-[0.92rem]">
@@ -103,7 +105,9 @@ export function Features() {
               ))}
             </ul>
           </div>
-          <div className="flex min-h-[270px] flex-col justify-center rounded-xl border border-border bg-muted p-[18px]">
+
+          {/* Pipeline stage images */}
+          <div className="relative flex min-h-[270px] flex-col justify-center rounded-xl border border-border bg-muted">
             <StageMock mockKey={stage.mockKey as PipelineStageMockKey} />
           </div>
         </div>

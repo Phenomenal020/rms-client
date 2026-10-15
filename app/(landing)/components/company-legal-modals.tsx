@@ -2,14 +2,11 @@
 
 import { useState } from "react";
 import { LegalScrollModal } from "./legal-scroll-modal";
-import {
-  aboutModalContent,
-  privacyModalContent,
-  termsModalContent,
-} from "../data/legal-modals-content";
+import { aboutModalContent, privacyModalContent, termsModalContent } from "../data/legal-modals-content";
 
 export type CompanyLegalModal = "about" | "privacy" | "terms";
 
+// Company legal modals based on the active modal
 export function CompanyLegalModals({
   active,
   onActiveChange,
@@ -17,12 +14,14 @@ export function CompanyLegalModals({
   active: CompanyLegalModal | null;
   onActiveChange: (modal: CompanyLegalModal | null) => void;
 }) {
+  // set the open state of the modal
   const setOpen = (key: CompanyLegalModal) => (open: boolean) => {
     onActiveChange(open ? key : null);
   };
 
   return (
     <>
+      {/* About modal */}
       <LegalScrollModal
         open={active === "about"}
         onOpenChange={setOpen("about")}
@@ -30,6 +29,7 @@ export function CompanyLegalModals({
         subtitle={aboutModalContent.subtitle}
         sections={aboutModalContent.sections}
       />
+      {/* Privacy modal */}
       <LegalScrollModal
         open={active === "privacy"}
         onOpenChange={setOpen("privacy")}
@@ -38,6 +38,7 @@ export function CompanyLegalModals({
         intro={privacyModalContent.intro}
         sections={privacyModalContent.sections}
       />
+      {/* Terms modal */}
       <LegalScrollModal
         open={active === "terms"}
         onOpenChange={setOpen("terms")}

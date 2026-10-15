@@ -63,7 +63,7 @@ export function Contact() {
                     <path d="M12 5v14M5 12h14" />
                   </svg>
                 </summary>
-                <p className="max-w-[56ch] pb-5 text-[0.95rem] text-muted-foreground">{item.answer}</p>
+                <p className="max-w-[80ch] pb-5 text-[0.95rem] text-muted-foreground">{item.answer}</p>
               </details>
             ))}
           </div>

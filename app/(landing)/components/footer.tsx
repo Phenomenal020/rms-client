@@ -1,6 +1,6 @@
 "use client";
 
-import { BrandLink, BrandLogoFull, Shell } from "./landing-ui";
+import { BrandLogoFull, Shell } from "./landing-ui";
 import { CompanyLegalModals, useCompanyLegalModals, type CompanyLegalModal } from "./company-legal-modals";
 
 const productLinks = [
@@ -18,7 +18,7 @@ type CompanyLink =
 const companyLinks: CompanyLink[] = [
   { type: "modal", modal: "about", label: "About" },
   { type: "modal", modal: "privacy", label: "Privacy Policy" },
-  { type: "modal", modal: "terms", label: "Terms of Service" },
+  // { type: "modal", modal: "terms", label: "Terms of Service" },
   { type: "anchor", href: "#contact-form", label: "Contact Us" },
 ];
 

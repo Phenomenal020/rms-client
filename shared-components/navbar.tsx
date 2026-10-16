@@ -2,12 +2,12 @@
 
 import { UserDropdown } from "@/shared-components/user-dropdown";
 import { getUser } from "@/fetcher/queries";
-import { Switch } from "@/shadcn/ui/switch";
-import { Sun, Moon, Menu } from "lucide-react";
-import { useTheme } from "next-themes";
+import { Menu } from "lucide-react";
 import { useSidebar } from "@/contexts/sidebar-context";
 import { Button } from "@/shadcn/ui/button";
 import { Skeleton } from "@/shadcn/ui/skeleton";
+import { ModeToggle } from "@/shared-components/mode-toggle";
+import { BrandMark } from "@/app/(landing)/components/landing-ui";
 
 // Navbar Skeleton
 export function NavbarSkeleton() {
@@ -21,14 +21,8 @@ export function NavbarSkeleton() {
           <Skeleton className="h-7 w-14 shrink-0" />
         </div>
 
-        {/* Centre: Light / Dark theme toggle */}
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-4 w-4 shrink-0 rounded-full" />
-          <Skeleton className="h-5 w-9 shrink-0 rounded-full" />
-          <Skeleton className="h-4 w-4 shrink-0 rounded-full" />
-        </div>
-
-        {/* Right: user dropdown */}
+        {/* Right: theme toggle + user dropdown */}
+        <Skeleton className="h-9 w-9 shrink-0 rounded-md" />
         <Skeleton className="h-9 w-9 shrink-0 rounded-md" />
       </div>
     </header>
@@ -36,10 +30,8 @@ export function NavbarSkeleton() {
 }
 
 export function Navbar() {
-
   // get the user from the session
   const { data: user, isLoading: isUserLoading, error: userError } = getUser();
-  const { theme, setTheme } = useTheme();
   const { toggle } = useSidebar();
 
   if (isUserLoading) {
@@ -47,12 +39,6 @@ export function Navbar() {
   }
 
   if (!user) return null;
-
-  // if (userError) {
-  //   return <div className="text-red-500">Error loading user</div>
-  // }
-
-  const isDark = theme === "dark";
 
   return (
     <header className="bg-background border-b h-16 sticky top-0 z-50 shadow-sm">
@@ -69,23 +55,15 @@ export function Navbar() {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <span className="font-bold text-xl text-primary-600">RMS</span>
+          <BrandMark className="cursor-pointer" />
         </div>
 
-        {/* Centre: Light / Dark theme toggle */}
         <div className="flex items-center gap-2">
-          <Sun className="h-4 w-4 text-yellow-500" />
-          <Switch
-            checked={isDark}
-            onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
-            aria-label="Toggle dark mode"
-            className='cursor-pointer'
-          />
-          <Moon className="h-4 w-4 text-slate-400" />
+          {/* Light / Dark theme toggle */}
+          <ModeToggle />
+          {/* Right: user dropdown */}
+          <UserDropdown user={user} />
         </div>
-
-        {/* Right: user dropdown */}
-        <UserDropdown user={user} />
       </div>
     </header>
   );

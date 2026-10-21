@@ -41,17 +41,18 @@ export function ForgotPasswordForm() {
 
   // on submit: send reset code
   async function onSubmit(formData: ForgotPasswordFormData) {
+    const email = formData.email.trim().toLowerCase();
     // Always fire the request but never reveal whether the email is registered.
     const { error: requestPasswordResetError } = await authClient.emailOtp.sendVerificationOtp({
       type: "forget-password",
-      email: formData.email,
+      email: email,
     });
     if (requestPasswordResetError) {
       toast.error("Unable to send reset code. Please check your email and try again.");
       return;
     }
     toast.success("If your email is registered, you'll receive a reset code shortly.");
-    router.push(`/reset-password?email=${encodeURIComponent(formData.email || "")}`);
+    router.push(`/reset-password?email=${encodeURIComponent(email || "")}`);
   }
 
   const loading = form.formState.isSubmitting;

@@ -14,7 +14,15 @@ import { EDUCATION_SPEECHES } from "@/shared-components/quotes";
 const MAX_OTP_ATTEMPTS = 2;
 
 // Verify email component
-export function VerifyEmailForm({ email }: { email: string }) {
+export function VerifyEmailForm({
+    email,
+    codeJustSent = false,  // set to true if a code was just sent in either the sign-up or sign-in flow
+    backHref = "/sign-up",  // default to sign-up page if no backHref is provided
+}: {
+    email: string;
+    codeJustSent?: boolean;
+    backHref?: string;
+}) {
     // Router for navigation
     const router = useRouter();
 
@@ -40,10 +48,12 @@ export function VerifyEmailForm({ email }: { email: string }) {
     }, []);
     const speech = EDUCATION_SPEECHES[speechIndex];
 
-    // Clear cooldown timer on unmount
+    // A code was just sent. Hold Resend so a second click does not replace it.
     useEffect(() => {
+        if (codeJustSent) {
+            startCooldown();
+        }
         return () => {
-            // clear the cooldown timer if it exists
             if (cooldownRef.current) {
                 clearInterval(cooldownRef.current);
             }
@@ -194,9 +204,9 @@ export function VerifyEmailForm({ email }: { email: string }) {
             {/* Right Side - Verify Email Form */}
             <section className="flex flex-col justify-center px-8 py-10 md:w-1/2">
                 <div className="mx-auto w-full max-w-sm space-y-8">
-                    {/* Back button */}
+                    {/* Back button: sign up or sign in page */}
                     <Link
-                        href="/sign-up"
+                        href={backHref}
                         replace
                         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
                     >
@@ -212,9 +222,13 @@ export function VerifyEmailForm({ email }: { email: string }) {
                         <div className="space-y-1">
                             <h1 className="text-xl font-semibold tracking-tight">Verify your email</h1>
                             <p className="text-sm text-muted-foreground">
-                                A 6-digit verification code was sent to{" "}
+                                {codeJustSent
+                                    ? "A 6-digit verification code was sent to "
+                                    : "Enter the 6-digit code for "}
                                 <span className="font-medium text-foreground">{email || "your email"}</span>.
-                                {" "}Please enter it below.
+                                {codeJustSent
+                                    ? " Enter it below."
+                                    : " If you don't have one, request a new code below."}
                             </p>
                         </div>
                     </div>

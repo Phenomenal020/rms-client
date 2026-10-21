@@ -3,7 +3,7 @@ import AppSidebar from "./sidebar";
 import { SidebarProvider } from "@/contexts/sidebar-context";
 import { UserProvider } from "@/contexts/user-context";
 import { SessionGate } from "@/shared-components/session-gate";
-import Loading from "@/app/(main)/profile/loading"
+import Loading from "@/app/(main)/dashboard/(profile)/loading"
 
 export default function MainLayout({
   children,

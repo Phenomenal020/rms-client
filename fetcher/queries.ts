@@ -87,49 +87,51 @@ function getQueryError(error: unknown, fallback: string) {
 
 
 
-// -------------------------- Users and Organisation (Better Auth non-REST API errors) --------------------------
-// get user from session (CLIENT COMPONENT ONLY - uses React hook)
+// -------------------------- Users and Organisation (Better Auth non-REST API and some api calls) --------------------------
+// Get user from session using axios. On 401/403/5xx, axios rejects, so SWR’s error is set automatically (no need to manually throw the error)
 export function getUser() {
-    const { data, error, isLoading, isValidating } = useSWR(USER_SESSION_KEY, fetcher)  // TODO: Add return type
+    const { data, error, isLoading, isValidating } = useSWR(USER_SESSION_KEY, fetcher)
     const result = { data, error, isLoading, isValidating }
     return result
 }
 
-// get user accounts to check for password account
-export function getUserAccounts(enabled: boolean = true) {
-    const { data, error, isLoading } = useSWR(
-        enabled ? AUTH_ACCOUNTS_KEY : null,  // only fetch if the user is available (enabled in the client component)
-        async () => {
-            const response = await authClient.listAccounts();
-            return response?.data || [];
-        }
-    );
-    const hasPasswordAccount = data?.some((account: any) => account.providerId === "credential") ?? false;
-    return { accounts: data, hasPasswordAccount, error, isLoading };
-}
+// // get user accounts to check for password account (Uses BA client, so we manually throw the error if it occurs)
+// export function getUserAccounts(enabled: boolean = true) {
+//     const { data, error, isLoading } = useSWR(
+//         enabled ? AUTH_ACCOUNTS_KEY : null,  // only fetch if the user is available (enabled in the client component)
+//         async () => {
+//             const { data, error: listAccountsError } = await authClient.listAccounts();
+//             if (listAccountsError) throw listAccountsError;  // so SWR sets the error state
+//             return data ?? [];
+//         }
+//     );
+//     return { accounts: data, error, isLoading };
+// }
 
-// get all user sessions 
+// get all user sessions (Uses BA client, so we manually throw the error if it occurs)
 export function getUserSessions(enabled: boolean = true) {
     const { data, error, isLoading } = useSWR(
         enabled ? AUTH_SESSIONS_KEY : null,
         async () => {
-            const response = await authClient.listSessions();
-            return response?.data || [];
+            const { data, error: listSessionsError } = await authClient.listSessions();
+            if (listSessionsError) throw listSessionsError;  // so SWR sets the error state
+            return data ?? [];
         }
     );
-    return { sessions: (data as SessionListItem[]) || [], error, isLoading };  // if undefined, return empty array. Otherwise, return the sessions
+    return { sessions: (data as SessionListItem[]) ?? [], error, isLoading };  // if undefined, return empty array. Otherwise, return the sessions
 }
 
-// get current session token
+// get current session token (Uses BA client, so we manually throw the error if it occurs)
 export function getCurrentSessionToken(enabled: boolean = true) {
     const { data, error, isLoading } = useSWR(
         enabled ? AUTH_CURRENT_SESSION_KEY : null,
         async () => {
-            const response = await authClient.getSession();
-            return response?.data?.session?.token ?? "";
+            const { data, error: getSessionError } = await authClient.getSession();
+            if (getSessionError) throw getSessionError;  // so SWR sets the error state
+            return data?.session?.token ?? "";
         }
     );
-    return { token: data || "", error, isLoading };  // if undefined, return empty string. Otherwise, return the token
+    return { token: data ?? "", error, isLoading };  // if undefined, return empty string. Otherwise, return the token
 }
 
 // Org members for teacher dropdowns (Better Auth — not REST /api/v1).
@@ -247,16 +249,16 @@ export function getAssessmentStructure(termId: string) {
 
 // ---------------------------- Dashboard Cards-----------------------------------
 export type OrganisationDashboardStats = {
-    enrolledStudents: number;
-    subjectsOffered: number;
-    pendingRequests: number;
-    approvedRequests: number;
+    numberOfTeachers: number;
+    numberOfOnboardingRequests: number;
+    numberOfPendingRequests: number;
+    numberOfApprovedRequests: number;
 };
 const emptyOrganisationDashboardStats: OrganisationDashboardStats = {
-    enrolledStudents: 0,
-    subjectsOffered: 0,
-    pendingRequests: 0,
-    approvedRequests: 0,
+    numberOfTeachers: 0,
+    numberOfOnboardingRequests: 0,
+    numberOfPendingRequests: 0,
+    numberOfApprovedRequests: 0,
 };
 // Get summary stats for the authenticated user's (orgadmin | teacher) dashboard.
 export function getOrganisationDashboard(enabled: boolean = true) {
@@ -434,8 +436,8 @@ export function getSubjectClassAssignments(termId: string | null) {
 }
 
 export type TeacherClassRow = {
-  id: string;
-  name: string;
+    id: string;
+    name: string;
 };
 
 // Get all classes for a given form teacher (teacher route)

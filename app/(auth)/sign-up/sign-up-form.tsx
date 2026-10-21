@@ -73,13 +73,13 @@ export function SignUpForm() {
       signUpRole: signUpRole as "SCHOOL_ADMIN" | "TEACHER"
     });
     if (signUpError) {
-      // Intentionally vague — do not reveal whether the email is already registered
+      // Intentionally vague — does not reveal whether the email is already registered
       toast.error("Something went wrong. Please check your details and try again.");
       return;
     } else {
       // Intentionally vague — same message regardless of account state
-      toast.success("Check your email for a verification code to complete the sign up.");
-      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+      toast.success("If this email is valid, a verification code has been sent to complete the sign up. Please check your email.");
+      router.push(`/verify-email?email=${encodeURIComponent(email)}&from=sign-up&sent=1`);
     }
   }
 

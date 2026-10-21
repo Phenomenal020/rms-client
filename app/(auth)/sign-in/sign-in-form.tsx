@@ -30,6 +30,7 @@ const signInSchema = z.object({
 export function SignInForm() {
   // error state
   const [error, setError] = useState<string | null>(null);
+  const [isSendingVerification, setIsSendingVerification] = useState(false);
 
   // Randomise speech index (after mount to avoid hydration mismatch)
   const [speechIndex, setSpeechIndex] = useState(0);
@@ -68,27 +69,30 @@ export function SignInForm() {
       { email, password, rememberMe },
       {
         async onSuccess(context) {
-          // If the user has 2FA enabled, redirect to the verification page
+          // If the user has 2FA enabled, send the otp and redirect to the verification page
           if (context.data.twoFactorRedirect) {
-            toast.message("Check your email for a verification code.");
+            const { error } = await authClient.twoFactor.sendOtp();
+            if (error) {
+              toast.error("Something went wrong and the otp was not sent. Please try again later.");
+              return;
+            }
+            toast.message("Redirecting to the verification page");
             router.push(`/verify-2fa?email=${encodeURIComponent(email)}`);
             return;
           }
 
           toast.success("Sign in successful");
-          // if the user's email is not verified, redirect to the verify email page
-          if (!context.data.user?.emailVerified) {
-            router.push(`/verify-email?email=${encodeURIComponent(email)}`);
-          }
-          // // If the user has not been onboarded, redirect to the onboarding page
-          else if (context.data.user?.onboardingStatus !== "APPROVED") {
+          // Unverified accounts never reach here. requireEmailVerification rejects them before onSuccess.
+
+          // If the user is not onboarded, redirect to the onboarding page
+          if (context.data.user?.onboardingStatus !== "APPROVED") {
             router.push("/onboarding");
           }
-          // if there is a redirectTo parameter, redirect to the redirectTo URL
+          // If there is a redirectTo parameter, redirect to the redirectTo URL
           else if (redirectTo?.startsWith("/") && !redirectTo.startsWith("//")) {
             router.push(redirectTo);
           }
-          // finally, redirect to the dashboard (iff those 3 conditions are met)
+          // Finally, redirect to the dashboard (2fa not enabled, user is onboarded, and no redirectTo parameter)
           else {
             // No 2FA required — go straight to dashboard
             router.push("/dashboard");
@@ -97,8 +101,17 @@ export function SignInForm() {
       }
     );
 
-    // if there is an error, set the error state and show a toast error message
+    // If there is an error, check if the email is not verified
     if (signInError) {
+      const emailNotVerified =
+        signInError.code === "EMAIL_NOT_VERIFIED" ||
+        signInError.message?.toLowerCase() === "email not verified";
+      // If the email is not verified, then send a verification code and redirect to the verify email page
+      if (emailNotVerified) {
+        await sendEmailVerificationCode(email);
+        return;
+      }
+      // Otherwise, toast an error
       toast.error("Unable to sign in. Please check your input and try again.");
     }
   }
@@ -106,9 +119,36 @@ export function SignInForm() {
   // Track form loading state
   const formLoading = form.formState.isSubmitting;
   const emailValue = form.watch("email").trim();
-  const verifyEmailHref = emailValue
-    ? `/verify-email?email=${encodeURIComponent(emailValue)}`
-    : null;
+
+  // Send a code, then open the verify page. The page does not send on its own.
+  async function sendEmailVerificationCode(address: string) {
+    // validate the email
+    const emailToVerify = address.trim();
+    if (!emailToVerify) {
+      toast.error("Enter your email first.");
+      return;
+    }
+
+    // set the is sending verification state and send the verification otp
+    setIsSendingVerification(true);
+    const { error: sendError } = await authClient.emailOtp.sendVerificationOtp({
+      email: emailToVerify,
+      type: "email-verification",
+    });
+    setIsSendingVerification(false);
+
+    // If there is an error, toast an error
+    if (sendError) {
+      toast.error("Unable to send a verification code. Please try again.");
+      return;
+    }
+
+    // Show a success toast and redirect to the verify email page
+    toast.message("Check your email for a verification code.");
+    router.push(
+      `/verify-email?email=${encodeURIComponent(emailToVerify)}&from=sign-in&sent=1`,
+    );
+  }
 
   return (
     <div className="flex w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-border bg-card md:min-h-[560px] md:flex-row">
@@ -221,13 +261,13 @@ export function SignInForm() {
                           <FieldError>
                             <FormMessage />
                           </FieldError>
-                        ) : 
-                        // (
-                        //   <FieldDescription>
-                        //     ""
-                        //   </FieldDescription>
-                        // )
-                        null
+                        ) :
+                          // (
+                          //   <FieldDescription>
+                          //     ""
+                          //   </FieldDescription>
+                          // )
+                          null
                         }
                       </Field>
                     </FormItem>
@@ -280,26 +320,16 @@ export function SignInForm() {
                 >
                   Sign In
                 </LoadingButton>
-                {/* Need to verify your email (for signup success but no otp verfication before landing on this page) */}
+                {/* Need to verify your email / Sending code ...*/}
                 <div className="flex justify-end text-xs">
-                  {verifyEmailHref ? (
-                    <Link
-                      href={verifyEmailHref}
-                      className="text-muted-foreground hover:text-foreground hover:underline"
-                    >
-                      Need to verify your email?
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      className="text-muted-foreground hover:text-foreground hover:underline"
-                      onClick={() =>
-                        toast.error("Enter your email first.")
-                      }
-                    >
-                      Need to verify your email?
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground hover:underline disabled:opacity-50"
+                    disabled={isSendingVerification}
+                    onClick={() => sendEmailVerificationCode(emailValue)}
+                  >
+                    {isSendingVerification ? "Sending code…" : "Need to verify your email?"}
+                  </button>
                 </div>
               </div>
             </form>

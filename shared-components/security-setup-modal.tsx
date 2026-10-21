@@ -85,7 +85,7 @@ export function SecuritySetupModal() {
                     <div className="flex items-center gap-3">
                         <ShieldCheck className="size-5 shrink-0 text-yellow-600 dark:text-yellow-400" />
                         <span className="text-yellow-800 dark:text-yellow-200">
-                            Please enable two-factor authentication to save changes.
+                            Please enable two-factor authentication to save non-profile information changes.
                         </span>
                     </div>
                     <DialogTrigger asChild>

@@ -11,9 +11,9 @@ export const metadata = {
 export default async function VerifyEmailPage({
   searchParams,
 }: {
-  searchParams: Promise<{ email?: string }>;
+  searchParams: Promise<{ email?: string; from?: string; sent?: string }>;
 }) {
-  const { email } = await searchParams;
+  const { email, from, sent } = await searchParams;
 
   if (!email) {
     redirect("/sign-up");
@@ -21,7 +21,11 @@ export default async function VerifyEmailPage({
 
   return (
     <main className="flex min-h-svh items-center justify-center px-4">
-      <VerifyEmailForm email={email} />
+      <VerifyEmailForm
+        email={email}
+        codeJustSent={sent === "1"}
+        backHref={from === "sign-in" ? "/sign-in" : "/sign-up"}
+      />
     </main>
   );
 }

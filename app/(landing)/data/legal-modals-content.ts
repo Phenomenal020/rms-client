@@ -36,7 +36,7 @@ export const aboutModalContent = {
       paragraphs: [
         "3SR Project · TekSkillUp Academy",
         "Product: AiD (Result Management System)",
-        "Contact: 3srproject@teachersaid.com (Use 'About AiD' as the subject)",
+        "Contact: 3srproject@teachersaid.tech (Use 'About AiD' as the subject)",
       ],
     },
   ] satisfies LegalSection[],
@@ -45,7 +45,6 @@ export const aboutModalContent = {
 // Privacy Modal Content
 export const privacyModalContent = {
   title: "Privacy Policy",
-  effectiveDate: "October 1, 2026",
   intro:
     "This Privacy Policy explains how 3SR Project collects, uses, and protects information when you use AiD and related websites or services.",
   sections: [
@@ -102,7 +101,7 @@ export const privacyModalContent = {
       heading: "Policy changes and contact",
       paragraphs: [
         "We may update this policy from time to time. Material changes will be communicated via email or a notice on our website.",
-        "Questions: privacy@teachersaid.com (Use 'Privacy Policy' as the subject)",
+        "Questions: privacy@teachersaid.tech (Use 'Privacy Policy' as the subject)",
       ],
     },
   ] satisfies LegalSection[],

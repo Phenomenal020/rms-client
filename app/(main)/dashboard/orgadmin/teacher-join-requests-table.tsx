@@ -3,11 +3,7 @@
 import { useMemo } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Check, X } from "lucide-react";
-import {
-    DataTable,
-    SortableHeader,
-    TABLE_FEATURES,
-} from "@/shared-components/data-table";
+import { DataTable, SortableHeader, TABLE_FEATURES } from "@/shared-components/data-table";
 import { LoadingButton } from "@/shared-components/loading-button";
 import { StatusBadge } from "../helpers/dashboard-badge";
 import type { TeacherJoinRequestRow } from "@/types/onboarding";

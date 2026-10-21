@@ -16,11 +16,11 @@ import { useUpdateProfile } from "@/fetcher/mutations";
 import type { UserData } from "@/types/updateProfile";
 
 // Props interface for TeacherProfileForm
-interface TeacherProfileFormProps {
+interface AccountFormProps {
   user: UserData | null;
 }
 // schema for the teacher profile form: first name, last name, subscription, role, and optional image
-const teacherProfileSchema = z.object({
+const accountFormSchema = z.object({
   firstName: z
     .string()
     .trim()
@@ -41,10 +41,10 @@ const teacherProfileSchema = z.object({
     .nullable(),
 });
 // Type for form values (inferred from the schema)
-type TeacherProfileFormValues = z.infer<typeof teacherProfileSchema>;
+type AccountFormValues = z.infer<typeof accountFormSchema>;
 
 // Teacher Profile Form component
-export function TeacherProfileForm({ user }: TeacherProfileFormProps) {
+export function AccountForm({ user }: AccountFormProps) {
 
   // Mutation hook for updating profile
   const { updateProfile, isMutating } = useUpdateProfile();
@@ -52,7 +52,7 @@ export function TeacherProfileForm({ user }: TeacherProfileFormProps) {
   // use the useForm hook to create the form state and validation with default values
   // MUST be called before any conditional returns to follow Rules of Hooks
   const form = useForm({
-    resolver: zodResolver(teacherProfileSchema),
+    resolver: zodResolver(accountFormSchema),
     defaultValues: {
       firstName: user?.firstName,
       lastName: user?.lastName,
@@ -62,13 +62,13 @@ export function TeacherProfileForm({ user }: TeacherProfileFormProps) {
   });
 
   // on submit function - update profile + show toast notifications
-  async function onSubmit(data: TeacherProfileFormValues) {
+  async function onSubmit(data: AccountFormValues) {
     const updateData = {
       firstName: data.firstName,
       lastName: data.lastName,
-      name: `${data.firstName} ${data.lastName}`,
-      subscription: undefined,  // ignored by drizzle
-      role: undefined,  // ignored by drizzle
+      // name: `${data.firstName} ${data.lastName}`,
+      // subscription: undefined,  // ignored by drizzle
+      // role: undefined,  // ignored by drizzle   
     };
 
     try {
@@ -76,7 +76,8 @@ export function TeacherProfileForm({ user }: TeacherProfileFormProps) {
       toast.success("Profile updated successfully");
       // No need for router.refresh() - SWR automatically refetches after cache invalidation
     } catch (error: any) {
-      toast.error("Failed to update profile");
+      // Todo: Extract status information from the error and show a more specific error message
+      toast.error("Something went wrong. Failed to update profile.");
     }
   }
 
@@ -87,7 +88,7 @@ export function TeacherProfileForm({ user }: TeacherProfileFormProps) {
   return (
     <Card className="border shadow-md">
       {/* Card Content */}
-      <CardContent className="pt-4">
+      <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
@@ -105,7 +106,7 @@ export function TeacherProfileForm({ user }: TeacherProfileFormProps) {
                 <FormField
                   control={form.control}
                   name="firstName"
-                  render={({ field }: { field: ControllerRenderProps<TeacherProfileFormValues, "firstName"> }) => (
+                  render={({ field }: { field: ControllerRenderProps<AccountFormValues, "firstName"> }) => (
                     <FormItem>
                       <FormLabel className="text-sm text-muted-foreground font-semibold">First Name</FormLabel>
                       <FormControl>
@@ -125,7 +126,7 @@ export function TeacherProfileForm({ user }: TeacherProfileFormProps) {
                 <FormField
                   control={form.control}
                   name="lastName"
-                  render={({ field }: { field: ControllerRenderProps<TeacherProfileFormValues, "lastName"> }) => (
+                  render={({ field }: { field: ControllerRenderProps<AccountFormValues, "lastName"> }) => (
                     <FormItem>
                       <FormLabel className="text-sm text-muted-foreground font-semibold">Last Name</FormLabel>
                       <FormControl>
@@ -149,7 +150,7 @@ export function TeacherProfileForm({ user }: TeacherProfileFormProps) {
                 <FormField
                   control={form.control}
                   name="subscription"
-                  render={({ field }: { field: ControllerRenderProps<TeacherProfileFormValues, "subscription"> }) => (
+                  render={({ field }: { field: ControllerRenderProps<AccountFormValues, "subscription"> }) => (
                     <FormItem>
                       <FormLabel className="text-sm text-muted-foreground font-semibold">Subscription</FormLabel>
                       <FormControl>
@@ -170,7 +171,7 @@ export function TeacherProfileForm({ user }: TeacherProfileFormProps) {
                 <FormField
                   control={form.control}
                   name="role"
-                  render={({ field }: { field: ControllerRenderProps<TeacherProfileFormValues, "role"> }) => (
+                  render={({ field }: { field: ControllerRenderProps<AccountFormValues, "role"> }) => (
                     <FormItem>
                       <FormLabel className="text-sm text-muted-foreground font-semibold">Role</FormLabel>
                       <FormControl>

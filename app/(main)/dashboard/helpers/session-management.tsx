@@ -1,14 +1,17 @@
 "use client";
 
-import { Button } from "@/shadcn/ui/button";
 import { Card, CardContent } from "@/shadcn/ui/card";
 import { authClient, type SessionListItem } from "@/src/auth-client";
+import { getApiErrorMessage } from "@/fetcher/mutations";
+import { handleAuthRedirect } from "@/utils/auth-redirect";
 import { UAParser } from "ua-parser-js";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Monitor, Smartphone, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyPending } from "@/shared-components/empty-pending";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { LoadingButton } from "@/shared-components/loading-button";
 
 // Session management component props
 interface SessionManagementProps {
@@ -49,26 +52,39 @@ function isMobileDevice(userAgent: string | null | undefined): boolean {
 export function SessionManagement({ sessions, currentSessionToken }: SessionManagementProps) {
     // Get other sessions and current session
     const router = useRouter();
+    const pathname = usePathname();
     const otherSessions = sessions.filter((s) => s.token !== currentSessionToken);
     const currentSession = sessions.find((s) => s.token === currentSessionToken);
+    const [loggedOutEveryWhere, setLoggedOutEveryWhere] = useState(false);
 
     // Logout everywhere function
     async function logoutEverywhere() {
-        // revoke all sessions
+        // set the state to true to prevent the user from clicking the button again
+        setLoggedOutEveryWhere(true);
+        // revoke all sessions including the current session
         const { error: revokeSessionsError } = await authClient.revokeSessions();
-        // if error, show error toast
+        // If there is an error, check if it is a 401/403 and handle the redirect accordingly
         if (revokeSessionsError) {
-            toast.error("Failed to log out of all devices. Please try again.");
+            if (handleAuthRedirect(revokeSessionsError, { router, pathname })) {
+                return;
+            }
+            toast.error(
+                getApiErrorMessage(revokeSessionsError, "Failed to log out of all devices. Please try again."),
+            );
+            setLoggedOutEveryWhere(false);
             return;
         }
-        // else, sign out
+        // Clear session cookie from this browser
         const { error: signOutError } = await authClient.signOut();
-        // if error, show error toast
         if (signOutError) {
-            toast.error("Failed to sign out. Please try again.");
+            if (handleAuthRedirect(signOutError, { router, pathname })) {
+                return;
+            }
+            router.push("/sign-in");
+            toast.error("Sessions revoked. Please sign in again.");
             return;
         }
-        // else, show success toast and redirect to sign-in page
+        // Finally, show success toast and redirect to sign-in page
         toast.success("Successfully logged out of all devices.");
         router.push("/sign-in");
     }
@@ -86,15 +102,16 @@ export function SessionManagement({ sessions, currentSessionToken }: SessionMana
                             Devices where you&apos;re signed in.
                         </p>
                     </div>
-                    <Button
+                    <LoadingButton
+                        loading={loggedOutEveryWhere}
+                        disabled={loggedOutEveryWhere}
+                        onClick={logoutEverywhere}
                         variant="destructive"
                         size="sm"
-                        className="shrink-0 gap-2 border-destructive/40 hover:bg-destructive/10 hover:text-destructive cursor-pointer"
-                        onClick={logoutEverywhere}
                     >
                         <LogOut className="h-4 w-4" />
                         Logout everywhere
-                    </Button>
+                    </LoadingButton>
                 </div>
 
                 {/* Current session */}
@@ -148,6 +165,7 @@ function SessionRow({ session, isCurrentSession = false }: SessionRowProps) {
                 !isCurrentSession && "px-1",
             )}
         >
+            {/* Todo: Add a logout button to the session row to log that particular session out */}
             <div className="flex min-w-0 items-start gap-3">
                 <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
                     <Icon className="h-4 w-4" aria-hidden />

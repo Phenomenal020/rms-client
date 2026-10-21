@@ -23,13 +23,14 @@ export function TeacherJoinRequests() {
     // Check the user is an org admin and has two-factor enabled
     const { user } = useUser();
     const canManage = user?.role === "orgadmin" && user.twoFactorEnabled === true;
+    const enabled = !!user && user.role === "orgadmin";
 
     // Fetch the teacher join requests
     const {
         data: joinRequests = [],
         error: joinRequestsError,
         isLoading: isJoinRequestsLoading,
-    } = getTeacherJoinRequests();
+    } = getTeacherJoinRequests(enabled);
 
     // Action ID for the table
     const [actionId, setActionId] = useState<string | null>(null);
@@ -67,6 +68,8 @@ export function TeacherJoinRequests() {
             setActionId(null);
         }
     }
+
+    if (!enabled) return null;
 
     return (
         <Card className="border shadow-md">

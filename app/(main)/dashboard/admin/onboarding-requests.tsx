@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Eye } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useSWRConfig } from "swr";
 import { Card, CardContent } from "@/shadcn/ui/card";
 import { Input } from "@/shadcn/ui/input";
@@ -11,7 +12,8 @@ import { ErrorBanner } from "@/shared-components/error-banner";
 import { EmptyPending } from "@/shared-components/empty-pending";
 import { EmptySearch } from "@/shared-components/empty-search";
 import { ONBOARDING_REQUESTS_KEY } from "@/fetcher/keys";
-import { getApiErrorMessage } from "@/fetcher/mutations";
+import { getApiErrorMessage, getHttpStatus } from "@/fetcher/mutations";
+import { handleAuthRedirect } from "@/utils/auth-redirect";
 import { StatusBadge } from "../helpers/dashboard-badge";
 import { DashboardRequestsTableSkeleton } from "../helpers/dashboard-loading";
 import { getOnboardingRequests } from "@/fetcher/queries";
@@ -37,20 +39,36 @@ function formatLocation(row: OnboardingRequestRow) {
         .join(", ");
 }
 
+function isAuthRedirectStatus(status: number | undefined): boolean {
+    return status === 401 || status === 403;
+}
+
 export function OnboardingRequests() {
-    // Manually invalidate the onboarding requests cache
+    const router = useRouter();
+    const pathname = usePathname();
     const { mutate } = useSWRConfig();
 
     // Check the user is an admin and has two-factor enabled
     const { user } = useUser();
     const canManage = user?.role === "admin" && user.twoFactorEnabled === true;
+    const enabled = !!user && user.role === "admin";
 
     // Fetch all onboarding requests
     const {
         data: onboardingRequests = [],
         error: onboardingRequestsError,
         isLoading: isOnboardingRequestsLoading,
-    } = getOnboardingRequests();
+    } = getOnboardingRequests(enabled);
+
+    const showErrorBanner =
+        !!onboardingRequestsError &&
+        !isAuthRedirectStatus(getHttpStatus(onboardingRequestsError));
+
+    useEffect(() => {
+        if (onboardingRequestsError) {
+            handleAuthRedirect(onboardingRequestsError, { router, pathname });
+        }
+    }, [onboardingRequestsError, router, pathname]);
 
     // Search query and status filter for the table
     const [searchQuery, setSearchQuery] = useState("");
@@ -90,6 +108,8 @@ export function OnboardingRequests() {
         setRejectingRow(row);
         setRejectOpen(true);
     }
+
+    if (!enabled) return null;
 
     return (
         <>
@@ -139,8 +159,7 @@ export function OnboardingRequests() {
                         {/* If onboarding requests are loading and there is no cached data, show the skeleton */}
                         {isOnboardingRequestsLoading && (onboardingRequests?.length ?? 0) === 0 ? (
                             <DashboardRequestsTableSkeleton variant="org" rows={3} />
-                        ) : onboardingRequestsError ? (
-                            // If there is an error loading onboarding requests, show the error banner
+                        ) : showErrorBanner ? (
                             <ErrorBanner
                                 title="Could not load onboarding requests"
                                 message={getApiErrorMessage(
@@ -149,6 +168,8 @@ export function OnboardingRequests() {
                                 )}
                                 onRetry={() => void mutate(ONBOARDING_REQUESTS_KEY)}
                             />
+                        ) : onboardingRequestsError ? (
+                            null
                         ) : (onboardingRequests?.length ?? 0) === 0 ? (
                             // If there are no onboarding requests after loading, show the empty pending component
                             <EmptyPending

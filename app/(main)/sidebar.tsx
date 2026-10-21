@@ -126,20 +126,6 @@ export default function AppSidebar() {
                 <nav className="h-full flex flex-col overflow-y-auto">
                     <ul className="flex-1 px-3 py-2 relative">
 
-                        <li className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                            Profile
-                        </li>
-                        {/* <li className="absolute bottom-0 left-0 w-full"> */}
-                            <SidebarItem
-                                key="profile"
-                                icon={<Settings size={20} />}
-                                text="Profile"
-                                active={isActive("/profile")}
-                                url="/profile"
-                                onNavigate={toggle}
-                            />
-                        {/* </li> */}
-
                         {/* Admin sidebar items */}
                         {isAdmin && (
                             <>

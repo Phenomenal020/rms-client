@@ -10,8 +10,9 @@ import { Form } from "@/shadcn/ui/form";
 import { Card, CardContent } from "@/shadcn/ui/card";
 import { getErrorMessage, useCreateTeacherJoinRequest } from "@/fetcher/mutations";
 import type { UserData } from "@/types/drizzle";
-import { displayValue, getBetterAuthHttpStatus, onboardingSchemaTeacher, type OnboardingFormValuesTeacher } from "./helpers";
+import { displayValue, onboardingSchemaTeacher, type OnboardingFormValuesTeacher } from "./helpers";
 import { OnboardingCompleteState, OnboardingNav, OnboardingRejectedState, OnboardingShell, OnboardingTextField, StepHeading, SummaryPanel, type OnboardingStep } from "./onboarding-shell";
+import { handleAuthRedirect } from "@/utils/auth-redirect";
 
 //Teacher steps: Registration ID and Review
 const TEACHER_STEPS = [
@@ -75,9 +76,7 @@ export function TeacherOnboardingForm({ user }: TeacherOnboardingFormProps) {
   // Mini-gate based on user's onboarding status
   useEffect(() => {
     switch (user.onboardingStatus) {
-      case "APPROVED":
-        router.replace("/dashboard");
-        break;
+      // OnboardingGate handles the approved state
       case "PENDING":
         setStep("complete");
         break;
@@ -87,7 +86,7 @@ export function TeacherOnboardingForm({ user }: TeacherOnboardingFormProps) {
       default:
         break;
     }
-  }, [user.onboardingStatus, router]);
+  }, [user.onboardingStatus]);
 
   // Autofocus input iff step is not complete or rejected
   useEffect(() => {
@@ -95,24 +94,6 @@ export function TeacherOnboardingForm({ user }: TeacherOnboardingFormProps) {
     const focusTarget = paneRef.current?.querySelector<HTMLElement>("input");
     focusTarget?.focus({ preventScroll: true });
   }, [step]);
-
-  // Handle authentication redirects based on HTTP status. If 401/403, redirect. Otherwise, remain on page.
-  function handleAuthRedirect(err: unknown): boolean {
-    const status = getBetterAuthHttpStatus(err);
-    if (status === 401) {
-      toast.error("You are not authenticated. Please sign in to continue");
-      router.replace(`/sign-in?redirect=${pathname}`);
-      return true;
-    }
-    if (status === 403) {
-      toast.error(
-        "You are not authorized to access this page. Please contact your admin if you believe this is an error.",
-      );
-      router.replace("/forbidden");
-      return true;
-    }
-    return false;
-  }
 
   // on click back button
   function handleBack() {
@@ -156,7 +137,7 @@ export function TeacherOnboardingForm({ user }: TeacherOnboardingFormProps) {
         description: "Your join request has been sent to the school admin.",
       });
     } catch (err: unknown) {
-      if (!handleAuthRedirect(err)) {
+      if (!handleAuthRedirect(err, { router, pathname })) {
         toast.error("Failed to save teacher information", {
           description: getErrorMessage(
             err,

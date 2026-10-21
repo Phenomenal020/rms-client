@@ -15,10 +15,9 @@ export function Preferences() {
   // state for the notifications. TODO: Add these to the User model
   const [notifications, setNotifications] = useState({
     loginNotifications: true,
-    emailChangeNotifications: false,
+    lockResultMutations: false,
     passwordChangeNotifications: true,
-    profileUpdateNotifications: true,
-    exportNotifications: true,
+    allowFormTeachersToPrintResults: false,
   });
 
   // handle manage all notifications - toggles all notifications on/off
@@ -35,14 +34,15 @@ export function Preferences() {
         <CardContent className="pt-4">
           <div className="space-y-6">
 
-            {/* Email Notifications Section */}
+            {/* Preferences Section */}
             <div className="space-y-4">
 
-              {/* Email Notifications Section subheading (h4) */}
+              {/* Preferences Section subheading (h4) */}
               <div className="pb-2 border-b border-border">
-                <h3 className="text-lg font-bold text-foreground uppercase tracking-wide">Email Notifications</h3>
+                <h3 className="text-lg font-bold text-foreground uppercase tracking-wide">Preferences</h3>
               </div>
               <div className="space-y-3">
+                {/* Login Notifications */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border bg-muted/30">
                   <div>
                     <h5 className="text-sm font-semibold">Login Notifications</h5>
@@ -59,22 +59,24 @@ export function Preferences() {
                   />
                 </div>
 
+                {/* Lock Result Mutations */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border bg-muted/30">
                   <div>
-                    <h5 className="text-sm font-semibold">Email Change Notifications</h5>
+                    <h5 className="text-sm font-semibold">Lock Result Mutations</h5>
                     <p className="text-xs md:text-sm text-muted-foreground">
-                      Receive notifications when your email address is changed
+                      Set a daily time after which results are locked and no longer editable (for eg, after 5pm,do not allow any changes to the results)
                     </p>
                   </div>
                   <Switch
-                    checked={notifications.emailChangeNotifications}
+                    checked={notifications.lockResultMutations}
                     onCheckedChange={(checked: boolean) =>
-                      setNotifications((prev) => ({ ...prev, emailChangeNotifications: checked }))
+                      setNotifications((prev) => ({ ...prev, lockResultMutations: checked }))
                     }
                     className="cursor-pointer"
                   />
                 </div>
 
+                {/* Password Change Notifications */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border bg-muted/30">
                   <div>
                     <h5 className="text-sm font-semibold">Password Change Notifications</h5>
@@ -91,17 +93,18 @@ export function Preferences() {
                   />
                 </div>
 
+                {/* Allow form teachers to print results */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border bg-muted/30">
                   <div>
-                    <h5 className="text-sm font-semibold">Export Notifications</h5>
+                    <h5 className="text-sm font-semibold">Allow form teachers to print results</h5>
                     <p className="text-xs md:text-sm text-muted-foreground">
-                      Receive notifications when the results are exported
+                      Allow form teachers to print results (By default, only organisation admins can print results)
                     </p>
                   </div>
                   <Switch
-                    checked={notifications.exportNotifications}
+                    checked={notifications.allowFormTeachersToPrintResults}
                     onCheckedChange={(checked: boolean) =>
-                      setNotifications((prev) => ({ ...prev, exportNotifications: checked }))
+                      setNotifications((prev) => ({ ...prev, allowFormTeachersToPrintResults: checked }))
                     }
                     className="cursor-pointer"
                   />

@@ -10,8 +10,9 @@ import { Form } from "@/shadcn/ui/form";
 import { Card, CardContent } from "@/shadcn/ui/card";
 import { getErrorMessage, useCreateOnboardingRequest } from "@/fetcher/mutations";
 import type { UserData } from "@/types/drizzle";
-import { displayValue, getBetterAuthHttpStatus, onboardingSchemaAdmin, type OnboardingFormValuesAdmin } from "./helpers";
+import { displayValue, onboardingSchemaAdmin, type OnboardingFormValuesAdmin } from "./helpers";
 import { OnboardingCompleteState, OnboardingNav, OnboardingRejectedState, OnboardingShell, OnboardingTextField, StepHeading, SummaryPanel, type OnboardingStep } from "./onboarding-shell";
+import { handleAuthRedirect } from "@/utils/auth-redirect";
 
 //Admin steps: Organisation, Contact, and Review
 const ADMIN_STEPS = [
@@ -92,9 +93,7 @@ export function AdminOnboardingForm({ user }: AdminOnboardingFormProps) {
   // Mini-gate based on user's onboarding status
   useEffect(() => {
     switch (user.onboardingStatus) {
-      case "APPROVED":
-        router.replace("/dashboard");
-        break;
+      // OnboardingGate handles the approved state
       case "PENDING":
         setStep("complete");
         break;
@@ -104,7 +103,7 @@ export function AdminOnboardingForm({ user }: AdminOnboardingFormProps) {
       default:
         break;
     }
-  }, [user.onboardingStatus, router]);
+  }, [user.onboardingStatus]);
 
   // Autofocus input iff step is not complete or rejected
   useEffect(() => {
@@ -112,24 +111,6 @@ export function AdminOnboardingForm({ user }: AdminOnboardingFormProps) {
     const focusTarget = paneRef.current?.querySelector<HTMLElement>("input");
     focusTarget?.focus({ preventScroll: true });
   }, [step]);
-
-  // Handle authentication redirects based on HTTP status. If 401/403, redirect. Otherwise, remain on page.
-  function handleAuthRedirect(err: unknown): boolean {
-    const status = getBetterAuthHttpStatus(err);
-    if (status === 401) {
-      toast.error("You are not authenticated. Please sign in to continue");
-      router.replace(`/sign-in?redirect=${pathname}`);
-      return true;
-    }
-    if (status === 403) {
-      toast.error(
-        "You are not authorized to access this page. Please contact your admin if you believe this is an error.",
-      );
-      router.replace("/forbidden");
-      return true;
-    }
-    return false;
-  }
 
   // on click back button
   function handleBack() {
@@ -177,17 +158,20 @@ export function AdminOnboardingForm({ user }: AdminOnboardingFormProps) {
 
   // on click submit button
   async function handleSubmit() {
+    // Validate the form. If invalid, return early
     const isValid = await form.trigger();
     if (!isValid) return;
 
+    // Otherwise, try to create the onboarding request
     try {
       await createOnboardingRequest(form.getValues());
-      setStep("complete");
       toast.success("Registration submitted", {
         description: "Your organisation registration is now under review.",
       });
+      setStep("complete");
     } catch (err: unknown) {
-      if (!handleAuthRedirect(err)) {
+      // If there is a 401/403 error, handle the authentication redirect
+      if (!handleAuthRedirect(err, { router, pathname })) {
         toast.error("Failed to save organisation information", {
           description: getErrorMessage(
             err,

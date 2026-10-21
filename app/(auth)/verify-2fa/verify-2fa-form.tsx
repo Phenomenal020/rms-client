@@ -12,6 +12,14 @@ import { Button } from "@/shadcn/ui/button";
 import { ChevronLeft, ShieldCheck } from "lucide-react";
 import { EDUCATION_SPEECHES } from "@/shared-components/quotes";
 
+// Helper function to check if the sign-in expired
+function isSignInExpired(error: { code?: string; message?: string }) {
+    return (
+        error.code === "INVALID_TWO_FACTOR_COOKIE" ||
+        error.message?.toLowerCase().includes("two factor cookie") === true
+    );
+}
+
 export function Verify2FAForm({ email }: { email: string }) {
     // router for redirects
     const router = useRouter();
@@ -34,6 +42,7 @@ export function Verify2FAForm({ email }: { email: string }) {
     }, []);
     const speech = EDUCATION_SPEECHES[speechIndex];
 
+    // Start the resend cooldown timer (60s)
     function startCooldown() {
         setResendCooldown(60);
         cooldownRef.current = setInterval(() => {
@@ -47,34 +56,55 @@ export function Verify2FAForm({ email }: { email: string }) {
         }, 1000);
     }
 
+    // Redirect users to the sign-in page if the otp expired
+    function redirectToSignIn() {
+        toast.error("Your sign-in expired. Please sign in again.");
+        router.replace("/sign-in");
+    }
+
+    // Handle resend. sendOtp only works while the sign-in cookie from the password step is still valid.
     async function handleResend() {
+        // Set the is resending state to true (loading indicator on Resend button)
         setIsResending(true);
-
+        // Send the otp
         const { error } = await authClient.twoFactor.sendOtp();
-
+        // Set the is resending state to false
         setIsResending(false);
-
+        // If there is an error, check if the sign-in expired
         if (error) {
+            // If the sign-in expired, redirect to the sign-in page
+            if (isSignInExpired(error)) {
+                redirectToSignIn();
+                return;
+            }
+            // Else, this show an error
             toast.error("Something went wrong. Please try again later.");
             return;
         }
-
+        // Start the resend cooldown timer
         startCooldown();
+        // Show a success toast
         toast.success("A new verification code has been sent.");
+        // Clear the otp input so the user can check their email andenter the new code
         setOtp("");
     }
-
+// 
+    // Handle verify: Verifies the otp, clears session cookie and client cache, and redirects to the dashboard or onboarding page
     async function handleVerify() {
-        // if the otp is not 6 digits, show an error
+        if (isVerifying) {
+            return;
+        }
+        
+        // If the otp is not 6 digits, show an error
         if (otp.length !== 6) {
             toast.error("Please enter the full 6-digit code.");
             return;
         }
 
-        // set the is verifying state to true
+        // Set the is verifying state to true (loading indicator on Verify button)
         setIsVerifying(true);
 
-        // verify the otp
+        // Actually verify the otp
         const { error } = await authClient.twoFactor.verifyOtp({
             code: otp,
             trustDevice: true,   // remembers this device so 2FA is not asked again for 30 days
@@ -83,7 +113,14 @@ export function Verify2FAForm({ email }: { email: string }) {
         // update otp verification state
         setIsVerifying(false);
 
+        // If there is an error, check if the sign-in expired
         if (error) {
+            if (isSignInExpired(error)) {
+                // If the sign-in expired, redirect to the sign-in page
+                redirectToSignIn();
+                return;
+            }
+            // Else, this show an invalid/expired otp code error
             toast.error("Invalid or expired code. Please try again.");
             setOtp("");
             return;
@@ -93,6 +130,7 @@ export function Verify2FAForm({ email }: { email: string }) {
         const session = await authClient.getSession();
         await mutate(USER_WITH_RELATIONS_KEY);
 
+        // If the user is not onboarded, redirect to the onboarding page
         const onboardingStatus = session.data?.user?.onboardingStatus;
         if (onboardingStatus !== "APPROVED") {
             toast.success("Verified! Complete onboarding to continue.");
@@ -100,6 +138,7 @@ export function Verify2FAForm({ email }: { email: string }) {
             return;
         }
 
+        // If the user is onboarded, redirect to the dashboard
         toast.success("Verified! Redirecting…");
         router.replace("/dashboard");
     }
@@ -191,6 +230,7 @@ export function Verify2FAForm({ email }: { email: string }) {
                             Verify
                         </LoadingButton>
 
+                        {/* Didnt receive a code? Resend or Resend in <cooldown> seconds  */}
                         <p className="text-center text-sm text-muted-foreground">
                             Didn&apos;t receive a code?{" "}
                             <LoadingButton

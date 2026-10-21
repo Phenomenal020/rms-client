@@ -28,7 +28,7 @@ export const onboardingSchemaAdmin = z.object({
     .string()
     .trim()
     .min(1, { message: "Postal code is required" })
-    .max(16, { message: "Postal code must not be more than 16 characters" }),
+    .max(32, { message: "Postal code must not be more than 32 characters" }),
   organisationCountry: z
     .string()
     .trim()
@@ -45,15 +45,21 @@ export const onboardingSchemaAdmin = z.object({
     .regex(/^(\d{11}|\+\d{11,12})$/, {
       message: "Enter 11 digits, or + followed by 11–12 digits including country code",
     })
-    .max(16, { message: "Contact phone must not be more than 16 characters" }),
+    .max(32, { message: "Contact phone must not be more than 32 characters" }),
 });
 export type OnboardingFormValuesAdmin = z.input<typeof onboardingSchemaAdmin>;
 
 // Onboarding schema for regular teachers
 export const onboardingSchemaTeacher = z.object({
-  schoolRegistrationId: z.string().trim().min(1, {
-    message: "Please enter a valid school registration ID or contact your school admin",
-  }),
+  schoolRegistrationId: z
+    .string()
+    .trim()
+    .min(1, {
+      message: "Please enter a valid school registration ID or contact your school admin",
+    })
+    .max(64, {
+      message: "School registration ID must not be more than 64 characters",
+    }),
 });
 export type OnboardingFormValuesTeacher = z.input<typeof onboardingSchemaTeacher>;
 
@@ -61,14 +67,6 @@ export type OnboardingFormValuesTeacher = z.input<typeof onboardingSchemaTeacher
 export function displayValue(value: string | null | undefined, fallback = "—") {
   const trimmed = value?.trim();
   return trimmed ? trimmed : fallback;
-}
-
-// Get better auth HTTP status
-export function getBetterAuthHttpStatus(err: unknown): number | undefined {
-  const status =
-    (err as { status?: number })?.status ??
-    (err as { response?: { status?: number } })?.response?.status;
-  return typeof status === "number" ? status : undefined;
 }
 
 // Onboarding form skeleton

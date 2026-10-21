@@ -4,17 +4,11 @@ import { getUserWithRelations } from "@/fetcher/queries";
 import { Card, CardContent } from "@/shadcn/ui/card";
 import { AdminOnboardingForm } from "./admin-onboarding-form";
 import { TeacherOnboardingForm } from "./teacher-onboarding-form";
-import { OnboardingFormSkeleton } from "./helpers"
 
 // Onboarding Wrapper
 export function OnboardingForm() {
-  // Get the user
-  const { user, isLoading } = getUserWithRelations();
-
-  // If it is still loading but there is no user yet, return the onboarding skeleton
-  if (isLoading || !user) {
-    return <OnboardingFormSkeleton />;
-  }
+  // Get the user (nextjs deduplication makes this okay)
+  const { user } = getUserWithRelations();
 
   // Now, if the user is a school admin, show them the admin onboarding form
   if (user?.signUpRole === "SCHOOL_ADMIN") {

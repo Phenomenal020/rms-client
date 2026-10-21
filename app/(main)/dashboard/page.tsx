@@ -27,9 +27,7 @@ export default function Dashboard() {
     const { data: activeOrganization, isPending: isActiveOrganizationPending, error: activeOrganizationError } = authClient.useActiveOrganization();
     const hasActiveOrg = !isActiveOrganizationPending && !!activeOrganization;
 
-    console.log("user active organisation", activeOrganization);
-
-    // Get dashboard stats (for the cards)
+    // Get dashboard stats (for the cards) if the user is not an admin and has an active organisation
     const { data: dashboardStats, isLoading: isDashboardStatsLoading } = getOrganisationDashboard(
         !isAdmin && hasActiveOrg,
     );
@@ -39,19 +37,15 @@ export default function Dashboard() {
     // Therefore, it's safe to assume that at this point, the user is already authenticated.
     useEffect(() => {
         if (isActiveOrganizationPending) return; // stay while waiting for the active organisation to load
-        if (isAdmin) return; // if the user is an admin, stay. No redirect needed. Stay.
-        if (!isUserLoading && !isActiveOrganizationPending && !activeOrganization) router.replace("/onboarding");  // at this point, if the user is not an admin and has no active organisation, redirect to onboarding
-    }, [isActiveOrganizationPending, isAdmin, activeOrganization, router]);
+        if (isAdmin) return; // if the user is an admin, stay. No redirect needed.
+        if (!isUserLoading && !userError && !isActiveOrganizationPending && !activeOrganization) router.replace("/onboarding");  // at this point, if the user is not an admin and has no active organisation, redirect to onboarding
+    }, [isActiveOrganizationPending, isAdmin, activeOrganization, router, isUserLoading, userError]);
 
-    // Non admins: never show dashboard skeleton until the active organisation is loaded
-    if (!isAdmin && isActiveOrganizationPending) return null;
-
-    // If they do nothave an active organisation, return null
-    // Gate the dashboard content while redirecting to onboarding
-    if (!isAdmin && !activeOrganization) return null;
+    // Non admins: never show dashboard skeleton until the active organisation is loaded (Gates the dashboard content while redirecting to onboarding)
+    if (!isAdmin && (isActiveOrganizationPending || !activeOrganization)) return null;
 
     // If the the active organisation is pending, or the user is not an admin and the dashboard stats are loading, show the loading screen
-    if (!isAdmin && isDashboardStatsLoading) {
+    if (!isAdmin && (isActiveOrganizationPending || isDashboardStatsLoading)) {
         return (
             <main className="min-h-screen w-full bg-background px-4 py-6 md:px-6 md:py-10">
                 <div className="mx-auto w-full max-w-5xl">
@@ -63,29 +57,29 @@ export default function Dashboard() {
 
     // Dashboard card data
     const dashboardItems = [
-        { title: "Enrolled Students", value: dashboardStats.enrolledStudents },
-        { title: "Subjects Offered", value: dashboardStats.subjectsOffered },
-        { title: "Pending Requests", value: dashboardStats.pendingRequests },
-        { title: "Approved Requests", value: dashboardStats.approvedRequests },
+        { title: "Teachers", value: dashboardStats.numberOfTeachers},
+        { title: "Join Requests", value: dashboardStats.numberOfOnboardingRequests},
+        { title: "Pending Requests", value: dashboardStats.numberOfPendingRequests},
+        { title: "Approved Requests", value: dashboardStats.numberOfApprovedRequests},
     ]
 
     return (
         <main className="min-h-screen w-full bg-background px-4 py-6 md:px-6 md:py-10">
-            <div className="mx-auto w-full max-w-5xl space-y-10">
+            <div className="mx-auto w-full max-w-5xl">
                 {/* Page Header */}
 
                 {/* Security setup modal — shown once if 2FA is not yet enabled */}
                 <SecuritySetupModal />
 
                 {/* Welcome title: Everyone gets a welcome! */}
-                <h1 className="text-3xl font-bold tracking-tight text-foreground">
+                <h1 className="text-3xl font-bold tracking-tight text-foreground mt-10 mb-1">
                     Welcome, {user ? user.firstName.charAt(0).toUpperCase() + user.firstName.slice(1) : ''}
                 </h1>
 
 
                 {/* ----------ADMIN DASHBOARD ------------ */}
                 {/* Manage users: admins */}
-                {isAdmin && <><section className="space-y-1">
+                {isAdmin && <><section>
                     <p className="text-sm text-muted-foreground">
                         Manage users in your application
                     </p>
@@ -97,7 +91,7 @@ export default function Dashboard() {
                 {/* ----------ORGANISATION ADMIN & USER DASHBOARD ------------ */}
                 {/* Stats Card: orgadmins and users*/}
                 {(isOrgAdmin || isUser) && (
-                    <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <section className="grid grid-cols-2 gap-3 md:grid-cols-4 mb-8">
                         {dashboardItems.map((item) => (
                             <DashboardCard key={item.title} title={item.title} value={item.value} />
                         ))}

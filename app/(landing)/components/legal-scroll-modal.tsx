@@ -43,7 +43,6 @@ export function LegalScrollModal({
   open,
   onOpenChange,
   title,
-  effectiveDate,
   intro,
   subtitle,
   sections,
@@ -58,9 +57,9 @@ export function LegalScrollModal({
       >
         <DialogHeader className="shrink-0 space-y-1 border-b border-border px-6 py-5 pr-12 text-left">
           <DialogTitle className="text-xl">{title}</DialogTitle>
-          {effectiveDate && (
+          {/* {effectiveDate && (
             <p className="text-sm text-muted-foreground">Effective date: {effectiveDate}</p>
-          )}
+          )} */}
           {subtitle && (
             <p className="text-sm font-medium leading-relaxed text-foreground/90">{subtitle}</p>
           )}

@@ -22,7 +22,7 @@ export function Hero() {
 
             <div className="mt-7 flex flex-wrap justify-center gap-2 lg:justify-start">
               <BtnPrimary href="#contact-form">Book a demo</BtnPrimary>
-              <BtnGhost href="/sign-in">Get Started</BtnGhost>
+              <BtnGhost href="/sign-up">Get Started</BtnGhost>
             </div>
           </div>
 

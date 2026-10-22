@@ -60,7 +60,7 @@ export type Numbers = {
 }
 export const ourNumbers: Numbers = {
   teachers: 20,
-  institutions: 3,
+  institutions: 2,
   availability_sla: 99.9,
   sustainable_commitment: 250000,
 }
@@ -77,52 +77,36 @@ export type Testimonial = {
 export const testimonials: Testimonial[] = [
   {
     quote:
-      "We used to lose the first fortnight of every term to collating marks. This year the broadsheet was signed off four days after the last paper, and I spent the rest of the week on timetabling instead.",
-    initials: "KG",
+      "I have great confidence in SMAA. My son started reading and writing in Nursery 2. I can recommend the School to whoever wants qualitative and excellent Education for their children any day.",
+    initials: "AE",
     colour: "#9a3d50",
-    name: "Adaeze Nwosu",
-    role: "Exam officer, Kestrel Grammar School",
+    name: "Amarachi Ezenwaka",
+    role: "Administrator",
   },
   {
     quote:
-      "Our CGPA rules have six exceptions and every vendor before this one told us to change them. Tabula let us configure the exceptions in an afternoon, and the numbers came out matching our old manual sheets exactly.",
-    initials: "AP",
+      "I am super proud to be a staff of this great school. The curriculum is second to none and each child is treated with care. The management team is awesome, they make sure that the staff are given good training for the job by organising workshops and training sessions.",
+    initials: "TJ",
     colour: "var(--primary)",
-    name: "Dr Martin Oyelaran",
-    role: "Registrar, Ashford Polytechnic",
+    name: "Terwase Ngufan Jessica",
+    role: "Teacher",
   },
   {
     quote:
-      "Sixty thousand candidates hit the portal in the first hour and nothing wobbled. What sold the board, though, was the audit log — every mark change has a name and a timestamp against it.",
-    initials: "CA",
+      "SMAAM offers you so many opportunities for growth. Workshops/Seminars by Certified teachers are organised at the beginning of every Session. Incentives are given to both staff and students at intervals as a form of encouragement. Overall, it is a fun place to work in",
+    initials: "MJ",
     colour: "#6d4aa8",
-    name: "Priya Raghavan",
-    role: "Head of technology, Institute of Chartered Analysts",
+    name: "Mrs. Mokwe Jeraldine",
+    role: "Teacher",
   },
   {
     quote:
-      "Nine years of results sat in spreadsheets across four shared drives. They imported all of it, reconciled it against our printed transcripts and showed us the twelve rows that did not match.",
-    initials: "NA",
+      "I celebrate you great TEACHERS of ST MICHAEL THE ARCHANGEL. Your impactful knowledge is highly recognized and appreciated. Remain blessed.",
+    initials: "SE",
     colour: "var(--chart-3)",
-    name: "Peter Marsh",
-    role: "Data lead, Northgate Academy Trust",
+    name: "Stella Ezenwaka",
+    role: "Proprietress",
   },
-  {
-    quote:
-      "Nine years of results sat in spreadsheets across four shared drives. They imported all of it, reconciled it against our printed transcripts and showed us the twelve rows that did not match.",
-    initials: "NA",
-    colour: "var(--chart-3)",
-    name: "Helen Marsh",
-    role: "Data lead, Northgate Academy Trust",
-  },
-  {
-    quote:
-      "Nine years of results sat in spreadsheets across four shared drives. They imported all of it, reconciled it against our printed transcripts and showed us the twelve rows that did not match.",
-    initials: "NA",
-    colour: "var(--chart-3)",
-    name: "Helen Ojukwu",
-    role: "Data lead, Northgate Academy Trust",
-  }
 ];
 
 

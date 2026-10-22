@@ -41,7 +41,7 @@ export function LandingNav() {
           <ModeToggle />
 
           {/* Get started button */}
-          <BtnPrimary href="/sign-in" className="px-3.5 py-2 text-[0.88rem] max-[760px]:hidden">
+          <BtnPrimary href="/sign-up" className="px-3.5 py-2 text-[0.88rem] max-[760px]:hidden">
             Get Started
           </BtnPrimary>
 

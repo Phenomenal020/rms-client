@@ -34,7 +34,6 @@ export function CompanyLegalModals({
         open={active === "privacy"}
         onOpenChange={setOpen("privacy")}
         title={privacyModalContent.title}
-        effectiveDate={privacyModalContent.effectiveDate}
         intro={privacyModalContent.intro}
         sections={privacyModalContent.sections}
       />
